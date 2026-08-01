@@ -1,39 +1,28 @@
-<nav class="border-end bg-white" style="width:240px; min-height:calc(100vh - 96px);">
+<nav class="sidebar">
 
-    <div class="p-3">
-
-        <div class="mb-4">
-
-            <h4 class="fw-bold mb-0">
-                RentalManager
-            </h4>
-
-            <small class="text-muted">
-                HSI Rents
-            </small>
-
-        </div>
-
-        <div class="nav flex-column">
-
-            <a href="/" class="nav-link {% if current_page == 'dashboard' %}active{% endif %}">
-                📊 Dashboard
-            </a>
-
-            <a href="/calendar/" class="nav-link {% if current_page == 'calendar' %}active{% endif %}">
-                🗓 Calendario
-            </a>
-
-            <a href="/rooms/" class="nav-link {% if current_page == 'rooms' %}active{% endif %}">
-                🏠 Habitaciones
-            </a>
-
-            <a href="/settings/" class="nav-link {% if current_page == 'settings' %}active{% endif %}">
-                ⚙ Configuración
-            </a>
-
-        </div>
-
+    <div class="sidebar-logo">
+        <h2>RentalManager</h2>
+        <small>HSI Rents</small>
     </div>
+
+    <ul class="sidebar-menu">
+
+        <li class="{% if current_page == 'dashboard' %}active{% endif %}">
+            <a href="/">Dashboard</a>
+        </li>
+
+        <li class="{% if current_page == 'gantt' %}active{% endif %}">
+            <a href="/gantt/">Gantt</a>
+        </li>
+
+        <li class="{% if current_page == 'properties' %}active{% endif %}">
+            <a href="/properties/">Propiedades</a>
+        </li>
+
+        <li class="{% if current_page == 'settings' %}active{% endif %}">
+            <a href="/settings/">Configuración</a>
+        </li>
+
+    </ul>
 
 </nav>
