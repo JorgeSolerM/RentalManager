@@ -1,15 +1,39 @@
-<nav class="sidebar">
+<nav class="border-end bg-white" style="width:240px; min-height:calc(100vh - 96px);">
 
-    <ul>
+    <div class="p-3">
 
-        <li>📊 Dashboard</li>
+        <div class="mb-4">
 
-        <li>🗓 Calendario</li>
+            <h4 class="fw-bold mb-0">
+                RentalManager
+            </h4>
 
-        <li>🏠 Habitaciones</li>
+            <small class="text-muted">
+                HSI Rents
+            </small>
 
-        <li>⚙ Configuración</li>
+        </div>
 
-    </ul>
+        <div class="nav flex-column">
+
+            <a href="/" class="nav-link {% if current_page == 'dashboard' %}active{% endif %}">
+                📊 Dashboard
+            </a>
+
+            <a href="/calendar/" class="nav-link {% if current_page == 'calendar' %}active{% endif %}">
+                🗓 Calendario
+            </a>
+
+            <a href="/rooms/" class="nav-link {% if current_page == 'rooms' %}active{% endif %}">
+                🏠 Habitaciones
+            </a>
+
+            <a href="/settings/" class="nav-link {% if current_page == 'settings' %}active{% endif %}">
+                ⚙ Configuración
+            </a>
+
+        </div>
+
+    </div>
 
 </nav>
