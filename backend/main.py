@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+
+from backend.api.routers import dashboard, calendar, rooms, settings
 
 app = FastAPI(
     title="RentalManager",
@@ -13,18 +14,7 @@ app.mount(
     name="static"
 )
 
-templates = Jinja2Templates(directory="backend/templates")
-
-
-@app.get("/")
-def dashboard(request: Request):
-
-    return templates.TemplateResponse(
-        request=request,
-        name="pages/dashboard.html",
-        context={
-            "request": request,
-            "version": app.version,
-            "current_page": "dashboard",
-        },
-    )
+app.include_router(dashboard.router)
+app.include_router(calendar.router)
+app.include_router(rooms.router)
+app.include_router(settings.router)
