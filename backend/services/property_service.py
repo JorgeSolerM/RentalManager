@@ -10,10 +10,42 @@ class PropertyService:
 
         self.property_repository = PropertyRepository()
 
-    def list_properties(self, db: Session) -> list[Property]:
+    def list_properties(
+        self,
+        db: Session,
+    ) -> list[Property]:
 
         return self.property_repository.get_all(db)
 
-    def create_property(self, db: Session, property_obj: Property) -> Property:
+    def get_property(
+        self,
+        db: Session,
+        property_id: int,
+    ) -> Property | None:
 
-        return self.property_repository.create(db, property_obj)
+        return self.property_repository.get_by_id(
+            db,
+            property_id,
+        )
+
+    def create_property(
+        self,
+        db: Session,
+        property_obj: Property,
+    ) -> Property:
+
+        return self.property_repository.create(
+            db,
+            property_obj,
+        )
+
+    def update_property(
+        self,
+        db: Session,
+        property_obj: Property,
+    ) -> Property:
+
+        return self.property_repository.update(
+            db,
+            property_obj,
+        )

@@ -8,7 +8,7 @@
 
     <h1>Propiedades</h1>
 
-    <button type="button" class="btn-primary" onclick="openPropertyModal()">
+    <button type="button" class="btn-primary" onclick="openCreatePropertyModal()">
         + Nueva propiedad
     </button>
 
@@ -19,12 +19,18 @@
 <table class="table">
 
     <thead>
+
         <tr>
+
             <th>Nombre</th>
             <th>Ciudad</th>
             <th>Propietario</th>
             <th>Activa</th>
+            <th>Habitaciones</th>
+            <th>Acciones</th>
+
         </tr>
+
     </thead>
 
     <tbody>
@@ -49,6 +55,19 @@
 
             </td>
 
+            <td>
+                0
+            </td>
+
+            <td>
+
+                <button type="button" class="btn-secondary" onclick="editProperty({{ property.id }})"
+                    title="Editar propiedad">
+                    ✏️
+                </button>
+
+            </td>
+
         </tr>
 
         {% endfor %}
@@ -64,25 +83,5 @@
 {% endif %}
 
 {% include "components/property_modal.html" %}
-
-<script>
-
-    function openPropertyModal() {
-
-        document
-            .getElementById("property-modal")
-            .classList.remove("hidden");
-
-    }
-
-    function closePropertyModal() {
-
-        document
-            .getElementById("property-modal")
-            .classList.add("hidden");
-
-    }
-
-</script>
 
 {% endblock %}

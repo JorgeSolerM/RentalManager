@@ -12,10 +12,41 @@ class PropertyRepository:
 
         return db.scalars(statement).all()
 
-    def create(self, db: Session, property_obj: Property) -> Property:
+    def get_by_id(
+        self,
+        db: Session,
+        property_id: int,
+    ) -> Property | None:
+
+        statement = (
+            select(Property)
+            .where(Property.id == property_id)
+        )
+
+        return db.scalar(statement)
+
+    def create(
+        self,
+        db: Session,
+        property_obj: Property,
+    ) -> Property:
 
         db.add(property_obj)
+
         db.commit()
+
+        db.refresh(property_obj)
+
+        return property_obj
+
+    def update(
+        self,
+        db: Session,
+        property_obj: Property,
+    ) -> Property:
+
+        db.commit()
+
         db.refresh(property_obj)
 
         return property_obj
