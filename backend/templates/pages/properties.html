@@ -1,8 +1,88 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Habitaciones{% endblock %}
+{% block title %}Propiedades{% endblock %}
 
 {% block content %}
-<h2>Habitaciones</h2>
-<p>En construcción...</p>
+
+<div class="page-header">
+
+    <h1>Propiedades</h1>
+
+    <button type="button" class="btn-primary" onclick="openPropertyModal()">
+        + Nueva propiedad
+    </button>
+
+</div>
+
+{% if properties %}
+
+<table class="table">
+
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Ciudad</th>
+            <th>Propietario</th>
+            <th>Activa</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        {% for property in properties %}
+
+        <tr>
+
+            <td>{{ property.name }}</td>
+
+            <td>{{ property.city }}</td>
+
+            <td>{{ property.owner }}</td>
+
+            <td>
+
+                {% if property.active %}
+                🟢
+                {% else %}
+                ⚪
+                {% endif %}
+
+            </td>
+
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% else %}
+
+<p>No hay propiedades registradas.</p>
+
+{% endif %}
+
+{% include "components/property_modal.html" %}
+
+<script>
+
+    function openPropertyModal() {
+
+        document
+            .getElementById("property-modal")
+            .classList.remove("hidden");
+
+    }
+
+    function closePropertyModal() {
+
+        document
+            .getElementById("property-modal")
+            .classList.add("hidden");
+
+    }
+
+</script>
+
 {% endblock %}

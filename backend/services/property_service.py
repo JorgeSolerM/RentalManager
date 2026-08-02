@@ -8,8 +8,12 @@ class PropertyService:
 
     def __init__(self):
 
-        self.repository = PropertyRepository()
+        self.property_repository = PropertyRepository()
 
-    def get_all(self, db: Session) -> list[Property]:
+    def list_properties(self, db: Session) -> list[Property]:
 
-        return self.repository.get_all(db)
+        return self.property_repository.get_all(db)
+
+    def create_property(self, db: Session, property_obj: Property) -> Property:
+
+        return self.property_repository.create(db, property_obj)

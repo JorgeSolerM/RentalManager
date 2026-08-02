@@ -1,4 +1,4 @@
-from sqlalchemy import String
+from sqlalchemy import Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database.base import Base
@@ -7,34 +7,18 @@ from backend.database.base import Base
 class Property(Base):
     __tablename__ = "properties"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
-    name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        unique=True,
-    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    address: Mapped[str] = mapped_column(
-        String(200),
-        nullable=False,
-    )
+    alias: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
-    city: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
+    address: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    postal_code: Mapped[str] = mapped_column(
-        String(10),
-        nullable=False,
-    )
+    city: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    owner: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
+    owner: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    active: Mapped[bool] = mapped_column(
-        default=True,
-    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
