@@ -112,6 +112,40 @@ def create_property(
     )
 
 
+@router.post("/toggle/{property_id}")
+def toggle_property(property_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        property_obj = property_service.get_property(
+            db,
+            property_id,
+        )
+
+        if property_obj is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Propiedad no encontrada.",
+            )
+
+        property_obj = property_service.toggle_property(
+            db,
+            property_obj,
+        )
+
+        return {
+            "success": True,
+            "active": property_obj.active,
+        }
+
+    finally:
+
+        db.close()
+
+
 @router.post("/update/{property_id}")
 def update_property(
     property_id: int,

@@ -49,3 +49,16 @@ class PropertyService:
             db,
             property_obj,
         )
+
+    def toggle_property(
+        self,
+        db: Session,
+        property_obj: Property,
+    ) -> Property:
+
+        property_obj.active = not property_obj.active
+
+        return self.property_repository.update(
+            db,
+            property_obj,
+        )

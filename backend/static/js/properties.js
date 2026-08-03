@@ -107,3 +107,77 @@ async function editProperty(propertyId) {
     }
 
 }
+
+
+function initializePropertySwitches() {
+
+    const switches = document.querySelectorAll(".rm-switch-input");
+
+    switches.forEach((element) => {
+
+        element.addEventListener("change", async () => {
+
+            const propertyId = element.dataset.propertyId;
+
+            try {
+
+                const response = await fetch(
+
+                    `/properties/toggle/${propertyId}`,
+
+                    {
+                        method: "POST"
+                    }
+
+                );
+
+                if (!response.ok) {
+
+                    throw new Error();
+
+                }
+
+                const result = await response.json();
+
+                if (result.active) {
+
+                    RMToast.success(
+                        "Propiedad activada."
+                    );
+
+                }
+
+                else {
+
+                    RMToast.success(
+                        "Propiedad desactivada."
+                    );
+
+                }
+
+            }
+
+            catch (error) {
+
+                console.error(error);
+
+                element.checked = !element.checked;
+
+                RMToast.error(
+                    "No se ha podido actualizar la propiedad."
+                );
+
+            }
+
+        });
+
+    });
+
+}
+
+
+/* ============================================
+   INICIALIZACIÓN
+============================================ */
+
+initializePropertySwitches();
