@@ -1,0 +1,63 @@
+<div id="room-modal" class="rm-modal hidden">
+
+    <div class="rm-modal-content">
+
+        <div class="rm-modal-header">
+
+            <h2 id="room-modal-title">
+                Nueva habitación
+            </h2>
+
+        </div>
+
+        <form id="room-form" action="/rooms/create" method="post">
+
+            <input type="hidden" id="property_id" name="property_id">
+
+            <div class="form-group">
+
+                <label for="code">
+                    Código *
+                </label>
+
+                <input type="text" id="code" name="code" required>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="base_price">
+                    Precio base (€) *
+                </label>
+
+                <input type="number" id="base_price" name="base_price" step="0.01" min="0" required>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="square_meters">
+                    Metros cuadrados
+                </label>
+
+                <input type="number" id="square_meters" name="square_meters" step="0.01" min="0">
+
+            </div>
+
+            <div class="rm-modal-actions">
+
+                <button type="button" class="btn-secondary" onclick="closeRoomModal()">
+                    Cancelar
+                </button>
+
+                <button id="room-modal-submit" type="submit" class="btn-primary">
+                    Guardar
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>

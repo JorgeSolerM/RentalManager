@@ -1,4 +1,5 @@
 from backend.models.property import Property
+from backend.models.room import Room  # noqa: F401
 
 from backend.database.base import Base
 from backend.database.session import engine

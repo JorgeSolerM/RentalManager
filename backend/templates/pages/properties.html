@@ -8,9 +8,13 @@
 
     <h1>Propiedades</h1>
 
-    <button type="button" class="btn-primary" onclick="openCreatePropertyModal()">
-        + Nueva propiedad
-    </button>
+    <div class="page-header-actions">
+
+        <button type="button" class="btn-primary" onclick="openCreatePropertyModal()">
+            + Nueva propiedad
+        </button>
+
+    </div>
 
 </div>
 
@@ -64,6 +68,11 @@
 
             <td>
 
+                <button type="button" class="btn-secondary"
+                    onclick="window.location.href='/rooms/property/{{ property.id }}'" title="Gestionar habitaciones">
+                    🚪 Habitaciones
+                </button>
+
                 <button type="button" class="btn-secondary" onclick="editProperty({{ property.id }})"
                     title="Editar propiedad">
                     ✏️
@@ -81,7 +90,13 @@
 
 {% else %}
 
-<p>No hay propiedades registradas.</p>
+{% with
+message="No hay propiedades registradas."
+%}
+
+{% include "components/rm_empty_state.html" %}
+
+{% endwith %}
 
 {% endif %}
 

@@ -6,6 +6,7 @@ from backend.api.routers import (
     dashboard,
     gantt,
     properties,
+    rooms,
     settings,
 )
 
@@ -25,4 +26,5 @@ app.mount(
 app.include_router(dashboard.router)
 app.include_router(gantt.router)
 app.include_router(properties.router)
+app.include_router(rooms.router)
 app.include_router(settings.router)

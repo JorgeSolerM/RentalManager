@@ -13,6 +13,23 @@ class RoomRepository:
 
         statement = (
             select(Room)
+            .order_by(
+                Room.property_id,
+                Room.display_order,
+            )
+        )
+
+        return db.scalars(statement).all()
+
+    def get_by_property(
+        self,
+        db: Session,
+        property_id: int,
+    ) -> list[Room]:
+
+        statement = (
+            select(Room)
+            .where(Room.property_id == property_id)
             .order_by(Room.display_order)
         )
 

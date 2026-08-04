@@ -15,8 +15,17 @@ class RoomService:
         db: Session,
     ) -> list[Room]:
 
-        return self.room_repository.get_all(
+        return self.room_repository.get_all(db)
+
+    def list_rooms_by_property(
+        self,
+        db: Session,
+        property_id: int,
+    ) -> list[Room]:
+
+        return self.room_repository.get_by_property(
             db,
+            property_id,
         )
 
     def get_room(

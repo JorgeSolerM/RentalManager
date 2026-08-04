@@ -1,5 +1,5 @@
 from sqlalchemy import ForeignKey, Integer, Numeric, String, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database.base import Base
 
@@ -45,7 +45,4 @@ class Room(Base):
         nullable=False,
     )
 
-    property = relationship(
-        "Property",
-        back_populates="rooms",
-    )
+

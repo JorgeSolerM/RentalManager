@@ -4,61 +4,73 @@
 
 :root {
 
-    /* =================================================
+   /* =================================================
        COLORES PRINCIPALES
     ================================================= */
 
-    --rm-primary: #6B8E23;
-    --rm-primary-light: #88A94A;
+   --rm-primary: #6B8E23;
+   --rm-primary-light: #88A94A;
 
-    --rm-warning: #C96A3D;
+   --rm-warning: #C96A3D;
 
-    --rm-error: #8A2E2E;
+   --rm-error: #8A2E2E;
 
-    --rm-info: #C89B5C;
+   --rm-info: #C89B5C;
 
 
-    /* =================================================
+   /* =================================================
        GRISES
     ================================================= */
 
-    --rm-white: #FFFFFF;
+   --rm-white: #FFFFFF;
 
-    --rm-background: #F8F9FA;
+   --rm-background: #F8F9FA;
 
-    --rm-border: #D9D9D9;
+   --rm-border: #D9D9D9;
 
-    --rm-text: #444444;
+   --rm-text: #444444;
 
-    --rm-text-light: #777777;
+   --rm-text-light: #777777;
 
 
-    /* =================================================
+   /* =================================================
        SOMBRAS
     ================================================= */
 
-    --rm-shadow:
+   --rm-shadow:
 
-        0 10px 25px rgba(0, 0, 0, .15);
+      0 10px 25px rgba(0, 0, 0, .15);
 
 
-    /* =================================================
+   /* =================================================
        RADIOS
     ================================================= */
 
-    --rm-radius-small: 6px;
+   --rm-radius-small: 6px;
 
-    --rm-radius: 10px;
+   --rm-radius: 10px;
 
-    --rm-radius-large: 14px;
+   --rm-radius-large: 14px;
 
 
-    /* =================================================
+   /* =================================================
        TRANSICIONES
     ================================================= */
 
-    --rm-transition-fast: .20s;
+   --rm-transition-fast: .20s;
 
-    --rm-transition: .30s;
+   --rm-transition: .30s;
+
+}
+
+.empty-state {
+
+   padding: 3rem;
+
+   text-align: center;
+
+   color: var(--rm-text-secondary);
+
+   font-style: italic;
 
 }

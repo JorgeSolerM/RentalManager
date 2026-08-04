@@ -1,0 +1,89 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Habitaciones{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <h1>
+        Habitaciones - {{ property.name }}
+    </h1>
+
+    <button type="button" class="btn-primary" onclick="openCreateRoomModal({{ property.id }})">
+        + Nueva habitación
+    </button>
+
+</div>
+
+{% if rooms %}
+
+<table class="table">
+
+    <thead>
+
+        <tr>
+
+            <th>Código</th>
+            <th>Precio base</th>
+            <th>m²</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+        {% for room in rooms %}
+
+        <tr>
+
+            <td>{{ room.code }}</td>
+
+            <td>{{ room.base_price }} €</td>
+
+            <td>{{ room.square_meters or "-" }}</td>
+
+            <td>
+
+                {% if room.active %}
+                🟢
+                {% else %}
+                ⚪
+                {% endif %}
+
+            </td>
+
+            <td>
+
+                <button type="button" class="btn-secondary" title="Editar habitación">
+                    ✏️
+                </button>
+
+            </td>
+
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% else %}
+
+{% with
+message="Esta propiedad todavía no tiene habitaciones."
+%}
+
+{% include "components/rm_empty_state.html" %}
+
+{% endwith %}
+
+{% endif %}
+
+{% include "components/room_modal.html" %}
+
+{% endblock %}
