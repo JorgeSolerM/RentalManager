@@ -3,9 +3,8 @@ from pathlib import Path
 from backend.database.base import Base
 from backend.database.session import engine
 
-# Importar los modelos para que SQLAlchemy los registre
-from backend.models.property import Property  # noqa: F401
-from backend.models.room import Room  # noqa: F401
+# Registrar todos los modelos
+import backend.models  # noqa: F401
 
 
 def init_db():
