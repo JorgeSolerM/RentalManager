@@ -13,7 +13,7 @@ DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
 
 engine = create_engine(
     DATABASE_URL,
-    echo=False,
+    echo=False,  # Cambiar a True para depuración SQL
     connect_args={"check_same_thread": False},
 )
 

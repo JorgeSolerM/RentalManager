@@ -2,9 +2,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models.property import Property
+from backend.repositories.base_repository import BaseRepository
 
 
-class PropertyRepository:
+class PropertyRepository(BaseRepository):
 
     def get_all(self, db: Session) -> list[Property]:
 
@@ -25,28 +26,4 @@ class PropertyRepository:
 
         return db.scalar(statement)
 
-    def create(
-        self,
-        db: Session,
-        property_obj: Property,
-    ) -> Property:
 
-        db.add(property_obj)
-
-        db.commit()
-
-        db.refresh(property_obj)
-
-        return property_obj
-
-    def update(
-        self,
-        db: Session,
-        property_obj: Property,
-    ) -> Property:
-
-        db.commit()
-
-        db.refresh(property_obj)
-
-        return property_obj
