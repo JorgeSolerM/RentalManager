@@ -28,6 +28,17 @@ class RoomService:
             property_id,
         )
 
+    def count_rooms_by_property(
+        self,
+        db: Session,
+        property_id: int,
+    ) -> int:
+
+        return self.room_repository.count_by_property(
+            db,
+            property_id,
+        )
+
     def get_room(
         self,
         db: Session,

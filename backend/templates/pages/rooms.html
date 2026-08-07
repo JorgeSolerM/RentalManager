@@ -40,7 +40,13 @@
 
         <tr>
 
-            <td>{{ room.code }}</td>
+            <td>
+
+                <a href="/rooms/{{ room.id }}" class="rm-object-link">
+                    {{ room.code }}
+                </a>
+
+            </td>
 
             <td>{{ room.base_price }} €</td>
 
@@ -56,13 +62,7 @@
 
             </td>
 
-            <td>
 
-                <button type="button" class="btn-secondary" title="Editar habitación">
-                    ✏️
-                </button>
-
-            </td>
 
         </tr>
 

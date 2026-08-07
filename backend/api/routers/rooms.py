@@ -58,6 +58,53 @@ def list_rooms(
         db.close()
 
 
+# ------------------------------------------------------------------
+# NUEVO ENDPOINT
+# ------------------------------------------------------------------
+
+@router.get("/{room_id}")
+def room_workspace(
+    request: Request,
+    room_id: int,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        room = room_service.get_room(
+            db,
+            room_id,
+        )
+
+        if room is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Habitación no encontrada.",
+            )
+
+        property_obj = property_service.get_property(
+            db,
+            room.property_id,
+        )
+
+        return templates.TemplateResponse(
+            request=request,
+            name="pages/room_workspace.html",
+            context={
+                "request": request,
+                "current_page": "rooms",
+                "room": room,
+                "property": property_obj,
+            },
+        )
+
+    finally:
+
+        db.close()
+
+
 @router.post("/create")
 def create_room(
     property_id: int = Form(...),

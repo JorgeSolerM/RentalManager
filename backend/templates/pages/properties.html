@@ -39,22 +39,28 @@
 
     <tbody>
 
-        {% for property in properties %}
+        {% for item in properties %}
 
         <tr>
 
-            <td>{{ property.name }}</td>
+            <td>
 
-            <td>{{ property.city }}</td>
+                <a href="/rooms/property/{{ item.property.id }}" class="rm-object-link">
+                    {{ item.property.name }}
+                </a>
 
-            <td>{{ property.owner }}</td>
+            </td>
+
+            <td>{{ item.property.city }}</td>
+
+            <td>{{ item.property.owner }}</td>
 
             <td>
 
                 <label class="rm-switch">
 
-                    <input type="checkbox" class="rm-switch-input" data-property-id="{{ property.id }}" {% if
-                        property.active %}checked{% endif %}>
+                    <input type="checkbox" class="rm-switch-input" data-property-id="{{ item.property.id }}" {% if
+                        item.property.active %}checked{% endif %}>
 
                     <span class="rm-switch-slider"></span>
 
@@ -63,17 +69,16 @@
             </td>
 
             <td>
-                0
+
+                {{ item.room_count }}
+
             </td>
 
             <td>
 
-                <button type="button" class="btn-secondary"
-                    onclick="window.location.href='/rooms/property/{{ property.id }}'" title="Gestionar habitaciones">
-                    🚪 Habitaciones
-                </button>
 
-                <button type="button" class="btn-secondary" onclick="editProperty({{ property.id }})"
+
+                <button type="button" class="btn-secondary" onclick="editProperty({{ item.property.id }})"
                     title="Editar propiedad">
                     ✏️
                 </button>

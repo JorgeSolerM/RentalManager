@@ -222,3 +222,19 @@ h2 {
     display: none !important;
 
 }
+
+.rm-object-link {
+
+    color: inherit;
+
+    font-weight: 600;
+
+    text-decoration: none;
+
+}
+
+.rm-object-link:hover {
+
+    text-decoration: underline;
+
+}

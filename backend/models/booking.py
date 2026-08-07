@@ -1,0 +1,68 @@
+from datetime import date
+
+from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from backend.database.base import Base
+
+
+class Booking(Base):
+    __tablename__ = "bookings"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    room_id: Mapped[int] = mapped_column(
+        ForeignKey("rooms.id"),
+        nullable=False,
+    )
+
+    room_calendar_id: Mapped[int | None] = mapped_column(
+        ForeignKey("room_calendars.id"),
+        nullable=True,
+    )
+
+    guest_id: Mapped[int | None] = mapped_column(
+        ForeignKey("guests.id"),
+        nullable=True,
+    )
+
+    booking_type: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="reservation",
+    )
+
+    booking_origin: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="manual",
+    )
+
+    external_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    check_in: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+
+    check_out: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+
+    price: Mapped[float | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+    )
+
+    notes: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )

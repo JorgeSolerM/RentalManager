@@ -5,12 +5,14 @@ from fastapi.templating import Jinja2Templates
 from backend.database.session import SessionLocal
 from backend.models.property import Property
 from backend.services.property_service import PropertyService
+from backend.services.room_service import RoomService
 
 router = APIRouter(prefix="/properties")
 
 templates = Jinja2Templates(directory="backend/templates")
 
 property_service = PropertyService()
+room_service = RoomService()
 
 
 @router.get("/")
@@ -22,6 +24,22 @@ def list_properties(request: Request):
 
         properties = property_service.list_properties(db)
 
+        properties_data = []
+
+        for property_obj in properties:
+
+            room_count = room_service.count_rooms_by_property(
+                db,
+                property_obj.id,
+            )
+
+            properties_data.append(
+                {
+                    "property": property_obj,
+                    "room_count": room_count,
+                }
+            )
+
         return templates.TemplateResponse(
             request=request,
             name="pages/properties.html",
@@ -29,7 +47,7 @@ def list_properties(request: Request):
                 "request": request,
                 "version": "1.0.0",
                 "current_page": "properties",
-                "properties": properties,
+                "properties": properties_data,
             },
         )
 

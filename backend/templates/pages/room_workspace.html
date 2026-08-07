@@ -1,0 +1,119 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ room.code }}{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+
+        <a href="/rooms/property/{{ property.id }}" class="text-decoration-none">
+            ← {{ property.name }}
+        </a>
+
+        <h1 class="mt-2">
+
+            {{ room.code }}
+
+            {% if room.active %}
+            <span class="badge bg-success ms-3">
+                Activa
+            </span>
+            {% else %}
+            <span class="badge bg-secondary ms-3">
+                Inactiva
+            </span>
+            {% endif %}
+
+        </h1>
+
+        <div class="text-muted">
+
+            {{ property.name }} · {{ property.city }}
+
+        </div>
+
+        <div class="text-muted mt-1">
+
+            {{ room.base_price }} €/mes
+
+            {% if room.square_meters %}
+            · {{ room.square_meters }} m²
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+<ul class="nav nav-tabs mt-4">
+
+    <li class="nav-item">
+
+        <a class="nav-link active" href="#">
+            📝 Reservas
+        </a>
+
+    </li>
+
+    <li class="nav-item">
+
+        <a class="nav-link" href="#">
+            ℹ️ Estado
+        </a>
+
+    </li>
+
+    <li class="nav-item">
+
+        <a class="nav-link" href="#">
+            ⚙️ Configuración
+        </a>
+
+    </li>
+
+</ul>
+
+<div class="mt-4">
+
+    <h5>Estado actual</h5>
+
+    <p class="text-muted">
+
+        Sin información disponible.
+
+    </p>
+
+    <hr>
+
+    <h5>Salida actual</h5>
+
+    <p class="text-muted">
+
+        No hay una reserva activa.
+
+    </p>
+
+    <hr>
+
+    <h5>Próximas reservas</h5>
+
+    <p class="text-muted">
+
+        No existen reservas futuras.
+
+    </p>
+
+    <div class="text-end mt-4">
+
+        <button type="button" class="btn btn-primary">
+            + Nueva reserva
+        </button>
+
+    </div>
+
+</div>
+
+{% endblock %}

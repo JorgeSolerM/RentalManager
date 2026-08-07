@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.models.room import Room
@@ -34,6 +34,20 @@ class RoomRepository:
         )
 
         return db.scalars(statement).all()
+
+    def count_by_property(
+        self,
+        db: Session,
+        property_id: int,
+    ) -> int:
+
+        statement = (
+            select(func.count())
+            .select_from(Room)
+            .where(Room.property_id == property_id)
+        )
+
+        return db.scalar(statement) or 0
 
     def get_by_id(
         self,
