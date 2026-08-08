@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 
 from backend.database.session import SessionLocal
 from backend.models.room import Room
+from backend.services.booking_service import BookingService
 from backend.services.property_service import PropertyService
 from backend.services.room_service import RoomService
 
@@ -13,6 +14,7 @@ templates = Jinja2Templates(directory="backend/templates")
 
 property_service = PropertyService()
 room_service = RoomService()
+booking_service = BookingService()
 
 
 @router.get("/property/{property_id}")
@@ -58,10 +60,6 @@ def list_rooms(
         db.close()
 
 
-# ------------------------------------------------------------------
-# NUEVO ENDPOINT
-# ------------------------------------------------------------------
-
 @router.get("/{room_id}")
 def room_workspace(
     request: Request,
@@ -89,6 +87,16 @@ def room_workspace(
             room.property_id,
         )
 
+        current_booking = booking_service.get_current_booking(
+            db,
+            room_id,
+        )
+
+        future_bookings = booking_service.get_future_bookings(
+            db,
+            room_id,
+        )
+
         return templates.TemplateResponse(
             request=request,
             name="pages/room_workspace.html",
@@ -97,6 +105,8 @@ def room_workspace(
                 "current_page": "rooms",
                 "room": room,
                 "property": property_obj,
+                "current_booking": current_booking,
+                "future_bookings": future_bookings,
             },
         )
 

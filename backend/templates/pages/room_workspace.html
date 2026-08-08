@@ -38,10 +38,6 @@
 
             {{ room.base_price }} €/mes
 
-            {% if room.square_meters %}
-            · {{ room.square_meters }} m²
-            {% endif %}
-
         </div>
 
     </div>
@@ -51,54 +47,140 @@
 <ul class="nav nav-tabs mt-4">
 
     <li class="nav-item">
-
         <a class="nav-link active" href="#">
             📝 Reservas
         </a>
-
     </li>
 
     <li class="nav-item">
-
         <a class="nav-link" href="#">
             ℹ️ Estado
         </a>
-
     </li>
 
     <li class="nav-item">
-
         <a class="nav-link" href="#">
             ⚙️ Configuración
         </a>
-
     </li>
 
 </ul>
 
 <div class="mt-4">
 
-    <h5>Estado actual</h5>
+    {% if current_booking %}
 
-    <p class="text-muted">
+    <h5>
 
-        Sin información disponible.
+        <span class="badge bg-danger">
+            Ocupada
+        </span>
+
+    </h5>
+
+    <p>
+
+        {{ current_booking.check_in | date }}
+        →
+        {{ current_booking.check_out | date }}
+
+        ·
+
+        {{ current_booking.guest.full_name }}
+
+        ·
+
+        {% if current_booking.origin == "manual" %}
+        Manual
+        {% else %}
+        {{ current_booking.origin }}
+        {% endif %}
 
     </p>
 
     <hr>
 
-    <h5>Salida actual</h5>
+    <h5>
 
-    <p class="text-muted">
+        Siguiente salida
 
-        No hay una reserva activa.
+    </h5>
+
+    <p>
+
+        {{ current_booking.check_out | date }}
+
+        ·
+
+        {{ current_booking.guest.full_name }}
+
+        ·
+
+        {% if current_booking.origin == "manual" %}
+        Manual
+        {% else %}
+        {{ current_booking.origin }}
+        {% endif %}
 
     </p>
 
+    {% else %}
+
+    <h5>
+
+        <span class="badge bg-success">
+            Disponible
+        </span>
+
+    </h5>
+
+    <p class="text-muted">
+
+        No existe ninguna reserva activa.
+
+    </p>
+
+    {% endif %}
+
     <hr>
 
-    <h5>Próximas reservas</h5>
+    <h5>
+
+        Próximas entradas
+
+    </h5>
+
+    {% if future_bookings %}
+
+    <ul class="list-unstyled">
+
+        {% for booking in future_bookings %}
+
+        <li class="mb-2">
+
+            {{ booking.check_in | date }}
+            →
+            {{ booking.check_out | date }}
+
+            ·
+
+            {{ booking.guest.full_name }}
+
+            ·
+
+            {% if booking.origin == "manual" %}
+            Manual
+            {% else %}
+            {{ booking.origin }}
+            {% endif %}
+
+        </li>
+
+        {% endfor %}
+
+    </ul>
+
+    {% else %}
 
     <p class="text-muted">
 
@@ -106,14 +188,20 @@
 
     </p>
 
+    {% endif %}
+
     <div class="text-end mt-4">
 
-        <button type="button" class="btn btn-primary">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bookingModal">
+
             + Nueva reserva
+
         </button>
 
     </div>
 
 </div>
+
+{% include "components/booking_modal.html" %}
 
 {% endblock %}

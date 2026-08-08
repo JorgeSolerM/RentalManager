@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
 
@@ -16,11 +16,11 @@ class Guest(Base):
     full_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-# Nombre corto utilizado en la interfaz
     )
-    display_name: Mapped[str] = mapped_column(
-            String(100),
-            nullable=True,
+
+    display_name: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
     )
 
     phone: Mapped[str | None] = mapped_column(
@@ -42,4 +42,8 @@ class Guest(Base):
         Boolean,
         default=True,
         nullable=False,
+    )
+
+    bookings: Mapped[list["Booking"]] = relationship(
+        back_populates="guest",
     )

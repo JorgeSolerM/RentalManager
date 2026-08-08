@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
 
@@ -49,4 +49,7 @@ class Property(Base):
         nullable=False,
     )
 
-
+    rooms: Mapped[list["Room"]] = relationship(
+        back_populates="property",
+        order_by="Room.display_order",
+    )

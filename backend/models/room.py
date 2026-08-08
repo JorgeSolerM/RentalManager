@@ -1,5 +1,5 @@
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
 
@@ -45,4 +45,15 @@ class Room(Base):
         nullable=False,
     )
 
+    property: Mapped["Property"] = relationship(
+        back_populates="rooms",
+    )
 
+    room_calendars: Mapped[list["RoomCalendar"]] = relationship(
+        back_populates="room",
+    )
+
+    bookings: Mapped[list["Booking"]] = relationship(
+        back_populates="room",
+        order_by="Booking.check_in",
+    )

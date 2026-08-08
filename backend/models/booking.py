@@ -1,7 +1,7 @@
 from datetime import date
 
 from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
 
@@ -59,4 +59,16 @@ class Booking(Base):
     notes: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    room: Mapped["Room"] = relationship(
+        back_populates="bookings",
+    )
+
+    room_calendar: Mapped["RoomCalendar"] = relationship(
+        back_populates="bookings",
+    )
+
+    guest: Mapped["Guest"] = relationship(
+        back_populates="bookings",
     )

@@ -101,6 +101,30 @@ alembic upgrade head
 
 No se recomienda modificar la base de datos manualmente.
 
+## Migraciones
+
+Crear una migración:
+
+```bash
+alembic revision --autogenerate -m "Descripción"
+```
+
+Revisar siempre el contenido antes de aplicarla.
+
+Si la migración solo contiene:
+
+```python
+pass
+```
+
+debe eliminarse, ya que no introduce cambios en la base de datos.
+
+Aplicar una migración:
+
+```bash
+alembic upgrade head
+```
+
 ---
 
 # Filosofía del proyecto

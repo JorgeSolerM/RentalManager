@@ -1,0 +1,110 @@
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
+
+    <div class="modal-dialog">
+
+        <form class="modal-content" method="post" action="/bookings/create">
+
+            <input type="hidden" name="room_id" value="{{ room.id }}">
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+
+                    Nueva reserva
+
+                </h5>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+
+                        Huésped
+
+                    </label>
+
+                    <input type="text" class="form-control" name="guest_name" required autofocus>
+
+                </div>
+
+                <div class="row">
+
+                    <div class="col">
+
+                        <label class="form-label">
+
+                            Entrada
+
+                        </label>
+
+                        <input type="date" class="form-control" name="check_in" required>
+
+                    </div>
+
+                    <div class="col">
+
+                        <label class="form-label">
+
+                            Salida
+
+                        </label>
+
+                        <input type="date" class="form-control" name="check_out" required>
+
+                    </div>
+
+                </div>
+
+                <div class="mt-3">
+
+                    <label class="form-label">
+
+                        Precio
+
+                    </label>
+
+                    <input type="number" step="0.01" class="form-control" name="price">
+
+                </div>
+
+                <div class="mt-3">
+
+                    <label class="form-label">
+
+                        Notas
+
+                    </label>
+
+                    <textarea class="form-control" rows="3" name="notes"></textarea>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+
+                    Cancelar
+
+                </button>
+
+                <button type="submit" class="btn btn-primary">
+
+                    Guardar
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>

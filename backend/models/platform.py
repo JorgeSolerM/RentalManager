@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
 
@@ -45,4 +45,8 @@ class Platform(Base):
         Boolean,
         default=True,
         nullable=False,
+    )
+
+    room_calendars: Mapped[list["RoomCalendar"]] = relationship(
+        back_populates="platform",
     )

@@ -8,7 +8,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
 
@@ -59,4 +59,16 @@ class RoomCalendar(Base):
     last_sync_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True,
+    )
+
+    room: Mapped["Room"] = relationship(
+        back_populates="room_calendars",
+    )
+
+    platform: Mapped["Platform"] = relationship(
+        back_populates="room_calendars",
+    )
+
+    bookings: Mapped[list["Booking"]] = relationship(
+        back_populates="room_calendar",
     )
