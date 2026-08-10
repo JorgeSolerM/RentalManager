@@ -1,172 +1,170 @@
 # RentalManager
-# Visión del Proyecto
 
-Versión: 1.0
+## Visión del proyecto
 
----
+RentalManager es una aplicación diseñada para ayudar a propietarios y gestores de alojamientos a administrar habitaciones y reservas procedentes de múltiples plataformas de alquiler.
 
-# ¿Qué es RentalManager?
+No pretende sustituir a dichas plataformas ni convertirse en el origen de toda la información, sino ofrecer una visión unificada, fiable y operativa del estado real de cada alojamiento.
 
-RentalManager es una aplicación de escritorio diseñada para gestionar alquileres por habitaciones de forma sencilla, rápida y segura.
-
-Su objetivo principal es unificar la información procedente de distintas plataformas de alquiler mediante calendarios iCal y convertirla en una herramienta de gestión diaria.
-
-RentalManager no pretende ser únicamente un agregador de calendarios.
-
-Pretende convertirse en el centro de operaciones del negocio.
+Su objetivo es reducir errores, detectar conflictos y facilitar la toma de decisiones diarias del gestor.
 
 ---
 
-# Objetivo principal
+# Problema que resuelve
 
-Reducir el tiempo dedicado a la gestión diaria de los alquileres.
+Un mismo alojamiento puede anunciarse simultáneamente en varias plataformas.
 
-Cada nueva funcionalidad deberá cumplir al menos uno de estos objetivos:
+Cada una de ellas mantiene su propia información, sus propios calendarios y sus propias reservas.
 
-- ahorrar tiempo;
-- reducir errores;
-- mejorar la información disponible para tomar decisiones.
+Además, el gestor puede realizar reservas manuales, bloqueos o modificaciones internas.
 
----
+Cuando el número de alojamientos aumenta, mantener toda esa información sincronizada se convierte en una tarea compleja y propensa a errores.
 
-# Filosofía
-
-RentalManager se desarrolla siguiendo los siguientes principios.
+RentalManager nace para centralizar esa información y ayudar al gestor a mantener el control.
 
 ---
 
-## 1. Keep It Simple (KISS)
+# Qué es RentalManager
 
-La solución más sencilla será siempre la preferida.
+RentalManager es el punto central desde el que el gestor puede conocer el estado real de todas sus habitaciones.
 
-Solo se añadirá complejidad cuando aporte un beneficio claro.
+No es simplemente un agregador de calendarios.
 
----
+Su misión consiste en:
 
-## 2. Seguridad antes que velocidad
-
-Las acciones que puedan provocar errores importantes requerirán confirmación.
-
-Ejemplo:
-
-Las fechas de una reserva nunca podrán modificarse arrastrando la barra del Gantt.
+- Consolidar información procedente de distintas fuentes.
+- Detectar inconsistencias entre ellas.
+- Mostrar el estado operativo de cada habitación.
+- Ayudar al usuario a resolver conflictos.
+- Mantener un histórico fiable de la actividad.
 
 ---
 
-## 3. La información importante debe estar visible
+# Qué NO pretende hacer
 
-El usuario no debería abrir ventanas para conocer la información básica.
+RentalManager no pretende sustituir los sistemas de gestión propios de plataformas como HousingAnywhere, Flatio, Airbnb o Booking.
 
-Cada reserva debe responder inmediatamente a cuatro preguntas:
+Tampoco pretende convertirse en la autoridad de información cuya propiedad pertenece a otros sistemas.
 
-- ¿Cuándo?
-- ¿Qué ocurre?
-- ¿Con quién?
-- ¿Dónde?
+Su función consiste en observar, integrar y asistir.
 
 ---
 
-## 4. El color nunca será la única fuente de información
+# Principios fundamentales
 
-Toda información importante aparecerá también mediante texto o iconos.
+## 1. La autoridad pertenece al origen del dato
 
-Los colores únicamente servirán como apoyo visual.
+Todo dato tiene un sistema de origen.
 
----
+Ese sistema es el propietario de dicho dato.
 
-## 5. El espacio vertical es un recurso valioso
+Por ejemplo:
 
-El Gantt debe mostrar el mayor número posible de habitaciones.
+- Una reserva creada manualmente pertenece a RentalManager.
+- Una reserva importada desde HousingAnywhere pertenece a HousingAnywhere.
+- Una reserva importada desde Flatio pertenece a Flatio.
 
-Se minimizará el desplazamiento vertical.
-
----
-
-## 6. El Dashboard y el Gantt tienen funciones distintas
-
-Dashboard:
-
-¿Qué tengo que hacer?
-
-Gantt:
-
-¿Dónde ocurre y cómo lo gestiono?
+RentalManager respetará siempre esa autoridad.
 
 ---
 
-## 7. Los datos introducidos manualmente tienen prioridad
+## 2. Nunca se contradice una fuente externa
 
-La información editada por el usuario nunca será sobrescrita automáticamente por una sincronización sin su consentimiento.
+Si una plataforma considera una habitación ocupada, RentalManager nunca la considerará libre simplemente porque el usuario modifique la información localmente.
 
----
-
-## 8. El programa siempre comenzará en un estado conocido
-
-Al iniciar RentalManager:
-
-- Dashboard operativo.
-- Gantt centrado en hoy.
-- Vista mensual.
-- Filas compactas.
-- Sin filtros.
-- Ninguna reserva seleccionada.
+La aplicación informará del conflicto y propondrá la acción adecuada, pero no inventará una realidad distinta.
 
 ---
 
-## 9. Cada fila del Gantt será autoexplicativa
+## 3. Las incidencias son información, no errores
 
-Nunca dependerá del contexto.
+Una incidencia no significa necesariamente que exista un fallo.
 
-Formato recomendado:
+Significa que existe una situación que requiere atención por parte del gestor.
 
-Universidad · H01
+Por ejemplo:
 
-Centro · H02
+- Overbooking.
+- Información contradictoria entre plataformas.
+- Sincronización incompleta.
+- Reserva modificada en el origen.
 
-Palmeral · H03
-
----
-
-## 10. El calendario es un medio, no un fin
-
-El verdadero objetivo del programa es facilitar la gestión diaria del negocio.
+Las incidencias forman parte del funcionamiento normal del sistema.
 
 ---
 
-# Qué NO pretende ser RentalManager
+## 4. El objetivo es ayudar al gestor
 
-RentalManager no pretende competir con grandes PMS.
+RentalManager no toma decisiones por el usuario.
 
-No pretende gestionar contabilidad.
+Su función consiste en:
 
-No pretende sustituir un CRM.
+- Detectar situaciones relevantes.
+- Explicarlas de forma clara.
+- Indicar sus consecuencias.
+- Recomendar la acción más adecuada.
 
-No pretende incorporar funcionalidades que no aporten valor al trabajo diario.
-
----
-
-# Público objetivo
-
-Inicialmente:
-
-Propietarios y gestores de alquileres por habitaciones.
-
-La arquitectura permitirá evolucionar hacia otros modelos de alquiler.
+La decisión final siempre pertenece al gestor.
 
 ---
 
-# Principio fundamental
+# Habitación como elemento central
 
-Antes de incorporar una nueva funcionalidad deberá responderse una pregunta:
+La entidad más importante del sistema no es la reserva.
 
-"¿Esta funcionalidad ahorra tiempo o reduce errores?"
+Es la habitación.
 
-Si la respuesta es negativa, probablemente no deba incorporarse.
+Cada habitación posee un estado operativo que depende de múltiples factores:
+
+- Reservas.
+- Bloqueos.
+- Sincronizaciones.
+- Incidencias.
+- Configuración.
+- Estado de las plataformas.
+
+Las reservas representan únicamente una parte de ese estado.
 
 ---
 
-# Nuestra prioridad
+# Estado operativo
 
-Construir una herramienta rápida, clara, fiable y agradable de utilizar durante muchas horas al día.
+RentalManager mantiene para cada habitación una representación del estado conocido en cada momento.
 
-La productividad del usuario siempre tendrá prioridad sobre la complejidad técnica.
+Ese estado se calcula utilizando toda la información disponible.
+
+No depende exclusivamente de una única plataforma.
+
+---
+
+# Confianza de la información
+
+No toda la información posee el mismo grado de fiabilidad.
+
+El sistema deberá ser capaz de indicar cuándo el estado de una habitación puede considerarse:
+
+- Verificado.
+- Pendiente de revisión.
+- En conflicto.
+
+El objetivo es que el gestor conozca siempre el grado de confianza que puede depositar en la información mostrada.
+
+---
+
+# Filosofía de diseño
+
+Cada funcionalidad que se incorpore a RentalManager deberá responder afirmativamente a estas preguntas:
+
+- ¿Ayuda al gestor a comprender mejor el estado de sus alojamientos?
+- ¿Reduce el riesgo de errores?
+- ¿Respeta la autoridad de los datos?
+- ¿Facilita la resolución de conflictos?
+- ¿Hace el trabajo diario más sencillo?
+
+Si la respuesta es negativa, probablemente esa funcionalidad no pertenezca a RentalManager.
+
+---
+
+# Misión
+
+RentalManager centraliza la información procedente de múltiples plataformas de alquiler, identifica inconsistencias entre ellas y proporciona al gestor una visión fiable del estado operativo de sus alojamientos, respetando siempre la autoridad de cada fuente de datos y ayudándole a tomar decisiones con seguridad.

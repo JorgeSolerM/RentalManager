@@ -3,6 +3,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from backend.models.booking import Booking
+from backend.models.guest import Guest
 from backend.repositories.booking_repository import BookingRepository
 
 
@@ -11,6 +12,30 @@ class BookingService:
     def __init__(self):
 
         self.booking_repository = BookingRepository()
+
+    def populate_booking(
+        self,
+        booking: Booking,
+        guest: Guest,
+        check_in: date,
+        check_out: date,
+        price: float | None,
+        notes: str | None,
+    ) -> None:
+
+        booking.guest_id = guest.id
+
+        booking.room_calendar_id = None
+
+        booking.origin = "manual"
+
+        booking.check_in = check_in
+
+        booking.check_out = check_out
+
+        booking.price = price
+
+        booking.notes = notes
 
     def get_booking(
         self,
@@ -40,7 +65,6 @@ class BookingService:
         booking: Booking,
     ) -> Booking:
 
-        # Primera regla de negocio
         if booking.check_out <= booking.check_in:
 
             raise ValueError(

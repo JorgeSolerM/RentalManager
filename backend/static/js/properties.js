@@ -69,7 +69,7 @@ async function editProperty(propertyId) {
 
         if (!response.ok) {
 
-            RMToast.error(
+            RMNotification.error(
                 "No se ha podido cargar la propiedad."
             );
 
@@ -100,7 +100,7 @@ async function editProperty(propertyId) {
 
         console.error(error);
 
-        RMToast.error(
+        RMNotification.error(
             "Error de comunicación con el servidor."
         );
 
@@ -141,7 +141,7 @@ function initializePropertySwitches() {
 
                 if (result.active) {
 
-                    RMToast.success(
+                    RMNotification.success(
                         "Propiedad activada."
                     );
 
@@ -149,7 +149,7 @@ function initializePropertySwitches() {
 
                 else {
 
-                    RMToast.success(
+                    RMNotification.success(
                         "Propiedad desactivada."
                     );
 
@@ -163,7 +163,7 @@ function initializePropertySwitches() {
 
                 element.checked = !element.checked;
 
-                RMToast.error(
+                RMNotification.error(
                     "No se ha podido actualizar la propiedad."
                 );
 

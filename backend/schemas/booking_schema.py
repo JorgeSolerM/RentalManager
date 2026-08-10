@@ -1,0 +1,34 @@
+from datetime import date
+
+from pydantic import BaseModel, ConfigDict
+
+
+class BookingResponse(BaseModel):
+
+    id: int
+
+    room_id: int
+
+    guest_name: str
+
+    origin: str
+
+    check_in: date
+
+    check_out: date
+
+    price: float | None
+
+    notes: str | None
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class BookingCreate(BaseModel):
+    pass
+
+
+class BookingUpdate(BaseModel):
+    pass

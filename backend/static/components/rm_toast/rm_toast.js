@@ -1,17 +1,64 @@
 class RMToast {
 
-    static show(type, message) {
+    // ==========================================================
+    // Configuración
+    // ==========================================================
+
+    static DISPLAY_TIME = 4000;
+
+    static HIDE_DURATION = 500;
+
+
+    // ==========================================================
+    // API pública
+    // ==========================================================
+
+    static success(message, top, onRemoved = null) {
+
+        this.render("success", message, top, onRemoved);
+
+    }
+
+    static info(message, top, onRemoved = null) {
+
+        this.render("info", message, top, onRemoved);
+
+    }
+
+    static warning(message, top, onRemoved = null) {
+
+        this.render("warning", message, top, onRemoved);
+
+    }
+
+    static error(message, top, onRemoved = null) {
+
+        this.render("error", message, top, onRemoved);
+
+    }
+
+
+    // ==========================================================
+    // Render
+    // ==========================================================
+
+    static render(type, message, top, onRemoved) {
 
         const container = document.getElementById("rm-toast-container");
 
         if (!container) {
+
             console.error("RMToast: no existe #rm-toast-container");
+
             return;
+
         }
 
         const toast = document.createElement("div");
 
         toast.className = `rm-toast rm-toast-${type}`;
+
+        toast.style.top = `${top}px`;
 
         let icon = "";
 
@@ -36,20 +83,23 @@ class RMToast {
         }
 
         toast.innerHTML = `
-
-            <div class="rm-toast-icon">
-                ${icon}
-            </div>
-
-            <div class="rm-toast-message">
-                ${message}
-            </div>
-
+            <div class="rm-toast-icon">${icon}</div>
+            <div class="rm-toast-message">${message}</div>
         `;
 
         container.appendChild(toast);
 
-        let timeout = setTimeout(removeToast, 4000);
+        requestAnimationFrame(() => {
+
+            toast.classList.add("rm-toast-show");
+
+        });
+
+        let timeout = setTimeout(() => {
+
+            this.remove(toast, onRemoved);
+
+        }, this.DISPLAY_TIME);
 
         toast.addEventListener("mouseenter", () => {
 
@@ -59,45 +109,44 @@ class RMToast {
 
         toast.addEventListener("mouseleave", () => {
 
-            timeout = setTimeout(removeToast, 2000);
+            timeout = setTimeout(() => {
+
+                this.remove(toast, onRemoved);
+
+            }, 2000);
 
         });
 
-        function removeToast() {
+    }
 
-            toast.classList.add("rm-toast-hide");
 
-            setTimeout(() => {
+    // ==========================================================
+    // Remove
+    // ==========================================================
 
-                toast.remove();
+    static remove(toast, onRemoved) {
 
-            }, 400);
+        if (!toast) {
+
+            return;
 
         }
 
-    }
+        toast.classList.remove("rm-toast-show");
 
-    static success(message) {
+        toast.classList.add("rm-toast-hide");
 
-        this.show("success", message);
+        setTimeout(() => {
 
-    }
+            toast.remove();
 
-    static info(message) {
+            if (typeof onRemoved === "function") {
 
-        this.show("info", message);
+                onRemoved();
 
-    }
+            }
 
-    static warning(message) {
-
-        this.show("warning", message);
-
-    }
-
-    static error(message) {
-
-        this.show("error", message);
+        }, this.HIDE_DURATION);
 
     }
 

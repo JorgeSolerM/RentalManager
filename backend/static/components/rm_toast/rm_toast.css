@@ -6,13 +6,9 @@
 
     position: fixed;
 
-    top: 24px;
-    right: 24px;
+    inset: 0;
 
-    display: flex;
-    flex-direction: column;
-
-    gap: 12px;
+    pointer-events: none;
 
     z-index: 9999;
 
@@ -24,11 +20,14 @@
 
 .rm-toast {
 
+    position: fixed;
+
+    right: 24px;
+
     display: flex;
     align-items: center;
 
-    min-width: 320px;
-    max-width: 420px;
+    width: 420px;
 
     background: #ffffff;
 
@@ -40,13 +39,35 @@
 
     box-shadow: 0 10px 25px rgba(0, 0, 0, .15);
 
-    animation: rm-toast-in .25s ease;
+    opacity: 0;
+
+    transform: translateX(40px);
+
+    transition:
+        transform .50s ease-out,
+        opacity .30s ease-out .20s;
+
+    pointer-events: auto;
+
+}
+
+/* =====================================================
+   ESTADOS
+===================================================== */
+
+.rm-toast-show {
 
     opacity: 1;
 
-    transition:
-        opacity .4s,
-        transform .4s;
+    transform: translateX(0);
+
+}
+
+.rm-toast-hide {
+
+    opacity: 0;
+
+    transform: translateX(40px);
 
 }
 
@@ -103,41 +124,5 @@
 .rm-toast-error {
 
     border-color: #8A2E2E;
-
-}
-
-/* =====================================================
-   DESAPARICIÓN
-===================================================== */
-
-.rm-toast-hide {
-
-    opacity: 0;
-
-    transform: translateX(40px);
-
-}
-
-/* =====================================================
-   ANIMACIONES
-===================================================== */
-
-@keyframes rm-toast-in {
-
-    from {
-
-        opacity: 0;
-
-        transform: translateX(40px);
-
-    }
-
-    to {
-
-        opacity: 1;
-
-        transform: translateX(0);
-
-    }
 
 }

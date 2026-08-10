@@ -158,21 +158,25 @@
 
         <li class="mb-2">
 
-            {{ booking.check_in | date }}
-            →
-            {{ booking.check_out | date }}
+            <a href="#" class="booking-link text-decoration-none" data-booking-id="{{ booking.id }}">
 
-            ·
+                {{ booking.check_in | date }}
+                →
+                {{ booking.check_out | date }}
 
-            {{ booking.guest.full_name }}
+                ·
 
-            ·
+                {{ booking.guest.full_name }}
 
-            {% if booking.origin == "manual" %}
-            Manual
-            {% else %}
-            {{ booking.origin }}
-            {% endif %}
+                ·
+
+                {% if booking.origin == "manual" %}
+                Manual
+                {% else %}
+                {{ booking.origin }}
+                {% endif %}
+
+            </a>
 
         </li>
 
@@ -203,5 +207,6 @@
 </div>
 
 {% include "components/booking_modal.html" %}
+
 
 {% endblock %}
