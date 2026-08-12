@@ -72,6 +72,12 @@ const BookingUI = {
 
         });
 
+        this.deleteButton.addEventListener("click", () => {
+
+            this.handleDelete();
+
+        });
+
     },
 
     openCreateModal() {
@@ -123,6 +129,25 @@ const BookingUI = {
             );
 
         }
+
+    },
+
+    handleDelete() {
+
+        if (!RMConfirm.ask(
+            "¿Desea eliminar esta reserva?"
+        )) {
+
+            return;
+
+        }
+
+        this.form.action = this.form.action.replace(
+            "/update/",
+            "/delete/"
+        );
+
+        this.form.submit();
 
     },
 

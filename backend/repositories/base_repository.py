@@ -28,3 +28,13 @@ class BaseRepository:
         db.refresh(entity)
 
         return entity
+
+    def delete(
+        self,
+        db: Session,
+        entity,
+    ) -> None:
+
+        db.delete(entity)
+
+        db.commit()

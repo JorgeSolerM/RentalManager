@@ -93,6 +93,19 @@ class BookingService:
             booking,
         )
 
+    def delete_booking(
+        self,
+        db: Session,
+        booking: Booking,
+    ) -> None:
+
+        self.booking_repository.delete(
+            db,
+            booking,
+        )
+
+
+
     def get_current_booking(
         self,
         db: Session,

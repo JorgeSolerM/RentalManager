@@ -1,3 +1,52 @@
+document.addEventListener("DOMContentLoaded", () => {
+
+    const params = new URLSearchParams(window.location.search);
+
+    const success = params.get("success");
+
+    if (!success) {
+
+        return;
+
+    }
+
+    const SUCCESS_MESSAGES = {
+
+        room_created: "Habitación creada.",
+
+        room_updated: "Habitación actualizada.",
+
+        room_deleted: "Habitación eliminada.",
+
+        booking_created: "Reserva creada.",
+
+        booking_updated: "Reserva actualizada.",
+
+        booking_deleted: "Reserva eliminada."
+
+    };
+
+    if (SUCCESS_MESSAGES[success]) {
+
+        RMNotification.success(
+            SUCCESS_MESSAGES[success]
+        );
+
+    }
+
+    params.delete("success");
+
+    const query = params.toString();
+
+    const url = query
+        ? `${window.location.pathname}?${query}`
+        : window.location.pathname;
+
+    history.replaceState({}, "", url);
+
+});
+
+
 function openCreateRoomModal(propertyId) {
 
     document.getElementById("room-modal-title").textContent =
@@ -8,6 +57,10 @@ function openCreateRoomModal(propertyId) {
 
     document.getElementById("room-form").action =
         "/rooms/create";
+
+    document
+        .getElementById("room-modal-delete")
+        .classList.add("hidden");
 
     document.getElementById("property_id").value =
         propertyId;
@@ -20,6 +73,85 @@ function openCreateRoomModal(propertyId) {
 
 }
 
+async function openEditRoomModal(roomId) {
+
+    try {
+
+        const response = await fetch(
+            `/rooms/edit/${roomId}`
+        );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "No se ha podido cargar la habitación."
+            );
+
+        }
+
+        const room = await response.json();
+
+        document.getElementById("room-modal-title").textContent =
+            "Editar habitación";
+
+        document.getElementById("room-modal-submit").textContent =
+            "Guardar cambios";
+
+        document.getElementById("room-form").action =
+            `/rooms/update/${room.id}`;
+
+        document.getElementById("property_id").value =
+            room.property_id;
+
+        document.getElementById("code").value =
+            room.code;
+
+        document.getElementById("base_price").value =
+            room.base_price;
+
+        document.getElementById("square_meters").value =
+            room.square_meters ?? "";
+
+        document
+            .getElementById("room-modal-delete")
+            .classList.remove("hidden");
+
+        document
+            .getElementById("room-modal")
+            .classList.remove("hidden");
+
+    } catch (error) {
+
+        console.error(error);
+
+        RMNotification.error(
+            "No se ha podido cargar la habitación."
+        );
+
+    }
+
+}
+
+function handleDeleteRoom() {
+
+    if (!RMConfirm.ask(
+        "¿Desea eliminar esta habitación?"
+    )) {
+
+        return;
+
+    }
+
+    const form = document.getElementById("room-form");
+
+    form.action = form.action.replace(
+        "/update/",
+        "/delete/"
+    );
+
+    form.submit();
+
+}
 
 function closeRoomModal() {
 
@@ -37,3 +169,8 @@ function clearRoomForm() {
         .reset();
 
 }
+
+document
+    .getElementById("room-modal-delete")
+    .addEventListener("click", handleDeleteRoom);
+

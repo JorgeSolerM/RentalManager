@@ -71,3 +71,14 @@ class RoomService:
             db,
             room,
         )
+
+    def delete_room(
+        self,
+        db: Session,
+        room: Room,
+    ) -> None:
+
+        self.room_repository.delete(
+            db,
+            room,
+        )

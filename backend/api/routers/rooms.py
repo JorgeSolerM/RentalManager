@@ -59,6 +59,46 @@ def list_rooms(
 
         db.close()
 
+@router.get("/edit/{room_id}")
+def get_room(
+    room_id: int,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        room = room_service.get_room(
+            db,
+            room_id,
+        )
+
+        if room is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Habitación no encontrada.",
+            )
+
+        return {
+
+            "id": room.id,
+
+            "property_id": room.property_id,
+
+            "code": room.code,
+
+            "base_price": room.base_price,
+
+            "square_meters": room.square_meters,
+
+            "active": room.active,
+
+        }
+
+    finally:
+
+        db.close()
 
 @router.get("/{room_id}")
 def room_workspace(
@@ -146,6 +186,96 @@ def create_room(
         db.close()
 
     return RedirectResponse(
-        url=f"/rooms/property/{property_id}",
+    url=f"/rooms/property/{property_id}?success=room_created",
+    status_code=303,
+    )
+
+@router.post("/update/{room_id}")
+def update_room(
+
+    room_id: int,
+
+    property_id: int = Form(...),
+
+    code: str = Form(...),
+
+    base_price: float = Form(...),
+
+    square_meters: float | None = Form(None),
+
+):
+
+    db = SessionLocal()
+
+    try:
+
+        room = room_service.get_room(
+            db,
+            room_id,
+        )
+
+        if room is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Habitación no encontrada.",
+            )
+
+        room.code = code
+
+        room.base_price = base_price
+
+        room.square_meters = square_meters
+
+        room_service.update_room(
+            db,
+            room,
+        )
+
+    finally:
+
+        db.close()
+
+    return RedirectResponse(
+    url=f"/rooms/property/{property_id}?success=room_updated",
+    status_code=303,
+    )
+
+@router.post("/delete/{room_id}")
+def delete_room(
+
+    room_id: int,
+
+    property_id: int = Form(...),
+
+):
+
+    db = SessionLocal()
+
+    try:
+
+        room = room_service.get_room(
+            db,
+            room_id,
+        )
+
+        if room is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Habitación no encontrada.",
+            )
+
+        room_service.delete_room(
+            db,
+            room,
+        )
+
+    finally:
+
+        db.close()
+
+    return RedirectResponse(
+        url=f"/rooms/property/{property_id}?success=room_deleted",
         status_code=303,
     )

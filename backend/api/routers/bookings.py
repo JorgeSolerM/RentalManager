@@ -137,8 +137,8 @@ def create_booking(
         db.close()
 
     return RedirectResponse(
-        url=f"/rooms/{room_id}",
-        status_code=303,
+    url=f"/rooms/{room_id}?success=booking_created",
+    status_code=303,
     )
 
 
@@ -208,6 +208,43 @@ def update_booking(
         db.close()
 
     return RedirectResponse(
-        url=f"/rooms/{room_id}",
-        status_code=303,
+    url=f"/rooms/{room_id}?success=booking_updated",
+    status_code=303,
+    )
+
+@router.post("/delete/{booking_id}")
+def delete_booking(
+    booking_id: int,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        booking = booking_service.get_booking(
+            db,
+            booking_id,
+        )
+
+        if booking is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Reserva no encontrada.",
+            )
+
+        room_id = booking.room_id
+
+        booking_service.delete_booking(
+            db,
+            booking,
+        )
+
+    finally:
+
+        db.close()
+
+    return RedirectResponse(
+    url=f"/rooms/{room_id}?success=booking_deleted",
+    status_code=303,
     )
