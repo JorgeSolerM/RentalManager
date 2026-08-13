@@ -1,0 +1,109 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Plataformas{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <h1>
+
+        Plataformas
+
+    </h1>
+
+    <button type="button" class="btn btn-primary">
+
+        + Nueva plataforma
+
+    </button>
+
+</div>
+
+{% if platforms %}
+
+<table class="table">
+
+    <thead>
+
+        <tr>
+
+            <th>Nombre</th>
+            <th>Importar</th>
+            <th>Exportar</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+        {% for platform in platforms %}
+
+        <tr>
+
+            <td>
+
+                {{ platform.name }}
+
+            </td>
+
+            <td>
+
+                {% if platform.supports_import %}
+                ✓
+                {% else %}
+                —
+                {% endif %}
+
+            </td>
+
+            <td>
+
+                {% if platform.supports_export %}
+                ✓
+                {% else %}
+                —
+                {% endif %}
+
+            </td>
+
+            <td>
+
+                {% if platform.active %}
+                🟢
+                {% else %}
+                ⚪
+                {% endif %}
+
+            </td>
+
+            <td>
+
+                —
+
+            </td>
+
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% else %}
+
+{% with
+message="Todavía no existen plataformas."
+%}
+
+{% include "components/rm_empty_state.html" %}
+
+{% endwith %}
+
+{% endif %}
+
+{% endblock %}

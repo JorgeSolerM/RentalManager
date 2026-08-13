@@ -7,6 +7,7 @@ from backend.models.room import Room
 from backend.services.booking_service import BookingService
 from backend.services.property_service import PropertyService
 from backend.services.room_service import RoomService
+from backend.services.platform_service import PlatformService
 
 router = APIRouter(prefix="/rooms")
 
@@ -15,7 +16,7 @@ templates = Jinja2Templates(directory="backend/templates")
 property_service = PropertyService()
 room_service = RoomService()
 booking_service = BookingService()
-
+platform_service = PlatformService()
 
 @router.get("/property/{property_id}")
 def list_rooms(
@@ -137,6 +138,10 @@ def room_workspace(
             room_id,
         )
 
+        platforms = platform_service.list_platforms(
+            db,
+        )
+
         return templates.TemplateResponse(
             request=request,
             name="pages/room_workspace.html",
@@ -147,6 +152,7 @@ def room_workspace(
                 "property": property_obj,
                 "current_booking": current_booking,
                 "future_bookings": future_bookings,
+                "platforms": platforms,
             },
         )
 

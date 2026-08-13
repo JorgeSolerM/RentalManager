@@ -44,165 +44,248 @@
 
 </div>
 
-<ul class="nav nav-tabs mt-4">
+<ul class="nav nav-tabs mt-4" id="roomTabs" role="tablist">
 
-    <li class="nav-item">
-        <a class="nav-link active" href="#">
+    <li class="nav-item" role="presentation">
+
+        <button class="nav-link active" id="reservas-tab" data-bs-toggle="tab" data-bs-target="#reservas" type="button"
+            role="tab">
+
             📝 Reservas
-        </a>
+
+        </button>
+
     </li>
 
-    <li class="nav-item">
-        <a class="nav-link" href="#">
-            ℹ️ Estado
-        </a>
-    </li>
 
-    <li class="nav-item">
-        <a class="nav-link" href="#">
+    <li class="nav-item" role="presentation">
+
+        <button class="nav-link" id="configuracion-tab" data-bs-toggle="tab" data-bs-target="#configuracion"
+            type="button" role="tab">
+
             ⚙️ Configuración
-        </a>
+
+        </button>
+
     </li>
 
 </ul>
 
-<div class="mt-4">
+<div class="tab-content mt-4">
 
-    {% if current_booking %}
+    <div class="tab-pane fade show active" id="reservas" role="tabpanel">
 
-    <h5>
+        {% if current_booking %}
 
-        <span class="badge bg-danger">
-            Ocupada
-        </span>
+        <h5>
 
-    </h5>
+            <span class="badge bg-danger">
+                Ocupada
+            </span>
 
-    <p>
+        </h5>
 
-        {{ current_booking.check_in | date }}
-        →
-        {{ current_booking.check_out | date }}
+        <p>
 
-        ·
+            {{ current_booking.check_in | date }}
+            →
+            {{ current_booking.check_out | date }}
 
-        {{ current_booking.guest.full_name }}
+            ·
 
-        ·
+            {{ current_booking.guest.full_name }}
 
-        {% if current_booking.origin == "manual" %}
-        Manual
+            ·
+
+            {% if current_booking.origin == "manual" %}
+            Manual
+            {% else %}
+            {{ current_booking.origin }}
+            {% endif %}
+
+        </p>
+
+        <hr>
+
+        <h5>
+
+            Siguiente salida
+
+        </h5>
+
+        <p>
+
+            {{ current_booking.check_out | date }}
+
+            ·
+
+            {{ current_booking.guest.full_name }}
+
+            ·
+
+            {% if current_booking.origin == "manual" %}
+            Manual
+            {% else %}
+            {{ current_booking.origin }}
+            {% endif %}
+
+        </p>
+
         {% else %}
-        {{ current_booking.origin }}
+
+        <h5>
+
+            <span class="badge bg-success">
+                Disponible
+            </span>
+
+        </h5>
+
+        <p class="text-muted">
+
+            No existe ninguna reserva activa.
+
+        </p>
+
         {% endif %}
 
-    </p>
+        <hr>
 
-    <hr>
+        <h5>
 
-    <h5>
+            Próximas entradas
 
-        Siguiente salida
+        </h5>
 
-    </h5>
+        {% if future_bookings %}
 
-    <p>
+        <ul class="list-unstyled">
 
-        {{ current_booking.check_out | date }}
+            {% for booking in future_bookings %}
 
-        ·
+            <li class="mb-2">
 
-        {{ current_booking.guest.full_name }}
+                <a href="#" class="booking-link text-decoration-none" data-booking-id="{{ booking.id }}">
 
-        ·
+                    {{ booking.check_in | date }}
+                    →
+                    {{ booking.check_out | date }}
 
-        {% if current_booking.origin == "manual" %}
-        Manual
+                    ·
+
+                    {{ booking.guest.full_name }}
+
+                    ·
+
+                    {% if booking.origin == "manual" %}
+                    Manual
+                    {% else %}
+                    {{ booking.origin }}
+                    {% endif %}
+
+                </a>
+
+            </li>
+
+            {% endfor %}
+
+        </ul>
+
         {% else %}
-        {{ current_booking.origin }}
+
+        <p class="text-muted">
+
+            No existen reservas futuras.
+
+        </p>
+
         {% endif %}
 
-    </p>
+        <div class="text-end mt-4">
 
-    {% else %}
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bookingModal">
 
-    <h5>
+                + Nueva reserva
 
-        <span class="badge bg-success">
-            Disponible
-        </span>
+            </button>
 
-    </h5>
+        </div>
 
-    <p class="text-muted">
+    </div>
 
-        No existe ninguna reserva activa.
+</div>
 
-    </p>
+<div class="tab-pane fade" id="configuracion" role="tabpanel">
 
-    {% endif %}
+    <div class="card">
 
-    <hr>
+        <div class="card-header">
 
-    <h5>
+            Calendario compartido
 
-        Próximas entradas
+        </div>
 
-    </h5>
+        <div class="card-body">
 
-    {% if future_bookings %}
+            <p class="text-muted mb-3">
 
-    <ul class="list-unstyled">
+                Esta dirección debe configurarse como calendario
+                de importación en todas las plataformas de reservas.
 
-        {% for booking in future_bookings %}
+            </p>
 
-        <li class="mb-2">
+            <input type="text" class="form-control" value="Próximamente..." readonly>
 
-            <a href="#" class="booking-link text-decoration-none" data-booking-id="{{ booking.id }}">
+            <div class="text-end mt-3">
 
-                {{ booking.check_in | date }}
-                →
-                {{ booking.check_out | date }}
+                <button type="button" class="btn btn-outline-primary" disabled>
 
-                ·
+                    📋 Copiar
 
-                {{ booking.guest.full_name }}
+                </button>
 
-                ·
+            </div>
 
-                {% if booking.origin == "manual" %}
-                Manual
-                {% else %}
-                {{ booking.origin }}
-                {% endif %}
+        </div>
 
-            </a>
+    </div>
 
-        </li>
+</div>
+
+<div class="card mt-4">
+
+    <div class="card-header">
+
+        Integraciones
+
+    </div>
+
+    <div class="list-group list-group-flush">
+
+        {% for platform in platforms %}
+
+        <div class="list-group-item">
+
+            <div class="fw-semibold">
+
+                {{ platform.name }}
+
+            </div>
+
+            <div class="text-muted small">
+
+                Sin configurar
+
+            </div>
+
+        </div>
 
         {% endfor %}
 
-    </ul>
-
-    {% else %}
-
-    <p class="text-muted">
-
-        No existen reservas futuras.
-
-    </p>
-
-    {% endif %}
-
-    <div class="text-end mt-4">
-
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bookingModal">
-
-            + Nueva reserva
-
-        </button>
-
     </div>
+
+</div>
+
 
 </div>
 
