@@ -107,4 +107,8 @@ message="No hay propiedades registradas."
 
 {% include "components/property_modal.html" %}
 
+{% block scripts %}
+
+<script src="{{ url_for('static', path='js/properties.js') }}"></script>
+
 {% endblock %}

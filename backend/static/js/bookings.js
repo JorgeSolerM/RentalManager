@@ -273,6 +273,12 @@ const BookingUI = {
 
 document.addEventListener("DOMContentLoaded", () => {
 
+    if (!document.getElementById("bookingModal")) {
+
+        return;
+
+    }
+
     BookingUI.init();
 
 });

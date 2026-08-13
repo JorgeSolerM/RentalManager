@@ -95,4 +95,8 @@ message="Esta propiedad todavía no tiene habitaciones."
 
 {% include "components/room_modal.html" %}
 
+{% block scripts %}
+
+<script src="{{ url_for('static', path='js/rooms.js') }}"></script>
+
 {% endblock %}

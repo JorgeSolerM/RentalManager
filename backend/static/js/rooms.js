@@ -170,7 +170,15 @@ function clearRoomForm() {
 
 }
 
-document
-    .getElementById("room-modal-delete")
-    .addEventListener("click", handleDeleteRoom);
+const roomDeleteButton = document.getElementById(
+    "room-modal-delete"
+);
 
+if (roomDeleteButton) {
+
+    roomDeleteButton.addEventListener(
+        "click",
+        handleDeleteRoom
+    );
+
+}

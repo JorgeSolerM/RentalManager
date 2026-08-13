@@ -1,0 +1,91 @@
+<div id="platform-modal" class="rm-modal hidden">
+
+    <div class="rm-modal-content">
+
+        <div class="rm-modal-header">
+
+            <h2 id="platform-modal-title">
+
+                Nueva plataforma
+
+            </h2>
+
+        </div>
+
+        <form id="platform-form" action="/settings/platforms/create" method="post">
+
+            <div class="form-group">
+
+                <label for="platform-name">
+
+                    Nombre *
+
+                </label>
+
+                <input type="text" id="platform-name" name="name" required>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="platform-slug">
+
+                    Slug *
+
+                </label>
+
+                <input type="text" id="platform-slug" name="slug" required>
+
+            </div>
+
+            <div class="form-group">
+
+                <label>
+
+                    <input type="checkbox" id="platform-import" name="supports_import">
+
+                    Soporta importación iCal
+
+                </label>
+
+            </div>
+
+            <div class="form-group">
+
+                <label>
+
+                    <input type="checkbox" id="platform-export" name="supports_export">
+
+                    Soporta exportación iCal
+
+                </label>
+
+            </div>
+
+            <div class="rm-modal-actions">
+
+                <button type="button" class="btn-secondary" onclick="closePlatformModal()">
+
+                    Cancelar
+
+                </button>
+
+                <button id="platform-delete-button" type="button" class="btn-danger hidden">
+
+                    Eliminar
+
+                </button>
+
+                <button id="platform-submit-button" type="submit" class="btn-primary">
+
+                    Guardar
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>

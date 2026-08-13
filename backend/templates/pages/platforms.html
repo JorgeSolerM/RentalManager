@@ -12,7 +12,7 @@
 
     </h1>
 
-    <button type="button" class="btn btn-primary">
+    <button type="button" class="btn btn-primary" onclick="openCreatePlatformModal()">
 
         + Nueva plataforma
 
@@ -105,5 +105,15 @@ message="Todavía no existen plataformas."
 {% endwith %}
 
 {% endif %}
+
+{% include "components/platform_modal.html" %}
+
+{% endblock %}
+
+
+{% block scripts %}
+
+<script src="{{ url_for('static', path='js/platforms.js') }}"></script>
+
 
 {% endblock %}

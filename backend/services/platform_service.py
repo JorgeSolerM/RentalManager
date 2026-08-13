@@ -18,3 +18,14 @@ class PlatformService:
         return self.platform_repository.get_all(
             db,
         )
+
+    def create_platform(
+        self,
+        db: Session,
+        platform: Platform,
+    ) -> Platform:
+
+        return self.platform_repository.create(
+            db,
+            platform,
+        )

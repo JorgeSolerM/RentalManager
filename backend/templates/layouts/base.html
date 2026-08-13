@@ -27,6 +27,7 @@
 
 </head>
 
+
 <body>
 
     {% include "components/header.html" %}
@@ -68,16 +69,8 @@
     <!-- RMSwitch -->
     <script src="{{ url_for('static', path='components/rm_switch/rm_switch.js') }}"></script>
 
-    <!-- JavaScript de páginas -->
-
-    <!-- Propiedades -->
-    <script src="{{ url_for('static', path='js/properties.js') }}"></script>
-
-    <!-- Rooms -->
-    <script src="{{ url_for('static', path='js/rooms.js') }}"></script>
-
-    <!-- Bookings -->
-    <script src="{{ url_for('static', path='js/bookings.js') }}"></script>
+    {% block scripts %}
+    {% endblock %}
 
 </body>
 

@@ -292,4 +292,8 @@
 {% include "components/booking_modal.html" %}
 
 
+{% block scripts %}
+
+<script src="{{ url_for('static', path='js/bookings.js') }}"></script>
+
 {% endblock %}
