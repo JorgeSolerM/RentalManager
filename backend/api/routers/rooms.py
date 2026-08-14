@@ -28,7 +28,7 @@ def list_rooms(
 
     try:
 
-        property_obj = property_service.get_property(
+        property_obj =  property_service.get_by_id(
             db,
             property_id,
         )
@@ -123,7 +123,7 @@ def room_workspace(
                 detail="Habitación no encontrada.",
             )
 
-        property_obj = property_service.get_property(
+        property_obj =  property_service.get_by_id(
             db,
             room.property_id,
         )

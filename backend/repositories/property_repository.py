@@ -26,4 +26,16 @@ class PropertyRepository(BaseRepository):
 
         return db.scalar(statement)
 
+    def get_by_name(
+        self,
+        db: Session,
+        name: str,
+    ) -> Property | None:
+
+        statement = (
+            select(Property)
+            .where(Property.name == name)
+        )
+
+        return db.scalar(statement)
 

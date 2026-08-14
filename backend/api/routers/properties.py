@@ -63,7 +63,7 @@ def get_property(property_id: int):
 
     try:
 
-        property_obj = property_service.get_property(
+        property_obj = property_service.get_by_id(
             db,
             property_id,
         )
@@ -115,7 +115,7 @@ def create_property(
             active=True,
         )
 
-        property_service.create_property(
+        result = property_service.create_property(
             db,
             property_obj,
         )
@@ -124,8 +124,15 @@ def create_property(
 
         db.close()
 
+    if result.success:
+
+        return RedirectResponse(
+            url="/properties/?success=property_updated",
+            status_code=303,
+        )
+
     return RedirectResponse(
-        url="/properties/",
+        url=f"/properties/?error={result.message}",
         status_code=303,
     )
 
@@ -137,7 +144,7 @@ def toggle_property(property_id: int):
 
     try:
 
-        property_obj = property_service.get_property(
+        property_obj = property_service.get_by_id(
             db,
             property_id,
         )
@@ -179,7 +186,7 @@ def update_property(
 
     try:
 
-        property_obj = property_service.get_property(
+        property_obj = property_service.get_by_id(
             db,
             property_id,
         )
@@ -198,7 +205,7 @@ def update_property(
         property_obj.owner = owner
         property_obj.notes = notes or None
 
-        property_service.update_property(
+        result = property_service.update_property(
             db,
             property_obj,
         )
@@ -207,7 +214,55 @@ def update_property(
 
         db.close()
 
+    if result.success:
+
+        return RedirectResponse(
+            url="/properties/?success=property_updated",
+            status_code=303,
+        )
+
     return RedirectResponse(
-        url="/properties/",
+        url=f"/properties/?error={result.message}",
+        status_code=303,
+    )
+@router.post("/delete/{property_id}")
+def delete_property(
+    property_id: int,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        property_obj = property_service.get_by_id(
+            db,
+            property_id,
+        )
+
+        if property_obj is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Propiedad no encontrada.",
+            )
+
+        result = property_service.delete_property(
+            db,
+            property_obj,
+        )
+
+    finally:
+
+        db.close()
+
+    if result.success:
+
+        return RedirectResponse(
+            url="/properties/?success=property_deleted",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/properties/?error={result.message}",
         status_code=303,
     )

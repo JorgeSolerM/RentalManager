@@ -1,3 +1,37 @@
+document.addEventListener("DOMContentLoaded", () => {
+
+    RMPageNotification.show(
+
+        {
+
+            property_created:
+                "Propiedad creada.",
+
+            property_updated:
+                "Propiedad actualizada.",
+
+            property_deleted:
+                "Propiedad eliminada.",
+
+        },
+
+        {
+
+            name_exists:
+                "Ya existe una propiedad con ese nombre.",
+
+            property_has_rooms:
+                "No se puede eliminar una propiedad que contiene habitaciones.",
+
+        }
+
+    );
+
+    initializePropertySwitches();
+
+});
+
+
 function openCreatePropertyModal() {
 
     document.getElementById("property-modal-title").textContent =
@@ -8,6 +42,12 @@ function openCreatePropertyModal() {
 
     document.getElementById("property-form").action =
         "/properties/create";
+
+    document.getElementById(
+        "property-delete-button"
+    ).classList.add(
+        "hidden"
+    );
 
     clearPropertyForm();
 
@@ -88,6 +128,17 @@ async function editProperty(propertyId) {
         document.getElementById("property-form").action =
             `/properties/update/${propertyId}`;
 
+        document.getElementById(
+            "property-delete-button"
+        ).classList.remove(
+            "hidden"
+        );
+
+        document.getElementById(
+            "property-delete-button"
+        ).dataset.propertyId =
+            propertyId;
+
         fillPropertyForm(property);
 
         document
@@ -105,6 +156,34 @@ async function editProperty(propertyId) {
         );
 
     }
+
+}
+
+
+function deleteProperty() {
+
+    if (!RMConfirm.ask(
+        "¿Desea eliminar esta propiedad?"
+    )) {
+
+        return;
+
+    }
+
+    const form =
+        document.getElementById(
+            "property-form"
+        );
+
+    const propertyId =
+        document.getElementById(
+            "property-delete-button"
+        ).dataset.propertyId;
+
+    form.action =
+        `/properties/delete/${propertyId}`;
+
+    form.submit();
 
 }
 
@@ -174,10 +253,3 @@ function initializePropertySwitches() {
     });
 
 }
-
-
-/* ============================================
-   INICIALIZACIÓN
-============================================ */
-
-initializePropertySwitches();
