@@ -5,9 +5,9 @@ from fastapi.templating import Jinja2Templates
 from backend.database.session import SessionLocal
 from backend.models.room import Room
 from backend.services.booking_service import BookingService
+from backend.services.platform_service import PlatformService
 from backend.services.property_service import PropertyService
 from backend.services.room_service import RoomService
-from backend.services.platform_service import PlatformService
 
 router = APIRouter(prefix="/rooms")
 
@@ -17,6 +17,7 @@ property_service = PropertyService()
 room_service = RoomService()
 booking_service = BookingService()
 platform_service = PlatformService()
+
 
 @router.get("/property/{property_id}")
 def list_rooms(
@@ -28,7 +29,7 @@ def list_rooms(
 
     try:
 
-        property_obj =  property_service.get_by_id(
+        property_obj = property_service.get_by_id(
             db,
             property_id,
         )
@@ -60,6 +61,7 @@ def list_rooms(
 
         db.close()
 
+
 @router.get("/edit/{room_id}")
 def get_room(
     room_id: int,
@@ -82,24 +84,18 @@ def get_room(
             )
 
         return {
-
             "id": room.id,
-
             "property_id": room.property_id,
-
             "code": room.code,
-
             "base_price": room.base_price,
-
             "square_meters": room.square_meters,
-
             "active": room.active,
-
         }
 
     finally:
 
         db.close()
+
 
 @router.get("/{room_id}")
 def room_workspace(
@@ -123,7 +119,7 @@ def room_workspace(
                 detail="Habitación no encontrada.",
             )
 
-        property_obj =  property_service.get_by_id(
+        property_obj = property_service.get_by_id(
             db,
             room.property_id,
         )
@@ -182,7 +178,7 @@ def create_room(
             active=True,
         )
 
-        room_service.create_room(
+        result = room_service.create_room(
             db,
             room,
         )
@@ -191,24 +187,26 @@ def create_room(
 
         db.close()
 
+    if result.success:
+
+        return RedirectResponse(
+            url=f"/rooms/property/{property_id}?success=room_created",
+            status_code=303,
+        )
+
     return RedirectResponse(
-    url=f"/rooms/property/{property_id}?success=room_created",
-    status_code=303,
+        url=f"/rooms/property/{property_id}?error={result.message}",
+        status_code=303,
     )
+
 
 @router.post("/update/{room_id}")
 def update_room(
-
     room_id: int,
-
     property_id: int = Form(...),
-
     code: str = Form(...),
-
     base_price: float = Form(...),
-
     square_meters: float | None = Form(None),
-
 ):
 
     db = SessionLocal()
@@ -228,12 +226,10 @@ def update_room(
             )
 
         room.code = code
-
         room.base_price = base_price
-
         room.square_meters = square_meters
 
-        room_service.update_room(
+        result = room_service.update_room(
             db,
             room,
         )
@@ -242,18 +238,23 @@ def update_room(
 
         db.close()
 
+    if result.success:
+
+        return RedirectResponse(
+            url=f"/rooms/property/{property_id}?success=room_updated",
+            status_code=303,
+        )
+
     return RedirectResponse(
-    url=f"/rooms/property/{property_id}?success=room_updated",
-    status_code=303,
+        url=f"/rooms/property/{property_id}?error={result.message}",
+        status_code=303,
     )
+
 
 @router.post("/delete/{room_id}")
 def delete_room(
-
     room_id: int,
-
     property_id: int = Form(...),
-
 ):
 
     db = SessionLocal()
@@ -272,7 +273,7 @@ def delete_room(
                 detail="Habitación no encontrada.",
             )
 
-        room_service.delete_room(
+        result = room_service.delete_room(
             db,
             room,
         )
@@ -281,7 +282,14 @@ def delete_room(
 
         db.close()
 
+    if result.success:
+
+        return RedirectResponse(
+            url=f"/rooms/property/{property_id}?success=room_deleted",
+            status_code=303,
+        )
+
     return RedirectResponse(
-        url=f"/rooms/property/{property_id}?success=room_deleted",
+        url=f"/rooms/property/{property_id}?error={result.message}",
         status_code=303,
     )

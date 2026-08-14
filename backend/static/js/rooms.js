@@ -1,48 +1,51 @@
+const SUCCESS_MESSAGES = {
+
+    room_created:
+        "Habitación creada.",
+
+    room_updated:
+        "Habitación actualizada.",
+
+    room_deleted:
+        "Habitación eliminada.",
+
+    booking_created:
+        "Reserva creada.",
+
+    booking_updated:
+        "Reserva actualizada.",
+
+    booking_deleted:
+        "Reserva eliminada."
+
+};
+
+const ERROR_MESSAGES = {
+
+    code_exists:
+        "Ya existe una habitación con ese código."
+
+};
+
 document.addEventListener("DOMContentLoaded", () => {
 
-    const params = new URLSearchParams(window.location.search);
+    RMPageNotification.show(
+        SUCCESS_MESSAGES,
+        ERROR_MESSAGES,
+    );
 
-    const success = params.get("success");
+    const roomDeleteButton = document.getElementById(
+        "room-modal-delete"
+    );
 
-    if (!success) {
+    if (roomDeleteButton) {
 
-        return;
-
-    }
-
-    const SUCCESS_MESSAGES = {
-
-        room_created: "Habitación creada.",
-
-        room_updated: "Habitación actualizada.",
-
-        room_deleted: "Habitación eliminada.",
-
-        booking_created: "Reserva creada.",
-
-        booking_updated: "Reserva actualizada.",
-
-        booking_deleted: "Reserva eliminada."
-
-    };
-
-    if (SUCCESS_MESSAGES[success]) {
-
-        RMNotification.success(
-            SUCCESS_MESSAGES[success]
+        roomDeleteButton.addEventListener(
+            "click",
+            handleDeleteRoom,
         );
 
     }
-
-    params.delete("success");
-
-    const query = params.toString();
-
-    const url = query
-        ? `${window.location.pathname}?${query}`
-        : window.location.pathname;
-
-    history.replaceState({}, "", url);
 
 });
 
@@ -72,6 +75,7 @@ function openCreateRoomModal(propertyId) {
         .classList.remove("hidden");
 
 }
+
 
 async function openEditRoomModal(roomId) {
 
@@ -120,7 +124,9 @@ async function openEditRoomModal(roomId) {
             .getElementById("room-modal")
             .classList.remove("hidden");
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
         console.error(error);
 
@@ -132,6 +138,7 @@ async function openEditRoomModal(roomId) {
 
 }
 
+
 function handleDeleteRoom() {
 
     if (!RMConfirm.ask(
@@ -142,7 +149,9 @@ function handleDeleteRoom() {
 
     }
 
-    const form = document.getElementById("room-form");
+    const form = document.getElementById(
+        "room-form"
+    );
 
     form.action = form.action.replace(
         "/update/",
@@ -152,6 +161,7 @@ function handleDeleteRoom() {
     form.submit();
 
 }
+
 
 function closeRoomModal() {
 
@@ -167,18 +177,5 @@ function clearRoomForm() {
     document
         .getElementById("room-form")
         .reset();
-
-}
-
-const roomDeleteButton = document.getElementById(
-    "room-modal-delete"
-);
-
-if (roomDeleteButton) {
-
-    roomDeleteButton.addEventListener(
-        "click",
-        handleDeleteRoom
-    );
 
 }

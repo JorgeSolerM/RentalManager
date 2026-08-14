@@ -2,7 +2,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.models.room import Room
-
 from backend.repositories.base_repository import BaseRepository
 
 
@@ -64,4 +63,25 @@ class RoomRepository(BaseRepository):
 
         return db.scalar(statement)
 
+    def get_by_code(
+        self,
+        db: Session,
+        code: str,
+    ) -> Room | None:
 
+        statement = (
+            select(Room)
+            .where(Room.code == code)
+        )
+
+        return db.scalar(statement)
+
+    def update(
+        self,
+        db: Session,
+        room: Room,
+    ) -> Room:
+
+        db.merge(room)
+
+        return room
