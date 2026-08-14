@@ -29,10 +29,9 @@
         <tr>
 
             <th>Nombre</th>
-            <th>Importar</th>
-            <th>Exportar</th>
+            <th>Importa</th>
+            <th>Exporta</th>
             <th>Estado</th>
-            <th>Acciones</th>
 
         </tr>
 
@@ -46,7 +45,11 @@
 
             <td>
 
-                {{ platform.name }}
+                <a href="#" onclick="openEditPlatformModal({{ platform.id }}); return false;">
+
+                    {{ platform.name }}
+
+                </a>
 
             </td>
 
@@ -77,12 +80,6 @@
                 {% else %}
                 ⚪
                 {% endif %}
-
-            </td>
-
-            <td>
-
-                —
 
             </td>
 

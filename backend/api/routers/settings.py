@@ -90,16 +90,141 @@ def create_platform(
 
         )
 
-        platform_service.create_platform(
+        result = platform_service.create_platform(
             db,
             platform,
+        )
+
+        print(result)
+        print(result.success)
+        print(result.message)
+
+    finally:
+
+        db.close()
+
+    if not result.success:
+
+        return RedirectResponse(
+            url=f"/settings/platforms?error={result.message}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url="/settings/platforms?success=platform_created",
+        status_code=303,
+    )
+
+
+@router.get("/platforms/edit/{platform_id}")
+def get_platform(
+    platform_id: int,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        platform = platform_service.get_by_id(
+            db,
+            platform_id,
+        )
+
+        return {
+
+            "id": platform.id,
+
+            "name": platform.name,
+
+            "slug": platform.slug,
+
+            "supports_import": platform.supports_import,
+
+            "supports_export": platform.supports_export,
+
+            "active": platform.active,
+
+        }
+
+    finally:
+
+        db.close()
+
+
+@router.post("/platforms/update/{platform_id}")
+def update_platform(
+
+    platform_id: int,
+
+    name: str = Form(...),
+
+    slug: str = Form(...),
+
+    supports_import: bool = Form(False),
+
+    supports_export: bool = Form(False),
+
+):
+
+    db = SessionLocal()
+
+    try:
+
+        result = platform_service.update_platform(
+            db,
+            platform_id,
+            name,
+            slug,
+            supports_import,
+            supports_export,
         )
 
     finally:
 
         db.close()
 
+    if not result.success:
+
+        return RedirectResponse(
+            url=f"/settings/platforms?error={result.message}",
+            status_code=303,
+        )
+
     return RedirectResponse(
-        url="/settings/platforms?success=platform_created",
+        url="/settings/platforms?success=platform_updated",
+        status_code=303,
+    )
+
+
+
+@router.post("/platforms/delete/{platform_id}")
+def delete_platform(
+
+    platform_id: int,
+
+):
+
+    db = SessionLocal()
+
+    try:
+
+        result = platform_service.delete_platform(
+            db,
+            platform_id,
+        )
+
+    finally:
+
+        db.close()
+
+    if not result.success:
+
+        return RedirectResponse(
+            url=f"/settings/platforms?error={result.message}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url="/settings/platforms?success=platform_deleted",
         status_code=303,
     )
