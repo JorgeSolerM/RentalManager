@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 # Directorio raíz del proyecto (C:\RentalManager)
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -22,3 +22,12 @@ SessionLocal = sessionmaker(
     autoflush=False,
     bind=engine,
 )
+
+
+def get_db():
+    db: Session = SessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
