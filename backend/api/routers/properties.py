@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
-from backend.database.session import SessionLocal
+from backend.database.session import get_db
 from backend.models.property import Property
 from backend.services.property_service import PropertyService
 from backend.services.room_service import RoomService
@@ -16,79 +17,69 @@ room_service = RoomService()
 
 
 @router.get("/")
-def list_properties(request: Request):
+def list_properties(
+    request: Request,
+    db: Session = Depends(get_db),
+):
 
-    db = SessionLocal()
+    properties = property_service.list_properties(db)
 
-    try:
+    properties_data = []
 
-        properties = property_service.list_properties(db)
+    for property_obj in properties:
 
-        properties_data = []
-
-        for property_obj in properties:
-
-            room_count = room_service.count_rooms_by_property(
-                db,
-                property_obj.id,
-            )
-
-            properties_data.append(
-                {
-                    "property": property_obj,
-                    "room_count": room_count,
-                }
-            )
-
-        return templates.TemplateResponse(
-            request=request,
-            name="pages/properties.html",
-            context={
-                "request": request,
-                "version": "1.0.0",
-                "current_page": "properties",
-                "properties": properties_data,
-            },
+        room_count = room_service.count_rooms_by_property(
+            db,
+            property_obj.id,
         )
 
-    finally:
+        properties_data.append(
+            {
+                "property": property_obj,
+                "room_count": room_count,
+            }
+        )
 
-        db.close()
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/properties.html",
+        context={
+            "request": request,
+            "version": "1.0.0",
+            "current_page": "properties",
+            "properties": properties_data,
+        },
+    )
 
 
 @router.get("/{property_id}")
-def get_property(property_id: int):
+def get_property(
+    property_id: int,
+    db: Session = Depends(get_db),
+):
 
-    db = SessionLocal()
+    property_obj = property_service.get_by_id(
+        db,
+        property_id,
+    )
 
-    try:
+    if property_obj is None:
 
-        property_obj = property_service.get_by_id(
-            db,
-            property_id,
+        raise HTTPException(
+            status_code=404,
+            detail="Propiedad no encontrada.",
         )
 
-        if property_obj is None:
-
-            raise HTTPException(
-                status_code=404,
-                detail="Propiedad no encontrada.",
-            )
-
-        return {
-            "id": property_obj.id,
-            "name": property_obj.name,
-            "alias": property_obj.alias,
-            "address": property_obj.address,
-            "city": property_obj.city,
-            "owner": property_obj.owner,
-            "notes": property_obj.notes,
-            "active": property_obj.active,
-        }
-
-    finally:
-
-        db.close()
+    return {
+        "id": property_obj.id,
+        "name": property_obj.name,
+        "alias": property_obj.alias,
+        "address": property_obj.address,
+        "city": property_obj.city,
+        "owner": property_obj.owner,
+        "notes": property_obj.notes,
+        "active": property_obj.active,
+    }
 
 
 @router.post("/create")
@@ -99,30 +90,23 @@ def create_property(
     city: str = Form(...),
     owner: str = Form(...),
     notes: str = Form(""),
+    db: Session = Depends(get_db),
 ):
 
-    db = SessionLocal()
+    property_obj = Property(
+        name=name,
+        alias=alias or None,
+        address=address,
+        city=city,
+        owner=owner,
+        notes=notes or None,
+        active=True,
+    )
 
-    try:
-
-        property_obj = Property(
-            name=name,
-            alias=alias or None,
-            address=address,
-            city=city,
-            owner=owner,
-            notes=notes or None,
-            active=True,
-        )
-
-        result = property_service.create_property(
-            db,
-            property_obj,
-        )
-
-    finally:
-
-        db.close()
+    result = property_service.create_property(
+        db,
+        property_obj,
+    )
 
     if result.success:
 
@@ -138,37 +122,32 @@ def create_property(
 
 
 @router.post("/toggle/{property_id}")
-def toggle_property(property_id: int):
+def toggle_property(
+    property_id: int,
+    db: Session = Depends(get_db),
+):
 
-    db = SessionLocal()
+    property_obj = property_service.get_by_id(
+        db,
+        property_id,
+    )
 
-    try:
+    if property_obj is None:
 
-        property_obj = property_service.get_by_id(
-            db,
-            property_id,
+        raise HTTPException(
+            status_code=404,
+            detail="Propiedad no encontrada.",
         )
 
-        if property_obj is None:
+    property_obj = property_service.toggle_property(
+        db,
+        property_obj,
+    )
 
-            raise HTTPException(
-                status_code=404,
-                detail="Propiedad no encontrada.",
-            )
-
-        property_obj = property_service.toggle_property(
-            db,
-            property_obj,
-        )
-
-        return {
-            "success": True,
-            "active": property_obj.active,
-        }
-
-    finally:
-
-        db.close()
+    return {
+        "success": True,
+        "active": property_obj.active,
+    }
 
 
 @router.post("/update/{property_id}")
@@ -180,39 +159,32 @@ def update_property(
     city: str = Form(...),
     owner: str = Form(...),
     notes: str = Form(""),
+    db: Session = Depends(get_db),
 ):
 
-    db = SessionLocal()
+    property_obj = property_service.get_by_id(
+        db,
+        property_id,
+    )
 
-    try:
+    if property_obj is None:
 
-        property_obj = property_service.get_by_id(
-            db,
-            property_id,
+        raise HTTPException(
+            status_code=404,
+            detail="Propiedad no encontrada.",
         )
 
-        if property_obj is None:
+    property_obj.name = name
+    property_obj.alias = alias or None
+    property_obj.address = address
+    property_obj.city = city
+    property_obj.owner = owner
+    property_obj.notes = notes or None
 
-            raise HTTPException(
-                status_code=404,
-                detail="Propiedad no encontrada.",
-            )
-
-        property_obj.name = name
-        property_obj.alias = alias or None
-        property_obj.address = address
-        property_obj.city = city
-        property_obj.owner = owner
-        property_obj.notes = notes or None
-
-        result = property_service.update_property(
-            db,
-            property_obj,
-        )
-
-    finally:
-
-        db.close()
+    result = property_service.update_property(
+        db,
+        property_obj,
+    )
 
     if result.success:
 
@@ -228,32 +200,25 @@ def update_property(
 @router.post("/delete/{property_id}")
 def delete_property(
     property_id: int,
+    db: Session = Depends(get_db),
 ):
 
-    db = SessionLocal()
+    property_obj = property_service.get_by_id(
+        db,
+        property_id,
+    )
 
-    try:
+    if property_obj is None:
 
-        property_obj = property_service.get_by_id(
-            db,
-            property_id,
+        raise HTTPException(
+            status_code=404,
+            detail="Propiedad no encontrada.",
         )
 
-        if property_obj is None:
-
-            raise HTTPException(
-                status_code=404,
-                detail="Propiedad no encontrada.",
-            )
-
-        result = property_service.delete_property(
-            db,
-            property_obj,
-        )
-
-    finally:
-
-        db.close()
+    result = property_service.delete_property(
+        db,
+        property_obj,
+    )
 
     if result.success:
 
