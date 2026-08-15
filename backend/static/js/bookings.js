@@ -273,6 +273,27 @@ const BookingUI = {
 
 const BOOKING_ERROR_MESSAGES = {
 
+    booking_overlap:
+        "Las fechas se solapan con otra reserva de la habitación.",
+
+    booking_room_inactive:
+        "No se pueden guardar reservas en una habitación inactiva.",
+
+    booking_guest_required:
+        "Debe introducir el nombre del huésped.",
+
+    booking_invalid_dates:
+        "La fecha de salida debe ser posterior a la fecha de entrada.",
+
+    booking_invalid_price:
+        "El precio mensual debe ser un número mayor o igual que cero.",
+
+    booking_imported_read_only:
+        "Las reservas importadas no se pueden modificar manualmente.",
+
+    booking_room_not_found:
+        "La habitación asociada a la reserva no existe.",
+
     booking_delete_not_allowed:
         "Las reservas no se pueden eliminar para preservar el histórico."
 

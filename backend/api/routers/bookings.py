@@ -49,7 +49,7 @@ def get_booking(
 
         room_id=booking.room_id,
 
-        guest_name=booking.guest.full_name,
+        guest_name=booking.guest.full_name if booking.guest is not None else None,
 
         origin=booking.origin,
 
@@ -82,9 +82,15 @@ def create_booking(
 
 ):
 
-    booking_service.create_manual_booking(
+    result = booking_service.create_manual_booking(
         db, room_id, guest_name, check_in, check_out, price, notes
     )
+
+    if not result.success:
+        return RedirectResponse(
+            url=f"/rooms/{room_id}?error={result.message}",
+            status_code=303,
+        )
 
     return RedirectResponse(
     url=f"/rooms/{room_id}?success=booking_created",
@@ -112,19 +118,27 @@ def update_booking(
 
 ):
 
-    booking = booking_service.update_manual_booking(
+    result = booking_service.update_manual_booking(
         db, booking_id, guest_name, check_in, check_out, price, notes
     )
 
-    if booking is None:
+    if not result.success and result.message == "not_found":
 
         raise HTTPException(
             status_code=404,
             detail="Reserva no encontrada.",
         )
 
+    authoritative_room_id = result.data.room_id
+
+    if not result.success:
+        return RedirectResponse(
+            url=f"/rooms/{authoritative_room_id}?error={result.message}",
+            status_code=303,
+        )
+
     return RedirectResponse(
-    url=f"/rooms/{room_id}?success=booking_updated",
+    url=f"/rooms/{authoritative_room_id}?success=booking_updated",
     status_code=303,
     )
 

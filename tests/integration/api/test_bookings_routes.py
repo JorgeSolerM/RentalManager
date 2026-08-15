@@ -9,8 +9,10 @@ from backend.app_factory import create_app
 from backend.database.base import Base
 from backend.database.session import get_db
 from backend.models.booking import Booking
+from backend.models.platform import Platform
 from backend.models.property import Property
 from backend.models.room import Room
+from backend.models.room_calendar import RoomCalendar
 
 
 def create_room(db_session) -> Room:
@@ -170,3 +172,97 @@ def test_booking_is_visible_when_every_request_uses_an_independent_session(tmp_p
         app.dependency_overrides.clear()
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
+
+
+def test_booking_overlap_uses_error_redirect_and_keeps_original_contract(
+    client, db_session
+):
+    room = create_room(db_session)
+    first = client.post(
+        "/bookings/create", data=booking_data(room.id), follow_redirects=False
+    )
+    overlap = client.post(
+        "/bookings/create",
+        data=booking_data(
+            room.id, guest_name="Otra", check_in="2026-09-12", check_out="2026-09-20"
+        ),
+        follow_redirects=False,
+    )
+    assert first.status_code == 303
+    assert overlap.status_code == 303
+    assert overlap.headers["location"] == f"/rooms/{room.id}?error=booking_overlap"
+    assert len(db_session.scalars(select(Booking)).all()) == 1
+
+
+def test_update_uses_persisted_room_as_authority(client, db_session):
+    first_room = create_room(db_session)
+    second_property = Property(
+        name="Piso Dos", address="Calle Dos", city="Elche",
+        owner="HSI Rents", active=True,
+    )
+    db_session.add(second_property)
+    db_session.flush()
+    second_room = Room(
+        property_id=second_property.id, code="H02", display_order=1,
+        base_price=350, active=True,
+    )
+    db_session.add(second_room)
+    db_session.commit()
+    client.post("/bookings/create", data=booking_data(first_room.id))
+    booking = db_session.scalar(select(Booking))
+
+    response = client.post(
+        f"/bookings/update/{booking.id}",
+        data=booking_data(
+            second_room.id, check_in="2026-10-01", check_out="2026-10-03"
+        ),
+        follow_redirects=False,
+    )
+
+    db_session.refresh(booking)
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"/rooms/{first_room.id}?success=booking_updated"
+    )
+    assert booking.room_id == first_room.id
+
+
+def test_imported_booking_without_guest_returns_null_and_is_read_only(
+    client, db_session
+):
+    room = create_room(db_session)
+    platform = Platform(name="Booking.com", slug="booking", active=True)
+    db_session.add(platform)
+    db_session.flush()
+    calendar = RoomCalendar(room_id=room.id, platform_id=platform.id, active=True)
+    db_session.add(calendar)
+    db_session.flush()
+    booking = Booking(
+        room_id=room.id,
+        room_calendar_id=calendar.id,
+        guest_id=None,
+        origin="ical",
+        check_in=date(2026, 11, 1),
+        check_out=date(2026, 11, 5),
+    )
+    db_session.add(booking)
+    db_session.commit()
+
+    get_response = client.get(f"/bookings/{booking.id}")
+    update_response = client.post(
+        f"/bookings/update/{booking.id}",
+        data=booking_data(
+            room.id, guest_name="Ana", check_in="2026-11-02", check_out="2026-11-06"
+        ),
+        follow_redirects=False,
+    )
+
+    assert get_response.status_code == 200
+    assert get_response.json()["guest_name"] is None
+    assert update_response.status_code == 303
+    assert update_response.headers["location"] == (
+        f"/rooms/{room.id}?error=booking_imported_read_only"
+    )
+    db_session.refresh(booking)
+    assert booking.guest_id is None
+    assert booking.check_in == date(2026, 11, 1)

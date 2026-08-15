@@ -139,3 +139,18 @@ Fecha: 15/08/2026
 El precio de una reserva se expresará como precio mensual.
 
 No se implementarán por ahora precios diarios, importe total de estancia, descuentos ni comisiones.
+
+---
+
+## DEC-015
+
+Fecha: 16/08/2026
+
+La detección de solapamientos se realizará inicialmente dentro de la frontera
+transaccional del servicio mediante una consulta de intervalos semiabiertos.
+
+Esta protección mantiene los casos de uso ordinarios, pero no cierra por sí sola
+la carrera entre dos escrituras concurrentes que validen antes de que ninguna se
+confirme. Antes de automatizar iCal o cualquier sincronización externa deberá
+incorporarse una garantía de concurrencia en la base de datos o una serialización
+equivalente de las escrituras de reservas.

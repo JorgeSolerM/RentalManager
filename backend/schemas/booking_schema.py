@@ -9,7 +9,7 @@ class BookingResponse(BaseModel):
 
     room_id: int
 
-    guest_name: str
+    guest_name: str | None
 
     origin: str
 

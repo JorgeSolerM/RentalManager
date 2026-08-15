@@ -230,7 +230,7 @@ def test_booking_service_and_repository_cover_lists_current_future_and_validatio
 
     current.notes = "Actualizada"
     current.price = 125
-    assert service.update_booking(db_session, current).notes == "Actualizada"
+    assert service.update_booking(db_session, current).data.notes == "Actualizada"
 
     invalid = Booking(
         room_id=room.id,
@@ -238,10 +238,8 @@ def test_booking_service_and_repository_cover_lists_current_future_and_validatio
         check_out=today,
         origin="manual",
     )
-    with pytest.raises(ValueError, match="fecha de salida"):
-        service.create_booking(db_session, invalid)
-    with pytest.raises(ValueError, match="fecha de salida"):
-        service.update_booking(db_session, invalid)
+    assert service.create_booking(db_session, invalid).message == "booking_invalid_dates"
+    assert service.update_booking(db_session, invalid).message == "booking_invalid_dates"
 
     deletion = service.delete_booking(db_session, current)
     assert deletion.success is False

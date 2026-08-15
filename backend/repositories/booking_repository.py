@@ -9,6 +9,27 @@ from backend.repositories.base_repository import BaseRepository
 
 class BookingRepository(BaseRepository):
 
+    def has_overlap(
+        self,
+        db: Session,
+        room_id: int,
+        check_in: date,
+        check_out: date,
+        exclude_booking_id: int | None = None,
+    ) -> bool:
+        statement = (
+            select(Booking.id)
+            .where(Booking.room_id == room_id)
+            .where(Booking.check_in < check_out)
+            .where(Booking.check_out > check_in)
+            .limit(1)
+        )
+
+        if exclude_booking_id is not None:
+            statement = statement.where(Booking.id != exclude_booking_id)
+
+        return db.scalar(statement) is not None
+
     def get_by_id(
         self,
         db: Session,

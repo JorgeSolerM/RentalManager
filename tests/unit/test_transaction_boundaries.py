@@ -67,7 +67,7 @@ def test_new_guest_and_booking_are_committed_together_and_existing_guest_is_reus
 
     guests = db_session.scalars(select(Guest)).all()
     assert len(guests) == 1
-    assert first.guest_id == second.guest_id == guests[0].id
+    assert first.data.guest_id == second.data.guest_id == guests[0].id
     assert len(db_session.scalars(select(Booking)).all()) == 2
 
 
@@ -90,13 +90,13 @@ def test_failed_booking_creation_rolls_back_new_guest(db_session, monkeypatch):
     ) is None
 
 
-def test_invalid_fk_rolls_back_and_session_can_be_reused(db_session):
+def test_missing_room_rejection_rolls_back_and_session_can_be_reused(db_session):
     service = BookingService()
-    with pytest.raises(IntegrityError):
-        service.create_manual_booking(
-            db_session, 999, "Guest FK", date(2026, 9, 1),
-            date(2026, 9, 3), None, None,
-        )
+    result = service.create_manual_booking(
+        db_session, 999, "Guest FK", date(2026, 9, 1),
+        date(2026, 9, 3), None, None,
+    )
+    assert result.message == "booking_room_not_found"
     assert db_session.scalar(select(Guest).where(Guest.full_name == "Guest FK")) is None
 
     room = persist_room(db_session)
@@ -104,7 +104,7 @@ def test_invalid_fk_rolls_back_and_session_can_be_reused(db_session):
         db_session, room.id, "Guest Válido", date(2026, 9, 1),
         date(2026, 9, 3), None, None,
     )
-    assert booking.id is not None
+    assert booking.data.id is not None
 
 
 def test_failed_booking_update_leaves_no_guest_or_partial_changes(
@@ -123,11 +123,11 @@ def test_failed_booking_update_leaves_no_guest_or_partial_changes(
     monkeypatch.setattr(service.booking_repository, "update", fail_update)
     with pytest.raises(RuntimeError, match="update failed"):
         service.update_manual_booking(
-            db_session, booking.id, "Guest Nuevo", date(2026, 10, 1),
+            db_session, booking.data.id, "Guest Nuevo", date(2026, 10, 1),
             date(2026, 10, 3), 999, "Cambiada",
         )
 
-    persisted = db_session.get(Booking, booking.id)
+    persisted = db_session.get(Booking, booking.data.id)
     assert persisted.notes == "Original"
     assert persisted.price == 100
     assert persisted.guest.full_name == "Original"
