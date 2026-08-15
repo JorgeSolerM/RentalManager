@@ -2,20 +2,17 @@ from fastapi.staticfiles import StaticFiles
 
 import backend.app_factory as app_factory
 from backend.api.routers import rooms
+from backend.main import app as main_app
 
 
 def test_create_app_without_initialization_registers_expected_application_parts(
-    monkeypatch,
 ):
-    def initialization_must_not_run():
-        raise AssertionError("init_db must not run when initialize_database is False")
-
-    monkeypatch.setattr(app_factory, "init_db", initialization_must_not_run)
-
-    app = app_factory.create_app(initialize_database=False)
+    app = app_factory.create_app()
     paths = set(app.openapi()["paths"])
 
     assert app.title == "RentalManager - HSI Rents"
+    assert main_app.title == "RentalManager - HSI Rents"
+    assert not hasattr(app_factory, "init_db")
     assert any(
         isinstance(getattr(route, "app", None), StaticFiles)
         and route.path == "/static"

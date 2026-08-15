@@ -10,17 +10,14 @@ from backend.api.routers import (
     settings,
 )
 from backend.core.jinja_filters import format_date
-from backend.database.init_db import init_db
 
 
-def create_app(initialize_database: bool = True) -> FastAPI:
+def create_app(initialize_database: bool = False) -> FastAPI:
+    """Create the application without creating or migrating database schema."""
     app = FastAPI(
         title="RentalManager - HSI Rents",
         version="1.0.0",
     )
-
-    if initialize_database:
-        init_db()
 
     app.mount(
         "/static",
