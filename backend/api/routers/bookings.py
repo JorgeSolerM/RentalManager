@@ -1,9 +1,10 @@
 from datetime import date
 
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException
 from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
 
-from backend.database.session import SessionLocal
+from backend.database.session import get_db
 from backend.models.booking import Booking
 from backend.schemas.booking_schema import BookingResponse
 from backend.services.booking_service import BookingService
@@ -16,20 +17,12 @@ guest_service = GuestService()
 
 
 @router.get("/room/{room_id}")
-def list_bookings(room_id: int):
+def list_bookings(room_id: int, db: Session = Depends(get_db)):
 
-    db = SessionLocal()
-
-    try:
-
-        return booking_service.list_bookings_by_room(
-            db,
-            room_id,
-        )
-
-    finally:
-
-        db.close()
+    return booking_service.list_bookings_by_room(
+        db,
+        room_id,
+    )
 
 
 @router.get(
@@ -38,47 +31,40 @@ def list_bookings(room_id: int):
 )
 def get_booking(
     booking_id: int,
+    db: Session = Depends(get_db),
 ):
 
-    db = SessionLocal()
+    booking = booking_service.get_booking(
+        db,
+        booking_id,
+    )
 
-    try:
+    if booking is None:
 
-        booking = booking_service.get_booking(
-            db,
-            booking_id,
+        raise HTTPException(
+            status_code=404,
+            detail="Reserva no encontrada.",
         )
 
-        if booking is None:
+    return BookingResponse(
 
-            raise HTTPException(
-                status_code=404,
-                detail="Reserva no encontrada.",
-            )
+        id=booking.id,
 
-        return BookingResponse(
+        room_id=booking.room_id,
 
-            id=booking.id,
+        guest_name=booking.guest.full_name,
 
-            room_id=booking.room_id,
+        origin=booking.origin,
 
-            guest_name=booking.guest.full_name,
+        check_in=booking.check_in,
 
-            origin=booking.origin,
+        check_out=booking.check_out,
 
-            check_in=booking.check_in,
+        price=booking.price,
 
-            check_out=booking.check_out,
+        notes=booking.notes,
 
-            price=booking.price,
-
-            notes=booking.notes,
-
-        )
-
-    finally:
-
-        db.close()
+    )
 
 
 @router.post("/create")
@@ -95,46 +81,39 @@ def create_booking(
     price: float | None = Form(None),
 
     notes: str | None = Form(None),
+    db: Session = Depends(get_db),
 
 ):
 
-    db = SessionLocal()
+    guest = guest_service.get_or_create_guest(
+        db,
+        guest_name,
+    )
 
-    try:
+    booking = Booking(
+        room_id=room_id,
+    )
 
-        guest = guest_service.get_or_create_guest(
-            db,
-            guest_name,
-        )
+    booking_service.populate_booking(
 
-        booking = Booking(
-            room_id=room_id,
-        )
+        booking=booking,
 
-        booking_service.populate_booking(
+        guest=guest,
 
-            booking=booking,
+        check_in=check_in,
 
-            guest=guest,
+        check_out=check_out,
 
-            check_in=check_in,
+        price=price,
 
-            check_out=check_out,
+        notes=notes,
 
-            price=price,
+    )
 
-            notes=notes,
-
-        )
-
-        booking_service.create_booking(
-            db,
-            booking,
-        )
-
-    finally:
-
-        db.close()
+    booking_service.create_booking(
+        db,
+        booking,
+    )
 
     return RedirectResponse(
     url=f"/rooms/{room_id}?success=booking_created",
@@ -158,54 +137,47 @@ def update_booking(
     price: float | None = Form(None),
 
     notes: str | None = Form(None),
+    db: Session = Depends(get_db),
 
 ):
 
-    db = SessionLocal()
+    booking = booking_service.get_booking(
+        db,
+        booking_id,
+    )
 
-    try:
+    if booking is None:
 
-        booking = booking_service.get_booking(
-            db,
-            booking_id,
+        raise HTTPException(
+            status_code=404,
+            detail="Reserva no encontrada.",
         )
 
-        if booking is None:
+    guest = guest_service.get_or_create_guest(
+        db,
+        guest_name,
+    )
 
-            raise HTTPException(
-                status_code=404,
-                detail="Reserva no encontrada.",
-            )
+    booking_service.populate_booking(
 
-        guest = guest_service.get_or_create_guest(
-            db,
-            guest_name,
-        )
+        booking=booking,
 
-        booking_service.populate_booking(
+        guest=guest,
 
-            booking=booking,
+        check_in=check_in,
 
-            guest=guest,
+        check_out=check_out,
 
-            check_in=check_in,
+        price=price,
 
-            check_out=check_out,
+        notes=notes,
 
-            price=price,
+    )
 
-            notes=notes,
-
-        )
-
-        booking_service.update_booking(
-            db,
-            booking,
-        )
-
-    finally:
-
-        db.close()
+    booking_service.update_booking(
+        db,
+        booking,
+    )
 
     return RedirectResponse(
     url=f"/rooms/{room_id}?success=booking_updated",
@@ -215,34 +187,27 @@ def update_booking(
 @router.post("/delete/{booking_id}")
 def delete_booking(
     booking_id: int,
+    db: Session = Depends(get_db),
 ):
 
-    db = SessionLocal()
+    booking = booking_service.get_booking(
+        db,
+        booking_id,
+    )
 
-    try:
+    if booking is None:
 
-        booking = booking_service.get_booking(
-            db,
-            booking_id,
+        raise HTTPException(
+            status_code=404,
+            detail="Reserva no encontrada.",
         )
 
-        if booking is None:
+    room_id = booking.room_id
 
-            raise HTTPException(
-                status_code=404,
-                detail="Reserva no encontrada.",
-            )
-
-        room_id = booking.room_id
-
-        booking_service.delete_booking(
-            db,
-            booking,
-        )
-
-    finally:
-
-        db.close()
+    booking_service.delete_booking(
+        db,
+        booking,
+    )
 
     return RedirectResponse(
     url=f"/rooms/{room_id}?success=booking_deleted",

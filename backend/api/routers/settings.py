@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
-from backend.database.session import SessionLocal
+from sqlalchemy.orm import Session
+
+from backend.database.session import get_db
 from backend.services.platform_service import PlatformService
 
 from fastapi import Form
@@ -33,31 +35,24 @@ def settings(request: Request):
 @router.get("/platforms")
 def platforms(
     request: Request,
+    db: Session = Depends(get_db),
 ):
 
-    db = SessionLocal()
+    platforms = platform_service.list_platforms(
+        db,
+    )
 
-    try:
+    print("QUERY:", request.url)
 
-        platforms = platform_service.list_platforms(
-            db,
-        )
-
-        print("QUERY:", request.url)
-
-        return templates.TemplateResponse(
-            request=request,
-            name="pages/platforms.html",
-            context={
-                "request": request,
-                "current_page": "settings",
-                "platforms": platforms,
-            },
-        )
-
-    finally:
-
-        db.close()
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/platforms.html",
+        context={
+            "request": request,
+            "current_page": "settings",
+            "platforms": platforms,
+        },
+    )
 
 @router.post("/platforms/create")
 def create_platform(
@@ -69,39 +64,32 @@ def create_platform(
     supports_import: bool = Form(False),
 
     supports_export: bool = Form(False),
+    db: Session = Depends(get_db),
 
 ):
 
-    db = SessionLocal()
+    platform = Platform(
 
-    try:
+        name=name,
 
-        platform = Platform(
+        slug=slug,
 
-            name=name,
+        supports_import=supports_import,
 
-            slug=slug,
+        supports_export=supports_export,
 
-            supports_import=supports_import,
+        active=True,
 
-            supports_export=supports_export,
+    )
 
-            active=True,
+    result = platform_service.create_platform(
+        db,
+        platform,
+    )
 
-        )
-
-        result = platform_service.create_platform(
-            db,
-            platform,
-        )
-
-        print(result)
-        print(result.success)
-        print(result.message)
-
-    finally:
-
-        db.close()
+    print(result)
+    print(result.success)
+    print(result.message)
 
     if not result.success:
 
@@ -119,36 +107,29 @@ def create_platform(
 @router.get("/platforms/edit/{platform_id}")
 def get_platform(
     platform_id: int,
+    db: Session = Depends(get_db),
 ):
 
-    db = SessionLocal()
+    platform = platform_service.get_by_id(
+        db,
+        platform_id,
+    )
 
-    try:
+    return {
 
-        platform = platform_service.get_by_id(
-            db,
-            platform_id,
-        )
+        "id": platform.id,
 
-        return {
+        "name": platform.name,
 
-            "id": platform.id,
+        "slug": platform.slug,
 
-            "name": platform.name,
+        "supports_import": platform.supports_import,
 
-            "slug": platform.slug,
+        "supports_export": platform.supports_export,
 
-            "supports_import": platform.supports_import,
+        "active": platform.active,
 
-            "supports_export": platform.supports_export,
-
-            "active": platform.active,
-
-        }
-
-    finally:
-
-        db.close()
+    }
 
 
 @router.post("/platforms/update/{platform_id}")
@@ -163,25 +144,18 @@ def update_platform(
     supports_import: bool = Form(False),
 
     supports_export: bool = Form(False),
+    db: Session = Depends(get_db),
 
 ):
 
-    db = SessionLocal()
-
-    try:
-
-        result = platform_service.update_platform(
-            db,
-            platform_id,
-            name,
-            slug,
-            supports_import,
-            supports_export,
-        )
-
-    finally:
-
-        db.close()
+    result = platform_service.update_platform(
+        db,
+        platform_id,
+        name,
+        slug,
+        supports_import,
+        supports_export,
+    )
 
     if not result.success:
 
@@ -201,21 +175,14 @@ def update_platform(
 def delete_platform(
 
     platform_id: int,
+    db: Session = Depends(get_db),
 
 ):
 
-    db = SessionLocal()
-
-    try:
-
-        result = platform_service.delete_platform(
-            db,
-            platform_id,
-        )
-
-    finally:
-
-        db.close()
+    result = platform_service.delete_platform(
+        db,
+        platform_id,
+    )
 
     if not result.success:
 
