@@ -204,12 +204,12 @@ def delete_booking(
 
     room_id = booking.room_id
 
-    booking_service.delete_booking(
+    result = booking_service.delete_booking(
         db,
         booking,
     )
 
     return RedirectResponse(
-    url=f"/rooms/{room_id}?success=booking_deleted",
+    url=f"/rooms/{room_id}?error={result.message}",
     status_code=303,
     )

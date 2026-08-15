@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from backend.core.operation_result import OperationResult
 from backend.models.booking import Booking
 from backend.models.guest import Guest
 from backend.repositories.booking_repository import BookingRepository
@@ -97,11 +98,11 @@ class BookingService:
         self,
         db: Session,
         booking: Booking,
-    ) -> None:
+    ) -> OperationResult[None]:
 
-        self.booking_repository.delete(
-            db,
-            booking,
+        return OperationResult(
+            success=False,
+            message="booking_delete_not_allowed",
         )
 
 

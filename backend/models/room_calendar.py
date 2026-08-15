@@ -71,4 +71,5 @@ class RoomCalendar(Base):
 
     bookings: Mapped[list["Booking"]] = relationship(
         back_populates="room_calendar",
+        passive_deletes="all",
     )

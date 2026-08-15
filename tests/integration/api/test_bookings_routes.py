@@ -115,8 +115,8 @@ def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
     )
     assert delete_response.status_code == 303
     assert delete_response.headers["location"] == (
-        f"/rooms/{room.id}?success=booking_deleted"
+        f"/rooms/{room.id}?error=booking_delete_not_allowed"
     )
-    assert db_session.get(Booking, booking.id) is None
+    assert db_session.get(Booking, booking.id) is not None
     assert not_found_response.status_code == 404
     assert not_found_response.json() == {"detail": "Reserva no encontrada."}

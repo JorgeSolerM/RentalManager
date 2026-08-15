@@ -46,4 +46,5 @@ class Guest(Base):
 
     bookings: Mapped[list["Booking"]] = relationship(
         back_populates="guest",
+        passive_deletes="all",
     )

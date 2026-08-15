@@ -127,6 +127,13 @@ class PlatformService:
                 message="not_found",
             )
 
+        if self.repository.has_room_calendars(db, platform.id):
+
+            return OperationResult(
+                success=False,
+                message="platform_has_room_calendars",
+            )
+
         self.repository.delete(
             db,
             platform,

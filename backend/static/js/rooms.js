@@ -23,7 +23,13 @@ const SUCCESS_MESSAGES = {
 const ERROR_MESSAGES = {
 
     code_exists:
-        "Ya existe una habitación con ese código."
+        "Ya existe una habitación con ese código.",
+
+    room_has_bookings:
+        "No se puede eliminar una habitación con reservas.",
+
+    room_has_room_calendars:
+        "No se puede eliminar una habitación con calendarios configurados."
 
 };
 

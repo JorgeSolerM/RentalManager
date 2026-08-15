@@ -52,4 +52,5 @@ class Property(Base):
     rooms: Mapped[list["Room"]] = relationship(
         back_populates="property",
         order_by="Room.display_order",
+        passive_deletes="all",
     )

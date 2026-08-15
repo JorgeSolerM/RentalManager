@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, event, inspect
+from sqlalchemy.engine import Engine
 from sqlalchemy.schema import UniqueConstraint
 
 from backend.database.base import Base
@@ -116,9 +117,21 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
 ):
     database_path = Path(tmp_path) / "alembic_empty.db"
     config, database_url = configure_temporary_database(monkeypatch, database_path)
+    foreign_key_settings = []
 
-    command.upgrade(config, "head")
+    def observe_alembic_connection(dbapi_connection, _connection_record):
+        if isinstance(dbapi_connection, sqlite3.Connection):
+            foreign_key_settings.append(
+                dbapi_connection.execute("PRAGMA foreign_keys").fetchone()[0]
+            )
 
+    event.listen(Engine, "connect", observe_alembic_connection)
+    try:
+        command.upgrade(config, "head")
+    finally:
+        event.remove(Engine, "connect", observe_alembic_connection)
+
+    assert foreign_key_settings == [1]
     assert_schema_matches_models(database_url)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:

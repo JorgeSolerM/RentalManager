@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models.platform import Platform
+from backend.models.room_calendar import RoomCalendar
 
 from backend.repositories.base_repository import BaseRepository
 
@@ -49,6 +50,20 @@ class PlatformRepository(BaseRepository):
         )
 
         return db.scalar(statement)
+
+    def has_room_calendars(
+        self,
+        db: Session,
+        platform_id: int,
+    ) -> bool:
+
+        statement = (
+            select(RoomCalendar.id)
+            .where(RoomCalendar.platform_id == platform_id)
+            .limit(1)
+        )
+
+        return db.scalar(statement) is not None
 
     def update(
         self,

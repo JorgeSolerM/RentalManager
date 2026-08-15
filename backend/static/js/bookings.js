@@ -271,7 +271,19 @@ const BookingUI = {
 
 };
 
+const BOOKING_ERROR_MESSAGES = {
+
+    booking_delete_not_allowed:
+        "Las reservas no se pueden eliminar para preservar el histórico."
+
+};
+
 document.addEventListener("DOMContentLoaded", () => {
+
+    RMPageNotification.show(
+        {},
+        BOOKING_ERROR_MESSAGES,
+    );
 
     if (!document.getElementById("bookingModal")) {
 

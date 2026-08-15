@@ -1,7 +1,9 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from backend.models.booking import Booking
 from backend.models.room import Room
+from backend.models.room_calendar import RoomCalendar
 from backend.repositories.base_repository import BaseRepository
 
 
@@ -75,6 +77,34 @@ class RoomRepository(BaseRepository):
         )
 
         return db.scalar(statement)
+
+    def has_bookings(
+        self,
+        db: Session,
+        room_id: int,
+    ) -> bool:
+
+        statement = (
+            select(func.count())
+            .select_from(Booking)
+            .where(Booking.room_id == room_id)
+        )
+
+        return (db.scalar(statement) or 0) > 0
+
+    def has_room_calendars(
+        self,
+        db: Session,
+        room_id: int,
+    ) -> bool:
+
+        statement = (
+            select(func.count())
+            .select_from(RoomCalendar)
+            .where(RoomCalendar.room_id == room_id)
+        )
+
+        return (db.scalar(statement) or 0) > 0
 
     def update(
         self,

@@ -124,6 +124,20 @@ class RoomService:
         room: Room,
     ) -> OperationResult:
 
+        if self.repository.has_bookings(db, room.id):
+
+            return OperationResult(
+                success=False,
+                message="room_has_bookings",
+            )
+
+        if self.repository.has_room_calendars(db, room.id):
+
+            return OperationResult(
+                success=False,
+                message="room_has_room_calendars",
+            )
+
         self.repository.delete(
             db,
             room,

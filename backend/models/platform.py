@@ -49,4 +49,5 @@ class Platform(Base):
 
     room_calendars: Mapped[list["RoomCalendar"]] = relationship(
         back_populates="platform",
+        passive_deletes="all",
     )

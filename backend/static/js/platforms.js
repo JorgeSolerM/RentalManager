@@ -17,7 +17,10 @@ const ERROR_MESSAGES = {
         "Ya existe una plataforma con ese slug.",
 
     not_found:
-        "La plataforma no existe."
+        "La plataforma no existe.",
+
+    platform_has_room_calendars:
+        "No se puede eliminar una plataforma con calendarios configurados."
 
 };
 

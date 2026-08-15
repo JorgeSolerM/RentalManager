@@ -51,9 +51,11 @@ class Room(Base):
 
     room_calendars: Mapped[list["RoomCalendar"]] = relationship(
         back_populates="room",
+        passive_deletes="all",
     )
 
     bookings: Mapped[list["Booking"]] = relationship(
         back_populates="room",
         order_by="Booking.check_in",
+        passive_deletes="all",
     )
