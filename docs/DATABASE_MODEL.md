@@ -1,6 +1,6 @@
 # Modelo de Base de Datos
 
-Versión: 1.0
+Versión: 1.1
 
 ---
 
@@ -20,51 +20,29 @@ La versión 1.0 utilizará las siguientes tablas.
 
 Property
 
-↓
-
 Room
-
-↓
 
 Platform
 
-↓
+RoomCalendar
+
+Guest
 
 Booking
-
-↓
-
-AppSettings
 
 ---
 
 # Relación general
 
-Property
+Property 1 ── N Room
 
-1
+Room 1 ── N RoomCalendar N ── 1 Platform
 
-↓
+Room 1 ── N Booking
 
-N
+Guest 1 ── N Booking
 
-Room
-
-1
-
-↓
-
-N
-
-Platform
-
-1
-
-↓
-
-N
-
-Booking
+RoomCalendar 1 ── N Booking
 
 ---
 
@@ -74,15 +52,14 @@ Representa un inmueble.
 
 Campos
 
-- id (UUID)
+- id (INTEGER)
 - name
-- short_name
-- owner
+- alias
 - address
 - city
-- active
-- sort_order
+- owner
 - notes
+- active
 
 ---
 
@@ -92,26 +69,25 @@ Representa una habitación.
 
 Campos
 
-- id (UUID)
+- id (INTEGER)
 - property_id
 - code
-- name
+- display_order
+- base_price
+- square_meters
 - active
-- sort_order
-- default_price
-- notes
 
 Observaciones
 
-default_price representa el precio habitual de la habitación.
+base_price representa el precio mensual habitual de la habitación.
 
-Las reservas podrán modificar dicho importe.
+El precio de una reserva se expresa como precio mensual. No se contemplan por ahora precios diarios, importe total de estancia, descuentos ni comisiones.
 
 ---
 
 # Tabla Platform
 
-Representa el origen de una reserva.
+Representa una plataforma incluida en un catálogo configurable.
 
 Ejemplos
 
@@ -125,14 +101,49 @@ Ejemplos
 
 Campos
 
-- id (UUID)
-- room_id
+- id (INTEGER)
 - name
-- ical_url
-- enabled
-- sync_status
-- last_sync
+- slug (único)
+- favicon
+- supports_import
+- supports_export
+- active
+
+La plataforma no pertenece directamente a una única habitación. Su configuración por habitación se representa mediante RoomCalendar.
+
+---
+
+# Tabla RoomCalendar
+
+Representa la configuración de una plataforma para una habitación.
+
+Campos
+
+- id (INTEGER)
+- room_id
+- platform_id
+- import_url
+- export_url
+- active
+- last_sync_at
+
+Existe una única configuración para cada pareja `room_id` y `platform_id`.
+
+---
+
+# Tabla Guest
+
+Representa a un huésped asociado a una o varias reservas.
+
+Campos
+
+- id (INTEGER)
+- full_name
+- display_name
+- phone
+- email
 - notes
+- active
 
 ---
 
@@ -142,43 +153,20 @@ Representa una reserva.
 
 Campos
 
-- id (UUID)
+- id (INTEGER)
 - room_id
-- platform_id
-- start_date
-- end_date
-- guest_name
+- room_calendar_id
+- guest_id
+- origin
+- external_reference
+- check_in
+- check_out
 - price
-- status
 - notes
-- imported_uid
-- imported_summary
-- manual_override
-- locked
-- created_by
-- created_at
-- updated_at
 
----
+Las reservas manuales requieren huésped. Las reservas importadas pueden mantener un huésped desconocido hasta disponer de sus datos.
 
-# Tabla AppSettings
-
-Configuración general de la aplicación.
-
-Campos
-
-- key
-- value
-
-Ejemplos
-
-theme
-
-row_height
-
-agenda_days
-
-language
+No pueden existir reservas con periodos solapados para la misma habitación.
 
 ---
 
@@ -188,13 +176,15 @@ Una propiedad contiene muchas habitaciones.
 
 Una habitación pertenece a una única propiedad.
 
-Una habitación puede tener muchas plataformas.
+Una habitación puede tener muchas plataformas mediante RoomCalendar.
 
 Una habitación puede tener muchas reservas.
 
-Cada plataforma pertenece a una única habitación.
+Una plataforma puede configurarse en muchas habitaciones.
 
 Cada reserva pertenece a una única habitación.
+
+Las entidades con relaciones o histórico se conservan mediante archivado o desactivación. No se realiza borrado físico mientras ese histórico deba preservarse.
 
 ---
 
@@ -209,6 +199,8 @@ El calendario maestro pertenece a la habitación.
 La URL del calendario maestro nunca cambia.
 
 El contenido del calendario sí cambia.
+
+Las reservas importadas pertenecen conceptualmente a su origen y no deben sobrescribirse ni cancelarse arbitrariamente desde RentalManager.
 
 ---
 

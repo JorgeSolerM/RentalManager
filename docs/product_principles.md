@@ -22,7 +22,7 @@ Describe cómo debe comportarse el producto.
 
 Conservación de la información.
 
-Toda entidad sigue el ciclo:
+Las entidades con relaciones o histórico siguen el ciclo:
 
 Activa
 
@@ -30,9 +30,7 @@ Activa
 
 Archivada
 
-↓
-
-Eliminada
+El archivado conserva la información y sus relaciones. No se realizará borrado físico mientras exista histórico que deba preservarse.
 
 ---
 
@@ -42,7 +40,9 @@ Las acciones destructivas no forman parte de la interfaz cotidiana.
 
 El usuario trabaja con elementos activos.
 
-Las operaciones de eliminación estarán alejadas de las acciones habituales.
+Las operaciones de archivado estarán alejadas de las acciones habituales.
+
+El borrado físico solo podrá considerarse para entidades sin relaciones ni histórico que conservar.
 
 ---
 

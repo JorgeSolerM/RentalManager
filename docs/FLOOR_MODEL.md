@@ -121,6 +121,8 @@ Sí / No
 
 Las propiedades inactivas permanecerán almacenadas, pero no aparecerán en el Dashboard ni en el Gantt por defecto.
 
+Las propiedades con relaciones o histórico se conservarán mediante archivado o desactivación. No se eliminarán físicamente.
+
 ---
 
 ## Orden
@@ -155,7 +157,7 @@ Una propiedad puede tener uno o varios propietarios en futuras versiones, aunque
 
 # Reglas de negocio
 
-- Una propiedad no puede eliminarse si contiene habitaciones.
+- Una propiedad con habitaciones, relaciones o histórico no se elimina físicamente; se archiva o desactiva.
 - El nombre corto debe ser único dentro de RentalManager.
 - El orden será completamente editable por el usuario.
 - Toda propiedad debe tener al menos una habitación para poder utilizarse en el motor de sincronización.

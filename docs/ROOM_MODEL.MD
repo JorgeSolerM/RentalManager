@@ -109,6 +109,8 @@ Las habitaciones inactivas no aparecerán en el Dashboard ni en el Gantt.
 
 No obstante, conservarán todo su historial.
 
+Una habitación inactiva no podrá recibir nuevas reservas.
+
 ---
 
 ## Orden
@@ -179,7 +181,13 @@ Las reservas podrán proceder de:
 - Creación manual
 - Futuras integraciones mediante API
 
-Todas serán tratadas exactamente igual por el sistema.
+Las reservas manuales requerirán un huésped. Las reservas importadas podrán conservar un huésped desconocido hasta que el origen facilite sus datos.
+
+No podrán existir reservas con fechas solapadas en una misma habitación y no habrá una opción para forzar el solapamiento manualmente.
+
+Las reservas importadas pertenecen conceptualmente a su plataforma o calendario de origen. RentalManager no las sobrescribirá ni cancelará arbitrariamente.
+
+El precio de una reserva se expresará como precio mensual. No se contemplan por ahora precios diarios, importe total de estancia, descuentos ni comisiones.
 
 ---
 
@@ -201,6 +209,7 @@ Uso exclusivamente interno.
 - El enlace iCal maestro nunca cambiará.
 - Una habitación puede importar varios calendarios.
 - Todas las reservas pertenecen siempre a una habitación.
+- Las habitaciones con histórico se desactivan o archivan; no se eliminan físicamente.
 
 ---
 

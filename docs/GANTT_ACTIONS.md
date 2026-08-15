@@ -73,9 +73,9 @@ Abre el menú contextual de la reserva.
 
 ## Gestión
 
-- Eliminar reserva
+- Archivar o cancelar reserva, según su autoridad y el protocolo aplicable
 
-La eliminación siempre requerirá confirmación.
+Las reservas importadas no se cancelarán ni modificarán arbitrariamente desde RentalManager. La gestión de cambios externos seguirá el protocolo de su plataforma de origen.
 
 ---
 

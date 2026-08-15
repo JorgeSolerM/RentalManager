@@ -69,3 +69,73 @@ Nombre corto de la propiedad · Código de habitación.
 Ejemplo:
 
 Universidad · H01
+
+---
+
+## DEC-008
+
+Fecha: 15/08/2026
+
+Las entidades con relaciones o histórico se conservarán mediante archivado o desactivación.
+
+No se realizará borrado físico de propiedades, habitaciones, plataformas, calendarios ni otros registros cuyo histórico deba preservarse.
+
+Motivo:
+
+El histórico operativo debe permanecer consultable y las relaciones existentes no pueden perder su significado.
+
+---
+
+## DEC-009
+
+Fecha: 15/08/2026
+
+Una habitación inactiva conservará sus reservas e histórico, pero no podrá recibir nuevas reservas.
+
+---
+
+## DEC-010
+
+Fecha: 15/08/2026
+
+RentalManager impedirá cualquier solapamiento entre reservas de la misma habitación.
+
+No existirá una opción para forzar manualmente un solapamiento.
+
+---
+
+## DEC-011
+
+Fecha: 15/08/2026
+
+Las reservas importadas pertenecen conceptualmente a su plataforma o calendario de origen.
+
+RentalManager no las sobrescribirá ni cancelará arbitrariamente. Las modificaciones o cancelaciones en una plataforma externa seguirán el protocolo de dicha plataforma.
+
+---
+
+## DEC-012
+
+Fecha: 15/08/2026
+
+El catálogo de plataformas será configurable y no estará limitado a un conjunto cerrado de plataformas.
+
+---
+
+## DEC-013
+
+Fecha: 15/08/2026
+
+Las reservas manuales requerirán un huésped.
+
+Las reservas importadas podrán conservar un huésped desconocido hasta que se disponga de información suficiente para identificarlo.
+
+---
+
+## DEC-014
+
+Fecha: 15/08/2026
+
+El precio de una reserva se expresará como precio mensual.
+
+No se implementarán por ahora precios diarios, importe total de estancia, descuentos ni comisiones.

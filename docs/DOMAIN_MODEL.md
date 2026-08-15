@@ -32,16 +32,15 @@ No describe la base de datos.
                   1..N |            | 1..N
                        |            |
           +----------------+   +----------------+
-          | Plataforma     |   |    Reserva     |
-          |  (Platform)    |   |   (Booking)    |
+          | RoomCalendar   |   |    Reserva     |
           +----------------+   +----------------+
-                       \            /
-                        \          /
-                         \        /
-                          \      /
-                    +----------------------+
-                    | Motor de Sincronización |
-                    +----------------------+
+                  |                     |
+                  | N..1                | N..1
+                  |                     |
+          +----------------+   +----------------+
+          | Plataforma     |   |    Huésped     |
+          |  (Platform)    |   |    (Guest)     |
+          +----------------+   +----------------+
 ```
 
 ---
@@ -66,11 +65,13 @@ Toda sincronización pertenece a una habitación.
 
 Cada habitación genera un único calendario maestro.
 
+Una habitación inactiva conserva sus reservas e histórico, pero no puede recibir nuevas reservas.
+
 ---
 
 ## Platform
 
-Representa una plataforma externa.
+Representa una plataforma externa incluida en un catálogo configurable.
 
 Ejemplos:
 
@@ -80,7 +81,7 @@ Ejemplos:
 - Flatio
 - Spotahome
 
-Cada plataforma podrá tener:
+La vinculación y configuración de una plataforma para una habitación se realiza mediante un calendario de habitación (RoomCalendar). Cada configuración podrá tener:
 
 - URL iCal
 - Estado
@@ -99,7 +100,13 @@ Puede proceder de:
 - creación manual
 - futuras APIs
 
-Todas las reservas se gestionan exactamente igual.
+Las reservas manuales requieren huésped. Las reservas importadas pueden tener inicialmente un huésped desconocido.
+
+No pueden solaparse dos reservas de una misma habitación. RentalManager no permite forzar un solapamiento manualmente.
+
+Una reserva importada sigue perteneciendo conceptualmente a su plataforma o calendario de origen. RentalManager no la sobrescribe ni cancela de forma arbitraria.
+
+El precio se expresa como precio mensual. No forman parte del modelo actual el precio diario, el importe total de la estancia, los descuentos ni las comisiones.
 
 ---
 
@@ -124,13 +131,15 @@ Una propiedad contiene muchas habitaciones.
 
 Una habitación pertenece siempre a una única propiedad.
 
-Una habitación puede tener muchas plataformas.
+Una habitación puede configurarse con muchas plataformas mediante RoomCalendar.
 
 Una habitación puede tener muchas reservas.
 
-Cada plataforma pertenece a una única habitación.
+Una plataforma forma parte de un catálogo global y puede configurarse en muchas habitaciones.
 
 Cada reserva pertenece a una única habitación.
+
+Las entidades con relaciones o histórico se archivan o desactivan; no se eliminan físicamente mientras su histórico deba conservarse.
 
 ---
 

@@ -41,6 +41,8 @@ Ejemplos:
 
 La Propiedad sirve como elemento organizativo y administrativo.
 
+Cuando una propiedad tenga relaciones o histórico, se conservará mediante archivado o desactivación. No se eliminará físicamente.
+
 ---
 
 # Reserva
@@ -50,6 +52,10 @@ Una Reserva representa la ocupación conocida de una Unidad Reservable durante u
 Una reserva no implica necesariamente que RentalManager sea el propietario de esa información.
 
 Toda reserva posee una fuente de origen.
+
+No pueden coexistir dos reservas con periodos solapados para una misma Unidad Reservable. RentalManager impedirá su creación o modificación y no ofrecerá una excepción manual a esta regla.
+
+Una reserva manual requiere un huésped. Una reserva importada puede mantener inicialmente un huésped desconocido.
 
 ---
 
@@ -69,6 +75,8 @@ Ejemplos:
 
 La autoridad determina qué operaciones pueden realizarse sobre una reserva.
 
+Las reservas importadas pertenecen conceptualmente a su plataforma o calendario de origen. RentalManager no las sobrescribe ni cancela de forma arbitraria; cualquier modificación o cancelación externa se tratará según el protocolo de la plataforma correspondiente.
+
 ---
 
 # Huésped
@@ -78,6 +86,8 @@ El Huésped representa a la persona asociada a una reserva.
 Un mismo huésped puede aparecer en distintas reservas.
 
 RentalManager intenta reutilizar la información del huésped siempre que sea posible para evitar duplicidades.
+
+Cuando el origen externo no facilite datos suficientes, el huésped podrá permanecer identificado como desconocido hasta disponer de ellos.
 
 ---
 
@@ -95,6 +105,8 @@ Puede proporcionar:
 Cada plataforma posee sus propias reglas de funcionamiento.
 
 RentalManager debe adaptarse a ellas.
+
+El catálogo de plataformas es configurable; no está limitado a un conjunto cerrado de proveedores.
 
 ---
 
