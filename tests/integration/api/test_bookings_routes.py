@@ -1,7 +1,13 @@
 from datetime import date
 
 from sqlalchemy import select
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from fastapi.testclient import TestClient
 
+from backend.app_factory import create_app
+from backend.database.base import Base
+from backend.database.session import get_db
 from backend.models.booking import Booking
 from backend.models.property import Property
 from backend.models.room import Room
@@ -120,3 +126,47 @@ def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
     assert db_session.get(Booking, booking.id) is not None
     assert not_found_response.status_code == 404
     assert not_found_response.json() == {"detail": "Reserva no encontrada."}
+
+
+def test_booking_is_visible_when_every_request_uses_an_independent_session(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{(tmp_path / 'independent_requests.db').as_posix()}",
+        connect_args={"check_same_thread": False},
+    )
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
+    setup_session = session_factory()
+    try:
+        room = create_room(setup_session)
+        room_id = room.id
+    finally:
+        setup_session.close()
+
+    app = create_app(initialize_database=False)
+
+    def independent_get_db():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = independent_get_db
+    try:
+        with TestClient(app) as independent_client:
+            create_response = independent_client.post(
+                "/bookings/create",
+                data=booking_data(room_id),
+                follow_redirects=False,
+            )
+            list_response = independent_client.get(f"/bookings/room/{room_id}")
+        assert create_response.status_code == 303
+        assert create_response.headers["location"] == (
+            f"/rooms/{room_id}?success=booking_created"
+        )
+        assert len(list_response.json()) == 1
+        assert list_response.json()[0]["check_in"] == "2026-09-10"
+    finally:
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()

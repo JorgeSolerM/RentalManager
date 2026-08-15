@@ -36,14 +36,12 @@ class PlatformService:
                 message="slug_exists",
             )
 
-        self.repository.create(
-            db,
-            platform,
-        )
-
-        db.commit()
-
-        db.refresh(platform)
+        try:
+            self.repository.create(db, platform)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
         return OperationResult(
             success=True,
@@ -87,22 +85,16 @@ class PlatformService:
                 message="slug_exists",
             )
 
-        platform.name = name
-
-        platform.slug = slug
-
-        platform.supports_import = supports_import
-
-        platform.supports_export = supports_export
-
-        self.repository.update(
-            db,
-            platform,
-        )
-
-        db.commit()
-
-        db.refresh(platform)
+        try:
+            platform.name = name
+            platform.slug = slug
+            platform.supports_import = supports_import
+            platform.supports_export = supports_export
+            self.repository.update(db, platform)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
         return OperationResult(
             success=True,
@@ -134,12 +126,12 @@ class PlatformService:
                 message="platform_has_room_calendars",
             )
 
-        self.repository.delete(
-            db,
-            platform,
-        )
-
-        db.commit()
+        try:
+            self.repository.delete(db, platform)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
         return OperationResult(
             success=True,

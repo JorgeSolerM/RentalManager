@@ -29,22 +29,22 @@ class GuestService:
 
         full_name = full_name.strip()
 
-        guest = self.guest_repository.get_by_full_name(
-            db,
-            full_name,
-        )
+        try:
+            guest = self.guest_repository.get_by_full_name(
+                db,
+                full_name,
+            )
 
-        if guest is not None:
+            if guest is None:
+                guest = Guest(
+                    full_name=full_name,
+                    display_name=full_name,
+                    active=True,
+                )
+                self.guest_repository.create(db, guest)
 
+            db.commit()
             return guest
-
-        guest = Guest(
-            full_name=full_name,
-            display_name=full_name,
-            active=True,
-        )
-
-        return self.guest_repository.create(
-            db,
-            guest,
-        )
+        except Exception:
+            db.rollback()
+            raise

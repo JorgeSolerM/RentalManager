@@ -91,7 +91,6 @@ class RoomRepository(BaseRepository):
         )
 
         return (db.scalar(statement) or 0) > 0
-
     def has_room_calendars(
         self,
         db: Session,
@@ -105,13 +104,3 @@ class RoomRepository(BaseRepository):
         )
 
         return (db.scalar(statement) or 0) > 0
-
-    def update(
-        self,
-        db: Session,
-        room: Room,
-    ) -> Room:
-
-        db.merge(room)
-
-        return room

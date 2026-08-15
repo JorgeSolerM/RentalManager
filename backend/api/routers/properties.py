@@ -58,10 +58,7 @@ def get_property(
     db: Session = Depends(get_db),
 ):
 
-    property_obj = property_service.get_by_id(
-        db,
-        property_id,
-    )
+    property_obj = property_service.get_by_id(db, property_id)
 
     if property_obj is None:
 
@@ -127,26 +124,18 @@ def toggle_property(
     db: Session = Depends(get_db),
 ):
 
-    property_obj = property_service.get_by_id(
-        db,
-        property_id,
-    )
+    result = property_service.toggle_property(db, property_id)
 
-    if property_obj is None:
+    if not result.success and result.message == "not_found":
 
         raise HTTPException(
             status_code=404,
             detail="Propiedad no encontrada.",
         )
 
-    property_obj = property_service.toggle_property(
-        db,
-        property_obj,
-    )
-
     return {
         "success": True,
-        "active": property_obj.active,
+        "active": result.data.active,
     }
 
 
@@ -162,29 +151,12 @@ def update_property(
     db: Session = Depends(get_db),
 ):
 
-    property_obj = property_service.get_by_id(
-        db,
-        property_id,
-    )
-
-    if property_obj is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Propiedad no encontrada.",
-        )
-
-    property_obj.name = name
-    property_obj.alias = alias or None
-    property_obj.address = address
-    property_obj.city = city
-    property_obj.owner = owner
-    property_obj.notes = notes or None
-
     result = property_service.update_property(
-        db,
-        property_obj,
+        db, property_id, name, alias or None, address, city, owner, notes or None
     )
+
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada.")
 
     if result.success:
 
@@ -203,22 +175,10 @@ def delete_property(
     db: Session = Depends(get_db),
 ):
 
-    property_obj = property_service.get_by_id(
-        db,
-        property_id,
-    )
+    result = property_service.delete_property(db, property_id)
 
-    if property_obj is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Propiedad no encontrada.",
-        )
-
-    result = property_service.delete_property(
-        db,
-        property_obj,
-    )
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada.")
 
     if result.success:
 

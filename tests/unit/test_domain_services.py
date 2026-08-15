@@ -71,10 +71,12 @@ def test_property_service_and_repository_cover_lookup_order_update_and_toggle(
     assert duplicate.success is False
     assert duplicate.message == "name_exists"
 
-    alfa.city = "Alicante"
-    assert service.update_property(db_session, alfa).success is True
+    assert service.update_property(
+        db_session, alfa.id, alfa.name, alfa.alias, alfa.address,
+        "Alicante", alfa.owner, alfa.notes,
+    ).success is True
     assert service.get_by_id(db_session, alfa.id).city == "Alicante"
-    assert service.toggle_property(db_session, alfa).active is False
+    assert service.toggle_property(db_session, alfa.id).data.active is False
 
 
 def test_property_service_rejects_delete_when_property_has_rooms(db_session):
@@ -82,7 +84,7 @@ def test_property_service_rejects_delete_when_property_has_rooms(db_session):
     property_with_room = create_property(db_session)
     create_room(db_session, property_with_room.id)
 
-    result = service.delete_property(db_session, property_with_room)
+    result = service.delete_property(db_session, property_with_room.id)
 
     assert result.success is False
     assert result.message == "property_has_rooms"
@@ -95,7 +97,10 @@ def test_room_service_and_repository_cover_order_lookup_update_and_delete(db_ses
     property_two = create_property(db_session, "Piso Dos")
     room_second = create_room(db_session, property_one.id, "H02")
     room_second.display_order = 2
-    service.update_room(db_session, room_second)
+    service.update_room(
+        db_session, room_second.id, room_second.code,
+        room_second.base_price, room_second.square_meters,
+    )
     room_first = create_room(db_session, property_one.id, "H01")
     other_room = create_room(db_session, property_two.id, "A01")
 
@@ -111,14 +116,18 @@ def test_room_service_and_repository_cover_order_lookup_update_and_delete(db_ses
     assert RoomRepository().get_by_id(db_session, room_first.id) == room_first
     assert RoomRepository().get_by_code(db_session, "A01") == other_room
 
-    room_first.code = "H03"
-    assert service.update_room(db_session, room_first).success is True
-    room_second.code = "H03"
-    duplicate = service.update_room(db_session, room_second)
+    assert service.update_room(
+        db_session, room_first.id, "H03", room_first.base_price,
+        room_first.square_meters,
+    ).success is True
+    duplicate = service.update_room(
+        db_session, room_second.id, "H03", room_second.base_price,
+        room_second.square_meters,
+    )
     assert duplicate.success is False
     assert duplicate.message == "code_exists"
 
-    assert service.delete_room(db_session, other_room).success is True
+    assert service.delete_room(db_session, other_room.id).success is True
     assert service.get_room(db_session, other_room.id) is None
 
 

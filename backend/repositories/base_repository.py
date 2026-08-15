@@ -10,10 +10,7 @@ class BaseRepository:
     ):
 
         db.add(entity)
-
-        db.commit()
-
-        db.refresh(entity)
+        db.flush()
 
         return entity
 
@@ -23,9 +20,8 @@ class BaseRepository:
         entity,
     ):
 
-        db.commit()
-
-        db.refresh(entity)
+        db.add(entity)
+        db.flush()
 
         return entity
 
@@ -36,5 +32,4 @@ class BaseRepository:
     ) -> None:
 
         db.delete(entity)
-
-        db.commit()
+        db.flush()

@@ -98,7 +98,7 @@ def test_property_with_rooms_cannot_be_deleted(db_session):
     create_room(db_session, property_obj.id)
     db_session.commit()
 
-    result = PropertyService().delete_property(db_session, property_obj)
+    result = PropertyService().delete_property(db_session, property_obj.id)
 
     assert result.success is False
     assert result.message == "property_has_rooms"
@@ -110,7 +110,7 @@ def test_room_with_booking_cannot_be_deleted(db_session):
     create_booking(db_session, room.id)
     db_session.commit()
 
-    result = RoomService().delete_room(db_session, room)
+    result = RoomService().delete_room(db_session, room.id)
 
     assert result.success is False
     assert result.message == "room_has_bookings"
@@ -124,7 +124,7 @@ def test_room_with_room_calendar_cannot_be_deleted(db_session):
     db_session.add(RoomCalendar(room_id=room.id, platform_id=platform.id, active=True))
     db_session.commit()
 
-    result = RoomService().delete_room(db_session, room)
+    result = RoomService().delete_room(db_session, room.id)
 
     assert result.success is False
     assert result.message == "room_has_room_calendars"

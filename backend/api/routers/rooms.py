@@ -183,26 +183,12 @@ def update_room(
     db: Session = Depends(get_db),
 ):
 
-    room = room_service.get_room(
-        db,
-        room_id,
-    )
-
-    if room is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Habitación no encontrada.",
-        )
-
-    room.code = code
-    room.base_price = base_price
-    room.square_meters = square_meters
-
     result = room_service.update_room(
-        db,
-        room,
+        db, room_id, code, base_price, square_meters
     )
+
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Habitación no encontrada.")
 
     if result.success:
 
@@ -224,22 +210,10 @@ def delete_room(
     db: Session = Depends(get_db),
 ):
 
-    room = room_service.get_room(
-        db,
-        room_id,
-    )
+    result = room_service.delete_room(db, room_id)
 
-    if room is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Habitación no encontrada.",
-        )
-
-    result = room_service.delete_room(
-        db,
-        room,
-    )
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Habitación no encontrada.")
 
     if result.success:
 

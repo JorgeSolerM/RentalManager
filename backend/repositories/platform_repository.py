@@ -64,21 +64,3 @@ class PlatformRepository(BaseRepository):
         )
 
         return db.scalar(statement) is not None
-
-    def update(
-        self,
-        db: Session,
-        platform: Platform,
-    ) -> Platform:
-
-        db.merge(platform)
-
-        return platform
-
-    def delete(
-        self,
-        db: Session,
-        platform: Platform,
-    ) -> None:
-
-        db.delete(platform)

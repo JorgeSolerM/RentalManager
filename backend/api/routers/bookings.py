@@ -5,15 +5,12 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from backend.database.session import get_db
-from backend.models.booking import Booking
 from backend.schemas.booking_schema import BookingResponse
 from backend.services.booking_service import BookingService
-from backend.services.guest_service import GuestService
 
 router = APIRouter(prefix="/bookings")
 
 booking_service = BookingService()
-guest_service = GuestService()
 
 
 @router.get("/room/{room_id}")
@@ -85,34 +82,8 @@ def create_booking(
 
 ):
 
-    guest = guest_service.get_or_create_guest(
-        db,
-        guest_name,
-    )
-
-    booking = Booking(
-        room_id=room_id,
-    )
-
-    booking_service.populate_booking(
-
-        booking=booking,
-
-        guest=guest,
-
-        check_in=check_in,
-
-        check_out=check_out,
-
-        price=price,
-
-        notes=notes,
-
-    )
-
-    booking_service.create_booking(
-        db,
-        booking,
+    booking_service.create_manual_booking(
+        db, room_id, guest_name, check_in, check_out, price, notes
     )
 
     return RedirectResponse(
@@ -141,9 +112,8 @@ def update_booking(
 
 ):
 
-    booking = booking_service.get_booking(
-        db,
-        booking_id,
+    booking = booking_service.update_manual_booking(
+        db, booking_id, guest_name, check_in, check_out, price, notes
     )
 
     if booking is None:
@@ -152,32 +122,6 @@ def update_booking(
             status_code=404,
             detail="Reserva no encontrada.",
         )
-
-    guest = guest_service.get_or_create_guest(
-        db,
-        guest_name,
-    )
-
-    booking_service.populate_booking(
-
-        booking=booking,
-
-        guest=guest,
-
-        check_in=check_in,
-
-        check_out=check_out,
-
-        price=price,
-
-        notes=notes,
-
-    )
-
-    booking_service.update_booking(
-        db,
-        booking,
-    )
 
     return RedirectResponse(
     url=f"/rooms/{room_id}?success=booking_updated",
