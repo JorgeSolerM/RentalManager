@@ -1,6 +1,7 @@
 from sqlalchemy import select
 
 from backend.models.platform import Platform
+from backend.core.config import APP_VERSION
 
 
 def platform_data(**overrides) -> dict:
@@ -12,6 +13,17 @@ def platform_data(**overrides) -> dict:
     }
     data.update(overrides)
     return data
+
+
+def test_settings_contains_system_information_and_global_footer_is_removed(client):
+    response = client.get("/settings/")
+    assert response.status_code == 200
+    assert "Información del sistema" in response.text
+    assert f">{APP_VERSION}<" in response.text
+    assert "Base de datos" in response.text and "SQLite" in response.text
+    assert "Calendarios" in response.text and "iCal habilitado" in response.text
+    assert "<footer" not in response.text
+    assert "SQLite ✔" not in response.text and "iCal ✔" not in response.text
 
 
 def test_platform_create_list_and_get_use_overridden_temporary_database(

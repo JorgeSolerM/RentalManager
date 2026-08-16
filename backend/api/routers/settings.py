@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from backend.database.session import get_db
+from backend.core.config import APP_VERSION
 from backend.services.platform_service import PlatformService
 
 from fastapi import Form
@@ -27,7 +28,7 @@ def settings(request: Request):
         name="pages/settings.html",
         context={
             "request": request,
-            "version": "1.0.0",
+            "version": APP_VERSION,
             "current_page": "settings",
         },
     )

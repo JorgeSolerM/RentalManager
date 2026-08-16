@@ -19,9 +19,12 @@ def gantt(
     request: Request,
     property_id: int | None = None,
     include_inactive: bool = False,
+    view: int = Query(8),
     db: Session = Depends(get_db),
 ):
-    start, end = gantt_service.default_window()
+    if view not in {4, 8, 12}:
+        raise HTTPException(status_code=422, detail="gantt_invalid_scale")
+    start, end = gantt_service.default_window(months=view)
     data = gantt_service.get_data(db, start, end, property_id, include_inactive)
 
     return templates.TemplateResponse(
@@ -29,11 +32,11 @@ def gantt(
         name="pages/gantt.html",
         context={
             "request": request,
-            "version": "1.0.0",
             "current_page": "gantt",
             "gantt_data": data.model_dump(mode="json"),
             "selected_property_id": property_id,
             "include_inactive": include_inactive,
+            "view_months": view,
         },
     )
 

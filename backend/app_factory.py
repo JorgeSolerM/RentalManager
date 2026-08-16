@@ -13,6 +13,7 @@ from backend.api.routers import (
 )
 from backend.core.jinja_filters import format_date
 from backend.core.logging import configure_sensitive_url_logging
+from backend.core.config import APP_VERSION
 
 
 def create_app(initialize_database: bool = False) -> FastAPI:
@@ -20,7 +21,7 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     configure_sensitive_url_logging()
     app = FastAPI(
         title="RentalManager - HSI Rents",
-        version="1.0.0",
+        version=APP_VERSION,
     )
 
     app.mount(

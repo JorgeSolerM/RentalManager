@@ -124,7 +124,7 @@ const BookingUI = {
 
             this.deleteButton.classList.remove("d-none");
 
-            this.setReadOnly(readOnly);
+            this.setReadOnly(readOnly || booking.editable === false);
 
             this.modal.show();
 
@@ -156,7 +156,7 @@ const BookingUI = {
     handleDelete() {
 
         if (!RMConfirm.ask(
-            "¿Desea eliminar esta reserva?"
+            "¿Desea eliminar esta reserva manual? Esta acción no se puede deshacer."
         )) {
 
             return;

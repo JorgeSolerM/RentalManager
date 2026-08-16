@@ -35,4 +35,18 @@
 
 </div>
 
+<section class="card mt-4" aria-labelledby="systemInfoTitle">
+    <div class="card-body">
+        <h5 class="card-title" id="systemInfoTitle">Información del sistema</h5>
+        <dl class="row mb-0 small">
+            <dt class="col-sm-4 text-muted">Versión de RentalManager</dt>
+            <dd class="col-sm-8">{{ version }}</dd>
+            <dt class="col-sm-4 text-muted">Base de datos</dt>
+            <dd class="col-sm-8">SQLite</dd>
+            <dt class="col-sm-4 text-muted">Calendarios</dt>
+            <dd class="col-sm-8 mb-0">iCal habilitado</dd>
+        </dl>
+    </div>
+</section>
+
 {% endblock %}

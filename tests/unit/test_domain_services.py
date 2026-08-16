@@ -242,6 +242,5 @@ def test_booking_service_and_repository_cover_lists_current_future_and_validatio
     assert service.update_booking(db_session, invalid).message == "booking_invalid_dates"
 
     deletion = service.delete_booking(db_session, current)
-    assert deletion.success is False
-    assert deletion.message == "booking_delete_not_allowed"
-    assert service.get_booking(db_session, current.id) is not None
+    assert deletion.success is True
+    assert service.get_booking(db_session, current.id) is None

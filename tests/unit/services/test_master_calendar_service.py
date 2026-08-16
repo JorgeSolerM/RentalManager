@@ -8,6 +8,7 @@ from backend.models.property import Property
 from backend.models.room import Room
 from backend.models.room_calendar import RoomCalendar
 from backend.services.master_calendar_service import MasterCalendarService
+from backend.services.booking_service import BookingService
 
 
 def seed_export_data(db_session):
@@ -122,3 +123,23 @@ def test_empty_calendar_is_valid_and_etag_tracks_occupancy(db_session):
     occupied = service.export_for_platform(db_session, room.master_calendar_token, housing.slug)
     assert occupied.etag != empty.etag
     assert len(parsed_events(occupied)) == 1
+
+
+def test_deleted_manual_booking_disappears_from_same_public_calendar_url(db_session):
+    room, housing, _, _, _, bookings = seed_export_data(db_session)
+    service = MasterCalendarService()
+    token = room.master_calendar_token
+    before = service.export_for_platform(db_session, token, housing.slug)
+    manual = bookings[2]
+    assert f"{manual.ical_uid}@rentalmanager" in {
+        str(event["UID"]) for event in parsed_events(before)
+    }
+
+    result = BookingService().delete_booking(db_session, manual)
+    after = service.export_for_platform(db_session, token, housing.slug)
+
+    assert result.success
+    assert room.master_calendar_token == token
+    assert f"{manual.ical_uid}@rentalmanager" not in {
+        str(event["UID"]) for event in parsed_events(after)
+    }

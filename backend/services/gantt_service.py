@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -31,7 +31,11 @@ class GanttService:
         self.sync_runner = sync_runner or RoomCalendarSyncRunner()
 
     @staticmethod
-    def default_window(today: date | None = None) -> tuple[date, date]:
+    def default_window(
+        today: date | None = None, months: int = 8
+    ) -> tuple[date, date]:
+        if months not in {4, 8, 12}:
+            raise GanttValidationError("gantt_invalid_scale")
         today = today or business_today()
         start_month = today.month - 1
         start_year = today.year
@@ -39,7 +43,7 @@ class GanttService:
             start_month = 12
             start_year -= 1
         start = date(start_year, start_month, 1)
-        end_month_index = (start.year * 12 + start.month - 1) + 6
+        end_month_index = (start.year * 12 + start.month - 1) + months
         end = date(end_month_index // 12, end_month_index % 12 + 1, 1)
         return start, end
 

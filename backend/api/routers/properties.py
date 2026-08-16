@@ -45,7 +45,6 @@ def list_properties(
         name="pages/properties.html",
         context={
             "request": request,
-            "version": "1.0.0",
             "current_page": "properties",
             "properties": properties_data,
         },

@@ -217,3 +217,26 @@ def test_database_overlap_error_is_translated_and_session_remains_usable(
     assert result.message == "booking_overlap"
     assert db_session.scalar(select(Guest).where(Guest.full_name == "Ana")) is None
     assert db_session.get(Room, room.id) is not None
+
+
+def test_failed_manual_booking_delete_rolls_back_and_session_is_reusable(
+    db_session, monkeypatch
+):
+    room = persist_room(db_session)
+    service = BookingService()
+    booking = service.create_manual_booking(
+        db_session, room.id, "Delete Rollback", date(2026, 9, 1),
+        date(2026, 9, 3), None, None,
+    ).data
+
+    def fail_delete(db, entity):
+        db.delete(entity)
+        db.flush()
+        raise RuntimeError("delete failed")
+
+    monkeypatch.setattr(service.booking_repository, "delete", fail_delete)
+    with pytest.raises(RuntimeError, match="delete failed"):
+        service.delete_booking(db_session, booking)
+
+    assert db_session.get(Booking, booking.id) is not None
+    assert db_session.get(Room, room.id) is not None

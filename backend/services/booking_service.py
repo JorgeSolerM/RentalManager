@@ -103,6 +103,9 @@ class BookingService:
     def get_booking(self, db: Session, booking_id: int) -> Booking | None:
         return self.booking_repository.get_by_id(db, booking_id)
 
+    def is_manual_booking(self, booking: Booking) -> bool:
+        return self._is_manual(booking)
+
     def list_bookings_by_room(self, db: Session, room_id: int) -> list[Booking]:
         return self.booking_repository.list_by_room(db, room_id)
 
@@ -327,7 +330,15 @@ class BookingService:
         db: Session,
         booking: Booking,
     ) -> OperationResult[None]:
-        return OperationResult(success=False, message="booking_delete_not_allowed")
+        if not self._is_manual(booking):
+            return self._rejected(db, "booking_imported_read_only", booking)
+        try:
+            self.booking_repository.delete(db, booking)
+            db.commit()
+            return OperationResult(success=True)
+        except Exception:
+            db.rollback()
+            raise
 
     def get_current_booking(self, db: Session, room_id: int) -> Booking | None:
         bookings = self.booking_repository.list_current(

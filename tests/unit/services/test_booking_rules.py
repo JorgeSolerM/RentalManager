@@ -328,3 +328,63 @@ def test_imported_booking_without_guest_is_valid_and_manual_edit_is_read_only(
     persisted = db_session.get(Booking, booking.id)
     assert persisted.guest_id is None
     assert persisted.check_in == date(2026, 9, 10)
+
+
+@pytest.mark.parametrize(
+    ("check_in", "check_out"),
+    [
+        (date(2026, 7, 1), date(2026, 7, 15)),
+        (date(2026, 8, 10), date(2026, 8, 20)),
+        (date(2026, 9, 1), date(2026, 9, 15)),
+    ],
+    ids=["past", "current", "future"],
+)
+def test_manual_booking_can_always_be_deleted(
+    db_session, monkeypatch, check_in, check_out
+):
+    monkeypatch.setattr(
+        "backend.services.booking_service.business_today",
+        lambda: date(2026, 8, 17),
+    )
+    room = make_room(db_session)
+    service = BookingService()
+    booking = create_manual(
+        db_session, service, room.id, check_in, check_out,
+        guest_name="Guest Conservado",
+    )
+    guest_id = booking.guest_id
+
+    result = service.delete_booking(db_session, booking)
+
+    assert result.success
+    assert db_session.get(Booking, booking.id) is None
+    assert db_session.get(Guest, guest_id) is not None
+
+
+def test_manual_delete_preserves_guest_and_other_bookings(db_session):
+    room = make_room(db_session)
+    service = BookingService()
+    deleted = create_manual(
+        db_session, service, room.id, date(2026, 9, 1), date(2026, 9, 5),
+        guest_name="Mismo Guest",
+    )
+    kept = create_manual(
+        db_session, service, room.id, date(2026, 9, 5), date(2026, 9, 10),
+        guest_name="Mismo Guest",
+    )
+    guest_id = deleted.guest_id
+
+    assert service.delete_booking(db_session, deleted).success
+    assert db_session.get(Booking, kept.id) is not None
+    assert db_session.get(Guest, guest_id) is not None
+
+
+def test_imported_booking_cannot_be_deleted_and_session_is_reusable(db_session):
+    booking = create_imported_booking_without_guest(db_session)
+    service = BookingService()
+
+    result = service.delete_booking(db_session, booking)
+
+    assert result.message == "booking_imported_read_only"
+    assert db_session.get(Booking, booking.id) is not None
+    assert db_session.scalar(select(Room).where(Room.id == booking.room_id)) is not None

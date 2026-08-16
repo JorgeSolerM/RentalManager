@@ -14,12 +14,17 @@
    <button type="button" class="btn btn-outline-secondary" id="ganttPrevious" aria-label="Periodo anterior">‹</button>
    <button type="button" class="btn btn-outline-primary" id="ganttToday">Hoy</button>
    <button type="button" class="btn btn-outline-secondary" id="ganttNext" aria-label="Periodo siguiente">›</button>
-   <label class="form-label mb-0"><span class="small">Propiedad</span><select class="form-select" id="ganttPropertyFilter"><option value="">Todas</option>{% for property in gantt_data.properties %}<option value="{{ property.id }}">{{ property.name }}</option>{% endfor %}</select></label>
+   <div class="btn-group gantt-view-selector" role="group" aria-label="Escala temporal">
+    {% for months in (4, 8, 12) %}
+    <button type="button" class="btn btn-outline-secondary gantt-view-button{% if view_months == months %} active{% endif %}" data-months="{{ months }}" aria-pressed="{{ 'true' if view_months == months else 'false' }}">{{ months }}M</button>
+    {% endfor %}
+   </div>
+   <label class="form-label mb-0"><span class="small">Propiedad</span><select class="form-select" id="ganttPropertyFilter"><option value="">Todas</option>{% for property in gantt_data.properties %}<option value="{{ property.id }}"{% if selected_property_id == property.id %} selected{% endif %}>{{ property.name }}</option>{% endfor %}</select></label>
    <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ganttInactive" {% if include_inactive %}checked{% endif %}><label class="form-check-label" for="ganttInactive">Inactivas</label></div>
   </div>
  </div>
  <div id="ganttStatus" class="visually-hidden" role="status" aria-live="polite"></div>
- <div id="ganttRoot" class="gantt-root" aria-label="Gantt de reservas"></div>
+ <div id="ganttRoot" class="gantt-root" data-view-months="{{ view_months }}" aria-label="Gantt de reservas"></div>
  <noscript><div class="alert alert-warning mt-3">El calendario necesita JavaScript para dibujar la línea temporal.</div></noscript>
 </section>
 {% include "components/booking_modal.html" %}

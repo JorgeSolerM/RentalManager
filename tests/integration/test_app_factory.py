@@ -1,6 +1,7 @@
 from fastapi.staticfiles import StaticFiles
 
 import backend.app_factory as app_factory
+from backend.core.config import APP_VERSION
 from backend.api.routers import rooms
 from backend.main import app as main_app
 
@@ -11,6 +12,7 @@ def test_create_app_without_initialization_registers_expected_application_parts(
     paths = set(app.openapi()["paths"])
 
     assert app.title == "RentalManager - HSI Rents"
+    assert app.version == APP_VERSION
     assert main_app.title == "RentalManager - HSI Rents"
     assert not hasattr(app_factory, "init_db")
     assert any(

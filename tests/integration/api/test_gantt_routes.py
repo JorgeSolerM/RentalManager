@@ -25,6 +25,20 @@ def test_page_contains_accessible_gantt_and_dedicated_assets(client, db_session)
     assert "/static/js/gantt.js" in response.text
     assert "<h2 id=\"ganttTitle\" class=\"mb-1\">Calendario</h2>" in response.text
     assert "Calendario de ocupación" not in response.text
+    assert 'data-view-months="8"' in response.text
+    assert 'data-months="4"' in response.text
+    assert 'data-months="8"' in response.text
+    assert 'data-months="12"' in response.text
+
+
+def test_page_scale_query_builds_four_and_twelve_month_windows(client, db_session):
+    seed(client, db_session)
+    four = client.get("/gantt/?view=4")
+    annual = client.get("/gantt/?view=12")
+    invalid = client.get("/gantt/?view=6")
+    assert four.status_code == 200 and 'data-view-months="4"' in four.text
+    assert annual.status_code == 200 and 'data-view-months="12"' in annual.text
+    assert invalid.status_code == 422
 
 
 def test_data_contract_filters_window_and_excludes_private_data(client, db_session):
@@ -50,11 +64,76 @@ def test_frontend_uses_utc_offsets_and_half_open_widths():
     source = open("backend/static/js/gantt.js", encoding="utf-8").read()
     assert "Date.UTC" in source
     assert "getUTC" in source
-    assert "visibleStart=Math.max(0,this.dayOffset(booking.check_in))" in source
-    assert "visibleEnd=Math.min(this.data.window.day_count,this.dayOffset(booking.check_out))" in source
+    assert "MIN_MONTH_WIDTH: 84" in source
+    assert "usable/this.months.length" in source
+    assert "left=this.datePosition(visibleStart)" in source
+    assert "width=this.datePosition(visibleEnd)-left" in source
     assert "check_out + 1" not in source
     assert "Entrada:" in source and "Salida:" in source
     assert "event.target!==timeline||!room.active" in source
+    assert "this.dateAtPosition(x)" in source
+    assert "Number(this.root.dataset.viewMonths)||8" in source
+    assert "[4,8,12].includes(months)" in source
+    assert "this.shiftWindow(-1)" in source and "this.shiftWindow(1)" in source
+    assert "s.getUTCMonth()+this.viewMonths" in source
+    assert "loadDefault(){this.loadContextWindow(true);}" in source
+    assert 'url.searchParams.set("view",String(this.viewMonths))' in source
+    assert 'class="btn btn-outline-secondary gantt-view-button' in open("backend/templates/pages/gantt.html", encoding="utf-8").read()
+
+
+def test_scale_state_survives_filters_and_navigation_in_frontend():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    assert "this.updateUrlView();" in source
+    assert 'url.searchParams.set("property_id",this.propertyFilter.value)' in source
+    assert 'url.searchParams.set("include_inactive","true")' in source
+    assert "this.shiftWindow(-1)" in source and "this.shiftWindow(1)" in source
+
+
+def test_all_scales_use_consecutive_single_month_navigation():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    template = open("backend/templates/pages/gantt.html", encoding="utf-8").read()
+    assert 'data-months="{{ months }}"' in template
+    assert "this.shiftWindow(-1)" in source
+    assert "this.shiftWindow(1)" in source
+    assert "this.viewMonths/2" not in source
+    assert "s.setUTCMonth(s.getUTCMonth()+months)" in source
+    assert "e.setUTCMonth(e.getUTCMonth()+months)" in source
+
+
+def test_gantt_uses_compact_month_scale_and_progressive_bars():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    styles = open("backend/static/css/gantt.css", encoding="utf-8").read()
+    assert "gantt-day" not in source and ".gantt-day" not in styles
+    assert "gantt-week-marker" not in source and ".gantt-week-marker" not in styles
+    assert "gantt-month-boundary" in source
+    assert '"ene","feb","mar"' in source and '"ago","sept","oct"' in source
+    assert "width>=220" in source and "width>=130" in source and "width>=65" in source
+    assert "gantt-booking-minimal" in source
+    assert "ResizeObserver" in source
+
+
+def test_month_columns_have_uniform_width_and_daily_fraction_geometry():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    assert "width=`${this.monthWidth}px`" in source
+    assert "left=`${index*this.monthWidth}px`" in source
+    assert "dayIndex/month.days" in source
+    assert "fraction*month.days+1e-9" in source
+    assert "this.months.length*this.monthWidth" in source
+    assert "pixelsPerDay" not in source
+
+
+def test_booking_visual_inset_preserves_full_clickable_interval():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    styles = open("backend/static/css/gantt.css", encoding="utf-8").read()
+    assert "inset=Math.min(1,paintedWidth/4)" in source
+    assert "leftInset=booking.check_in<this.data.window.start?0:inset" in source
+    assert "rightInset=booking.check_out>this.data.window.end?0:inset" in source
+    assert "bar.style.cssText=`left:${left}px;width:${paintedWidth}px" in source
+    assert "bar.append(visual)" in source
+    assert ".gantt-booking-visual" in styles
+    assert "left:var(--booking-inset-left)" in styles
+    assert "right:var(--booking-inset-right)" in styles
+    assert "pointer-events:none" in styles
 
 
 def test_gantt_scroll_is_confined_to_one_internal_viewport():
@@ -81,3 +160,10 @@ def test_gantt_renders_continuous_room_list_without_property_rows():
     assert "gantt-property-row" not in styles
     assert "gantt-room-identity" in source
     assert "gantt-room-details" in source
+
+
+def test_sync_indicator_is_only_rendered_for_attention_states():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    assert '["error","overdue","paused"].includes(room.sync.severity)' in source
+    assert 'sync.textContent="⚠"' in source
+    assert "gantt-sync-ok" not in source

@@ -21,6 +21,8 @@ class BookingResponse(BaseModel):
 
     notes: str | None
 
+    editable: bool
+
     model_config = ConfigDict(
         from_attributes=True,
     )

@@ -80,7 +80,14 @@ def test_guest_fallback_unknown_origin_and_private_fields_are_absent(db_session)
 
 def test_window_validation_and_default_window(monkeypatch):
     monkeypatch.setattr("backend.services.gantt_service.business_today", lambda: date(2026, 8, 17))
-    assert GanttService.default_window() == (date(2026, 7, 1), date(2027, 1, 1))
+    assert GanttService.default_window() == (date(2026, 7, 1), date(2027, 3, 1))
+    assert GanttService.default_window(date(2026, 8, 17), 4) == (date(2026, 7, 1), date(2026, 11, 1))
+    assert GanttService.default_window(date(2026, 8, 17), 12) == (date(2026, 7, 1), date(2027, 7, 1))
+    assert GanttService.default_window(date(2027, 3, 15)) == (date(2027, 2, 1), date(2027, 10, 1))
+    assert GanttService.default_window(date(2027, 3, 15), 12) == (date(2027, 2, 1), date(2028, 2, 1))
+    try: GanttService.default_window(date(2026, 8, 17), 6)
+    except GanttValidationError: pass
+    else: raise AssertionError("invalid scale accepted")
     for start, end in [(date(2026, 1, 1), date(2026, 1, 1)), (date(2026, 1, 2), date(2026, 1, 1)), (date(2026, 1, 1), date(2027, 1, 3))]:
         try: GanttService.validate_window(start, end)
         except GanttValidationError: pass
@@ -96,4 +103,3 @@ def test_query_count_is_constant_for_more_rooms(db_session):
     finally: event.remove(db_session.bind, "before_cursor_execute", before_cursor_execute)
     selects = [statement for statement in statements if statement.lstrip().upper().startswith("SELECT")]
     assert len(selects) == 3
-

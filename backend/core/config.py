@@ -2,6 +2,9 @@ import os
 from urllib.parse import urlsplit
 
 
+APP_VERSION = "1.0.0"
+
+
 def get_public_base_url() -> str | None:
     """Return the explicitly configured public origin, never the request Host."""
     value = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")

@@ -35,7 +35,7 @@ def test_page_notification_registry_covers_existing_redirect_contracts():
         "platform_deleted",
         "booking_created",
         "booking_updated",
-        "booking_delete_not_allowed",
+        "booking_deleted",
         "booking_overlap",
         "booking_room_inactive",
         "booking_guest_required",

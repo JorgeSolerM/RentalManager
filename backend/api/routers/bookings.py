@@ -61,6 +61,8 @@ def get_booking(
 
         notes=booking.notes,
 
+        editable=booking_service.is_manual_booking(booking),
+
     )
 
 
@@ -167,7 +169,13 @@ def delete_booking(
         booking,
     )
 
+    if not result.success:
+        return RedirectResponse(
+            url=f"/rooms/{room_id}?error={result.message}",
+            status_code=303,
+        )
+
     return RedirectResponse(
-    url=f"/rooms/{room_id}?error={result.message}",
-    status_code=303,
+        url=f"/rooms/{room_id}?success=booking_deleted",
+        status_code=303,
     )

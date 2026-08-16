@@ -14,7 +14,6 @@ def dashboard(request: Request):
         name="pages/dashboard.html",
         context={
             "request": request,
-            "version": "1.0.0",
             "current_page": "dashboard",
         },
     )

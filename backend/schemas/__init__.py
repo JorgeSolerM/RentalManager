@@ -9,7 +9,7 @@ class BookingResponse(BaseModel):
 
     room_id: int
 
-    guest_name: str
+    guest_name: str | None
 
     origin: str
 
@@ -20,6 +20,8 @@ class BookingResponse(BaseModel):
     price: float | None
 
     notes: str | None
+
+    editable: bool
 
     model_config = ConfigDict(
         from_attributes=True,

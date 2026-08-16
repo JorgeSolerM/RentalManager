@@ -83,9 +83,10 @@ def test_booking_create_list_and_get_use_overridden_temporary_database(
         "origin": "manual",
         "check_in": "2026-09-10",
         "check_out": "2026-09-15",
-        "price": 450.5,
-        "notes": "Reserva de prueba",
-    }
+            "price": 450.5,
+            "notes": "Reserva de prueba",
+            "editable": True,
+        }
 
 
 def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
@@ -123,11 +124,54 @@ def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
     )
     assert delete_response.status_code == 303
     assert delete_response.headers["location"] == (
-        f"/rooms/{room.id}?error=booking_delete_not_allowed"
+        f"/rooms/{room.id}?success=booking_deleted"
     )
-    assert db_session.get(Booking, booking.id) is not None
+    assert db_session.get(Booking, booking.id) is None
     assert not_found_response.status_code == 404
     assert not_found_response.json() == {"detail": "Reserva no encontrada."}
+
+
+def test_deleted_manual_booking_disappears_from_workspace_and_gantt(
+    client, db_session
+):
+    room = create_room(db_session)
+    client.post(
+        "/bookings/create",
+        data=booking_data(
+            room.id,
+            guest_name="Visible antes de borrar",
+            check_in="2026-09-10",
+            check_out="2026-09-15",
+        ),
+    )
+    booking = db_session.scalar(select(Booking))
+    assert "Visible antes de borrar" in client.get(f"/rooms/{room.id}").text
+    before = client.get(
+        "/gantt/data?start=2026-09-01&end=2026-10-01"
+    ).json()
+    assert before["properties"][0]["rooms"][0]["bookings"][0]["id"] == booking.id
+
+    response = client.post(
+        f"/bookings/delete/{booking.id}", follow_redirects=False
+    )
+    workspace = client.get(f"/rooms/{room.id}")
+    after = client.get(
+        "/gantt/data?start=2026-09-01&end=2026-10-01"
+    ).json()
+
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"/rooms/{room.id}?success=booking_deleted"
+    )
+    assert "Visible antes de borrar" not in workspace.text
+    assert after["properties"][0]["rooms"][0]["bookings"] == []
+
+
+def test_booking_ui_hides_imported_delete_and_confirms_manual_delete():
+    source = open("backend/static/js/bookings.js", encoding="utf-8").read()
+    assert "readOnly || booking.editable === false" in source
+    assert 'this.deleteButton.classList.toggle("d-none", readOnly' in source
+    assert "Esta acción no se puede deshacer" in source
 
 
 def test_booking_is_visible_when_every_request_uses_an_independent_session(tmp_path):
@@ -259,6 +303,7 @@ def test_imported_booking_without_guest_returns_null_and_is_read_only(
 
     assert get_response.status_code == 200
     assert get_response.json()["guest_name"] is None
+    assert get_response.json()["editable"] is False
     assert update_response.status_code == 303
     assert update_response.headers["location"] == (
         f"/rooms/{room.id}?error=booking_imported_read_only"
@@ -266,3 +311,12 @@ def test_imported_booking_without_guest_returns_null_and_is_read_only(
     db_session.refresh(booking)
     assert booking.guest_id is None
     assert booking.check_in == date(2026, 11, 1)
+
+    delete_response = client.post(
+        f"/bookings/delete/{booking.id}", follow_redirects=False
+    )
+    assert delete_response.status_code == 303
+    assert delete_response.headers["location"] == (
+        f"/rooms/{room.id}?error=booking_imported_read_only"
+    )
+    assert db_session.get(Booking, booking.id) is not None

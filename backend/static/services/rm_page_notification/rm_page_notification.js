@@ -41,7 +41,6 @@ const RMPageNotification = {
         booking_invalid_price: "El precio mensual debe ser un número mayor o igual que cero.",
         booking_imported_read_only: "Las reservas importadas no se pueden modificar manualmente.",
         booking_room_not_found: "La habitación asociada a la reserva no existe.",
-        booking_delete_not_allowed: "Las reservas no se pueden eliminar para preservar el histórico.",
         room_calendar_exists: "Esta plataforma ya está configurada para la habitación.",
         room_calendar_room_inactive: "No se puede crear o reactivar un calendario en una habitación inactiva.",
         room_calendar_platform_inactive: "No se puede crear o reactivar un calendario de una plataforma inactiva.",
