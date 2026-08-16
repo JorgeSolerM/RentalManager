@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.core.operation_result import OperationResult
+from backend.integrations.ical_event_filters import is_platform_calendar_echo
 from backend.integrations.ical_http_client import IcalDownloadError, SafeIcalHttpClient
 from backend.integrations.ical_guest_extractors import extract_guest_name
 from backend.integrations.ical_parser import IcalParseError, IcalParser, NormalizedIcalEvent
@@ -26,6 +27,7 @@ class IcalSyncReport:
     unchanged: int
     cancelled: int
     disappeared: int
+    ignored_echoes: int = 0
 
     @property
     def has_warnings(self) -> bool:
@@ -119,8 +121,21 @@ class IcalSyncService:
         try:
             content = self.http_client.download(calendar.import_url)
             events = self.parser.parse(content)
-            active_events = {event.uid: event for event in events if not event.cancelled}
-            cancelled_uids = {event.uid for event in events if event.cancelled}
+            sync_events = [
+                event
+                for event in events
+                if not is_platform_calendar_echo(
+                    calendar.platform.slug,
+                    event,
+                )
+            ]
+            ignored_echoes = len(events) - len(sync_events)
+            active_events = {
+                event.uid: event for event in sync_events if not event.cancelled
+            }
+            cancelled_uids = {
+                event.uid for event in sync_events if event.cancelled
+            }
             existing = self.booking_repository.list_by_room_calendar(db, calendar.id)
             existing_by_reference = {
                 booking.external_reference: booking
@@ -201,6 +216,7 @@ class IcalSyncService:
                 unchanged=unchanged,
                 cancelled=cancelled,
                 disappeared=disappeared,
+                ignored_echoes=ignored_echoes,
             )
             message = (
                 "room_calendar_sync_completed_with_warnings"

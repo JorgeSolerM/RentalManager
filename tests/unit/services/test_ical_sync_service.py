@@ -30,8 +30,10 @@ class FakeParser:
         return self.events
 
 
-def imported(uid, start, end, notes=None, cancelled=False):
-    return NormalizedIcalEvent(uid, start, end, notes, cancelled)
+def imported(uid, start, end, notes=None, cancelled=False, summary=None):
+    return NormalizedIcalEvent(
+        uid, start, end, notes, cancelled, summary=summary
+    )
 
 
 def setup_calendar(db_session, suffix="one"):
@@ -241,6 +243,112 @@ def test_housinganywhere_manual_block_does_not_create_guest(db_session):
     )
     assert result.success
     assert booking.guest_id is None
+    assert db_session.scalar(select(Guest)) is None
+
+
+def test_housinganywhere_ignores_imported_calendar_echo_before_overlap(
+    db_session,
+):
+    room, calendar = setup_housing_calendar(db_session)
+    manual = Booking(
+        room_id=room.id,
+        guest_id=None,
+        origin="manual",
+        check_in=date(2026, 9, 21),
+        check_out=date(2026, 9, 27),
+    )
+    db_session.add(manual)
+    db_session.commit()
+
+    events = [
+        imported(
+            "111256613-2323473@housinganywhere.com",
+            date(2026, 9, 21),
+            date(2026, 9, 27),
+            summary="Evento importado desde el archivo de calendario",
+        ),
+        imported(
+            "HA-REAL",
+            date(2026, 10, 1),
+            date(2026, 10, 5),
+            summary="Reservas: Aleksandra",
+        ),
+        imported(
+            "HA-MANUAL-BLOCK",
+            date(2026, 11, 1),
+            date(2026, 11, 5),
+            summary="Manualmente bloqueado",
+        ),
+    ]
+    service = service_for(events)
+
+    first = service.synchronize(db_session, calendar.id)
+    second = service.synchronize(db_session, calendar.id)
+    bookings = db_session.scalars(select(Booking).order_by(Booking.id)).all()
+
+    assert first.success and first.data.created == 2
+    assert first.data.ignored_echoes == 1
+    assert second.success and second.data.unchanged == 2
+    assert second.data.ignored_echoes == 1
+    assert len(bookings) == 3
+    assert db_session.get(Booking, manual.id).id == manual.id
+    assert db_session.scalar(
+        select(Booking).where(
+            Booking.external_reference
+            == "111256613-2323473@housinganywhere.com"
+        )
+    ) is None
+    real = db_session.scalar(
+        select(Booking).where(Booking.external_reference == "HA-REAL")
+    )
+    block = db_session.scalar(
+        select(Booking).where(
+            Booking.external_reference == "HA-MANUAL-BLOCK"
+        )
+    )
+    assert real.guest.full_name == "Aleksandra"
+    assert block.guest_id is None
+
+
+def test_housinganywhere_echo_filter_preserves_atomic_rollback(
+    db_session, monkeypatch
+):
+    room, calendar = setup_housing_calendar(db_session)
+    manual = Booking(
+        room_id=room.id,
+        guest_id=None,
+        origin="manual",
+        check_in=date(2026, 9, 21),
+        check_out=date(2026, 9, 27),
+    )
+    db_session.add(manual)
+    db_session.commit()
+    service = service_for([
+        imported(
+            "HA-ECHO",
+            date(2026, 9, 21),
+            date(2026, 9, 27),
+            summary="Evento importado desde el archivo de calendario",
+        ),
+        imported(
+            "HA-REAL",
+            date(2026, 10, 1),
+            date(2026, 10, 5),
+            summary="Reservas: Aleksandra",
+        ),
+    ])
+
+    def fail_sync_marker(_db, _calendar):
+        raise RuntimeError("late failure")
+
+    monkeypatch.setattr(service.calendar_repository, "mark_synced", fail_sync_marker)
+    with pytest.raises(RuntimeError, match="late failure"):
+        service.synchronize(db_session, calendar.id)
+
+    assert db_session.get(Booking, manual.id).id == manual.id
+    assert db_session.scalar(
+        select(Booking).where(Booking.external_reference.is_not(None))
+    ) is None
     assert db_session.scalar(select(Guest)) is None
 
 
