@@ -20,6 +20,7 @@ SAFEGUARDS_REVISION = "c7d9e4a1b602"
 ROOM_CALENDAR_EXPORT_REVISION = "d4e8f1a2c703"
 MASTER_CALENDAR_REVISION = "a6f3b9c8d210"
 AUTOMATIC_SYNC_REVISION = "e5a7c9d1b304"
+HISTORICAL_OVERLAP_REVISION = "f8b2d4e6a405"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -140,7 +141,7 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            AUTOMATIC_SYNC_REVISION,
+            HISTORICAL_OVERLAP_REVISION,
         )
     finally:
         connection.close()
@@ -169,6 +170,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
             ROOM_CALENDAR_EXPORT_REVISION,
             MASTER_CALENDAR_REVISION,
             AUTOMATIC_SYNC_REVISION,
+            HISTORICAL_OVERLAP_REVISION,
         }
     finally:
         connection.close()
@@ -178,14 +180,14 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
 
     assert table_counts(database_path) == counts_before
     assert schema_snapshot(database_path, ("properties",)) == roots_before
-    if source_revision == AUTOMATIC_SYNC_REVISION:
+    if source_revision == HISTORICAL_OVERLAP_REVISION:
         assert file_hash(database_path) == copy_hash_before
     assert_schema_matches_models(database_url)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            AUTOMATIC_SYNC_REVISION,
+            HISTORICAL_OVERLAP_REVISION,
         )
     finally:
         connection.close()
@@ -238,7 +240,7 @@ def test_booking_safeguards_upgrade_and_downgrade_on_temporary_sqlite(
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            AUTOMATIC_SYNC_REVISION,
+            HISTORICAL_OVERLAP_REVISION,
     )
     finally:
         connection.close()
@@ -278,7 +280,7 @@ def test_room_calendar_export_column_upgrade_downgrade_upgrade(
         }
         assert "export_url" not in columns
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            AUTOMATIC_SYNC_REVISION,
+            HISTORICAL_OVERLAP_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
@@ -371,7 +373,7 @@ def test_master_calendar_identity_backfill_and_round_trip(tmp_path, monkeypatch)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            AUTOMATIC_SYNC_REVISION,
+            HISTORICAL_OVERLAP_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] == 2
@@ -443,7 +445,7 @@ def test_automatic_sync_state_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            AUTOMATIC_SYNC_REVISION,
+            HISTORICAL_OVERLAP_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute(

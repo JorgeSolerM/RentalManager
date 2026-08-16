@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import backend.database.session as database_session
+from backend.database.session import register_sqlite_functions
 from backend.integrations.ical_parser import NormalizedIcalEvent
 from backend.models.booking import Booking
 from backend.models.platform import Platform
@@ -26,6 +27,12 @@ def migrated_database(tmp_path, monkeypatch, name="safeguards.db"):
     )
     command.upgrade(Config("alembic.ini"), "head")
     return path
+
+
+def sqlite_connection(path, **kwargs):
+    connection = sqlite3.connect(path, **kwargs)
+    register_sqlite_functions(connection)
+    return connection
 
 
 def seed_rooms(connection):
@@ -75,7 +82,7 @@ def test_overlap_triggers_cover_insert_update_contiguous_and_other_rooms(
     tmp_path, monkeypatch
 ):
     path = migrated_database(tmp_path, monkeypatch)
-    connection = sqlite3.connect(path)
+    connection = sqlite_connection(path)
     try:
         connection.execute("PRAGMA foreign_keys=ON")
         seed_rooms(connection)
@@ -105,14 +112,14 @@ def test_concurrent_conflicting_writes_allow_at_most_one_commit(
     tmp_path, monkeypatch
 ):
     path = migrated_database(tmp_path, monkeypatch, "concurrent.db")
-    setup = sqlite3.connect(path)
+    setup = sqlite_connection(path)
     seed_rooms(setup)
     setup.close()
     barrier = threading.Barrier(2)
     results = []
 
     def writer(booking_id, check_in, check_out):
-        connection = sqlite3.connect(path, timeout=5)
+        connection = sqlite_connection(path, timeout=5)
         connection.execute("PRAGMA busy_timeout=5000")
         try:
             barrier.wait()
@@ -134,13 +141,90 @@ def test_concurrent_conflicting_writes_allow_at_most_one_commit(
     for thread in threads:
         thread.join(timeout=10)
 
-    check = sqlite3.connect(path)
+    check = sqlite_connection(path)
     try:
         persisted = check.execute("SELECT COUNT(*) FROM bookings").fetchone()[0]
     finally:
         check.close()
     assert persisted == results.count("committed") == 1
     assert len(results) == 2
+
+
+@pytest.mark.alembic_audit
+def test_trigger_allows_historical_reconstruction_but_protects_new(
+    tmp_path, monkeypatch
+):
+    path = migrated_database(tmp_path, monkeypatch, "historical_rule.db")
+    connection = sqlite_connection(path)
+    try:
+        connection.create_function(
+            "rentalmanager_business_date", 0, lambda: "2026-08-17"
+        )
+        seed_rooms(connection)
+        insert_booking(connection, 1, 1, "2026-05-08", "2026-08-31")
+        insert_booking(connection, 2, 1, "2026-04-13", "2026-05-31")
+        connection.commit()
+
+        with pytest.raises(sqlite3.IntegrityError, match="booking_overlap"):
+            connection.execute(
+                "UPDATE bookings SET check_out='2026-09-01' WHERE id=2"
+            )
+        connection.rollback()
+        assert connection.execute(
+            "SELECT check_out FROM bookings WHERE id=2"
+        ).fetchone()[0] == "2026-05-31"
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_booking_write_without_business_date_function_fails_closed(
+    tmp_path, monkeypatch
+):
+    path = migrated_database(tmp_path, monkeypatch, "missing_function.db")
+    setup = sqlite_connection(path)
+    seed_rooms(setup)
+    setup.close()
+
+    connection = sqlite3.connect(path)
+    try:
+        with pytest.raises(
+            sqlite3.OperationalError,
+            match="rentalmanager_business_date",
+        ):
+            insert_booking(
+                connection, 1, 1, "2026-09-10", "2026-09-20"
+            )
+        connection.rollback()
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_downgrade_refuses_existing_historical_overlaps(
+    tmp_path, monkeypatch
+):
+    path = migrated_database(tmp_path, monkeypatch, "downgrade_history.db")
+    connection = sqlite_connection(path)
+    try:
+        seed_rooms(connection)
+        insert_booking(connection, 1, 1, "2026-04-01", "2026-04-30")
+        insert_booking(connection, 2, 1, "2026-04-13", "2026-05-31")
+        connection.commit()
+    finally:
+        connection.close()
+
+    with pytest.raises(RuntimeError, match="historical overlaps"):
+        command.downgrade(Config("alembic.ini"), "e5a7c9d1b304")
+
+    check = sqlite_connection(path)
+    try:
+        assert check.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0] == "f8b2d4e6a405"
+        assert check.execute("SELECT count(*) FROM bookings").fetchone()[0] == 2
+    finally:
+        check.close()
 
 
 @pytest.mark.alembic_audit
@@ -151,7 +235,7 @@ def test_safeguard_migration_stops_on_historical_overlap(tmp_path, monkeypatch):
     )
     config = Config("alembic.ini")
     command.upgrade(config, "4a3e7bc2d901")
-    connection = sqlite3.connect(path)
+    connection = sqlite_connection(path)
     seed_rooms(connection)
     insert_booking(connection, 1, 1, "2026-09-10", "2026-09-20")
     insert_booking(connection, 2, 1, "2026-09-15", "2026-09-25")

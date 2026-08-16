@@ -17,6 +17,9 @@ HOUSINGANYWHERE_RESERVATION = re.compile(
     r"^reservas\s*:\s*(?P<name>.+?)\s*$",
     re.IGNORECASE,
 )
+FLATIO_RESERVATION = re.compile(
+    r"^Reserved by (?P<name>.+?) \(Flatio\)$",
+)
 
 
 def _normalize_spaces(value: str) -> str:
@@ -48,4 +51,15 @@ def extract_housinganywhere_guest_name(summary: str | None) -> str | None:
 def extract_guest_name(platform_slug: str, summary: str | None) -> str | None:
     if platform_slug.casefold() == "housinganywhere":
         return extract_housinganywhere_guest_name(summary)
+    if platform_slug.casefold() == "flatio" and summary is not None:
+        normalized_summary = _normalize_spaces(summary)
+        match = FLATIO_RESERVATION.fullmatch(normalized_summary)
+        if match is not None:
+            name = _normalize_spaces(match.group("name"))
+            if (
+                name
+                and len(name) <= 100
+                and name.casefold() not in GENERIC_BLOCK_LABELS
+            ):
+                return name
     return None

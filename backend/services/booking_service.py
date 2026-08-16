@@ -4,6 +4,7 @@ import math
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
+from backend.core.business_time import business_today
 from backend.core.operation_result import OperationResult
 from backend.models.booking import Booking
 from backend.models.guest import Guest
@@ -59,6 +60,7 @@ class BookingService:
             room_id,
             check_in,
             check_out,
+            business_today(),
             exclude_booking_id=exclude_booking_id,
         ):
             return "booking_overlap"
@@ -328,8 +330,12 @@ class BookingService:
         return OperationResult(success=False, message="booking_delete_not_allowed")
 
     def get_current_booking(self, db: Session, room_id: int) -> Booking | None:
-        bookings = self.booking_repository.list_current(db, room_id, date.today())
+        bookings = self.booking_repository.list_current(
+            db, room_id, business_today()
+        )
         return bookings[0] if bookings else None
 
     def get_future_bookings(self, db: Session, room_id: int) -> list[Booking]:
-        return self.booking_repository.list_future(db, room_id, date.today())
+        return self.booking_repository.list_future(
+            db, room_id, business_today()
+        )

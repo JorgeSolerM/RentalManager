@@ -7,6 +7,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.core.operation_result import OperationResult
+from backend.core.booking_overlap import booking_intervals_conflict
+from backend.core.business_time import business_today
 from backend.integrations.ical_event_filters import is_platform_calendar_echo
 from backend.integrations.ical_http_client import IcalDownloadError, SafeIcalHttpClient
 from backend.integrations.ical_guest_extractors import extract_guest_name
@@ -55,11 +57,23 @@ class IcalSyncService:
         return guest
 
     @staticmethod
-    def _overlaps(intervals: list[tuple[date, date]]) -> bool:
-        ordered = sorted(intervals)
+    def _candidate_has_conflict(
+        candidate_key,
+        candidate_interval: tuple[date, date],
+        final_intervals: dict,
+        business_date: date,
+    ) -> bool:
+        candidate_start, candidate_end = candidate_interval
         return any(
-            current_start < previous_end
-            for (_, previous_end), (current_start, _) in zip(ordered, ordered[1:])
+            booking_intervals_conflict(
+                candidate_start,
+                candidate_end,
+                existing_start,
+                existing_end,
+                business_date,
+            )
+            for key, (existing_start, existing_end) in final_intervals.items()
+            if key != candidate_key
         )
 
     @staticmethod
@@ -73,28 +87,44 @@ class IcalSyncService:
         calendar_id: int,
         active_events: dict[str, NormalizedIcalEvent],
     ) -> bool:
-        intervals = []
-        for booking in self.booking_repository.list_by_room(db, room_id):
+        existing = self.booking_repository.list_by_room(db, room_id)
+        final_intervals = {}
+        candidates = set()
+        existing_references = set()
+        for booking in existing:
             event = (
                 active_events.get(booking.external_reference)
                 if booking.room_calendar_id == calendar_id
                 else None
             )
+            key = ("booking", booking.id)
             if event is None:
-                intervals.append((booking.check_in, booking.check_out))
+                final_intervals[key] = (booking.check_in, booking.check_out)
             else:
-                intervals.append((event.check_in, event.check_out))
+                existing_references.add(booking.external_reference)
+                final_intervals[key] = (event.check_in, event.check_out)
+                if (
+                    booking.check_in != event.check_in
+                    or booking.check_out != event.check_out
+                ):
+                    candidates.add(key)
 
-        existing_references = {
-            booking.external_reference
-            for booking in self.booking_repository.list_by_room_calendar(db, calendar_id)
-        }
-        intervals.extend(
-            (event.check_in, event.check_out)
-            for uid, event in active_events.items()
-            if uid not in existing_references
+        for uid, event in active_events.items():
+            if uid not in existing_references:
+                key = ("incoming", uid)
+                final_intervals[key] = (event.check_in, event.check_out)
+                candidates.add(key)
+
+        business_date = business_today()
+        return not any(
+            self._candidate_has_conflict(
+                key,
+                final_intervals[key],
+                final_intervals,
+                business_date,
+            )
+            for key in candidates
         )
-        return not self._overlaps(intervals)
 
     def synchronize(
         self,

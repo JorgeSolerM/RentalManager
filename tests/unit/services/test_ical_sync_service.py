@@ -352,6 +352,47 @@ def test_housinganywhere_echo_filter_preserves_atomic_rollback(
     assert db_session.scalar(select(Guest)) is None
 
 
+def test_historical_flatio_booking_can_overlap_dylan_history(
+    db_session, monkeypatch
+):
+    today = date(2026, 8, 17)
+    monkeypatch.setattr(
+        "backend.services.ical_sync_service.business_today", lambda: today
+    )
+    room, calendar = setup_calendar(db_session, "flatio-history")
+    calendar.platform.slug = "flatio"
+    db_session.add_all([
+        Booking(
+            room_id=room.id, origin="spotahome",
+            check_in=date(2026, 4, 1), check_out=date(2026, 4, 30),
+        ),
+        Booking(
+            room_id=room.id, origin="housinganywhere",
+            check_in=date(2026, 5, 8), check_out=date(2026, 8, 31),
+        ),
+    ])
+    db_session.commit()
+    service = service_for([
+        imported(
+            "3735303139",
+            date(2026, 4, 13),
+            date(2026, 5, 31),
+            summary="Reserved by Dylan S. (Flatio)",
+        )
+    ])
+
+    first = service.synchronize(db_session, calendar.id)
+    second = service.synchronize(db_session, calendar.id)
+    dylan = db_session.scalar(
+        select(Booking).where(Booking.external_reference == "3735303139")
+    )
+
+    assert first.success and first.data.created == 1
+    assert second.success and second.data.unchanged == 1
+    assert dylan.guest.full_name == "Dylan S."
+    assert len(db_session.scalars(select(Booking)).all()) == 3
+
+
 def test_existing_booking_guest_is_never_overwritten(db_session):
     room, calendar = setup_housing_calendar(db_session)
     maria = Guest(full_name="Maria", display_name="Maria", active=True)

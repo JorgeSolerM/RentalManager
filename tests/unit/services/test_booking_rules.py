@@ -11,6 +11,7 @@ from backend.models.room import Room
 from backend.models.room_calendar import RoomCalendar
 from backend.repositories.booking_repository import BookingRepository
 from backend.services.booking_service import BookingService
+from backend.core.business_time import business_today
 
 
 def make_room(db_session, code="H01", active=True):
@@ -109,12 +110,63 @@ def test_repository_excludes_booking_during_overlap_check(db_session):
     )
     repository = BookingRepository()
     assert repository.has_overlap(
-        db_session, room.id, booking.check_in, booking.check_out
+        db_session, room.id, booking.check_in, booking.check_out,
+        business_today(),
     )
     assert not repository.has_overlap(
         db_session, room.id, booking.check_in, booking.check_out,
+        business_today(),
         exclude_booking_id=booking.id,
     )
+
+
+def test_manual_historical_overlaps_can_be_created_and_edited(
+    db_session, monkeypatch
+):
+    today = date(2026, 8, 17)
+    monkeypatch.setattr(
+        "backend.services.booking_service.business_today", lambda: today
+    )
+    room = make_room(db_session)
+    service = BookingService()
+    first = create_manual(
+        db_session, service, room.id,
+        date(2026, 4, 1), date(2026, 4, 30),
+        guest_name="Historical One",
+    )
+    second = service.create_manual_booking(
+        db_session, room.id, "Historical Two",
+        date(2026, 4, 13), date(2026, 5, 31), 100, None,
+    )
+    assert second.success
+
+    edited = service.update_manual_booking(
+        db_session, second.data.id, "Historical Two",
+        date(2026, 4, 10), date(2026, 5, 30), 100, None,
+    )
+    assert edited.success
+    assert db_session.get(Booking, first.id) is not None
+
+
+def test_overlap_reaching_business_today_is_still_rejected(
+    db_session, monkeypatch
+):
+    today = date(2026, 8, 17)
+    monkeypatch.setattr(
+        "backend.services.booking_service.business_today", lambda: today
+    )
+    room = make_room(db_session)
+    service = BookingService()
+    create_manual(
+        db_session, service, room.id,
+        date(2026, 8, 1), date(2026, 8, 16),
+    )
+
+    result = service.create_manual_booking(
+        db_session, room.id, "Reaches Today",
+        date(2026, 8, 10), today, 100, None,
+    )
+    assert result.message == "booking_overlap"
 
 
 def test_edit_does_not_conflict_with_itself(db_session):

@@ -15,8 +15,11 @@ class BookingRepository(BaseRepository):
         room_id: int,
         check_in: date,
         check_out: date,
+        business_today: date,
         exclude_booking_id: int | None = None,
     ) -> bool:
+        if check_out < business_today:
+            return False
         statement = (
             select(Booking.id)
             .where(Booking.room_id == room_id)

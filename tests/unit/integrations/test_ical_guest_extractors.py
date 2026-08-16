@@ -37,3 +37,14 @@ def test_extractor_is_not_applied_to_other_platforms():
     assert extract_guest_name("flatio", "Reservas: Aleksandra") is None
     assert extract_guest_name("spotahome", "Spotahome") is None
     assert extract_guest_name("housinganywhere", "Reservas: Aleksandra") == "Aleksandra"
+
+
+def test_flatio_extracts_only_the_proven_reservation_pattern():
+    assert extract_guest_name(
+        "flatio", "Reserved by   Dylan S.   (Flatio)"
+    ) == "Dylan S."
+    assert extract_guest_name("flatio", "Flatio") is None
+    assert extract_guest_name("flatio", "Reserved") is None
+    assert extract_guest_name(
+        "spotahome", "Reserved by Dylan S. (Flatio)"
+    ) is None
