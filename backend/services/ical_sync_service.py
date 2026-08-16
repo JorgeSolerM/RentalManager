@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 
 from backend.core.operation_result import OperationResult
 from backend.integrations.ical_http_client import IcalDownloadError, SafeIcalHttpClient
+from backend.integrations.ical_guest_extractors import extract_guest_name
 from backend.integrations.ical_parser import IcalParseError, IcalParser, NormalizedIcalEvent
 from backend.models.booking import Booking
+from backend.models.guest import Guest
 from backend.repositories.booking_repository import BookingRepository
+from backend.repositories.guest_repository import GuestRepository
 from backend.repositories.room_calendar_repository import RoomCalendarRepository
 
 
@@ -34,7 +37,20 @@ class IcalSyncService:
         self.http_client = http_client or SafeIcalHttpClient()
         self.parser = parser or IcalParser()
         self.booking_repository = BookingRepository()
+        self.guest_repository = GuestRepository()
         self.calendar_repository = RoomCalendarRepository()
+
+    def _get_or_create_guest(self, db: Session, full_name: str) -> Guest:
+        normalized_name = full_name.strip()
+        guest = self.guest_repository.get_by_full_name(db, normalized_name)
+        if guest is None:
+            guest = Guest(
+                full_name=normalized_name,
+                display_name=normalized_name,
+                active=True,
+            )
+            self.guest_repository.create(db, guest)
+        return guest
 
     @staticmethod
     def _overlaps(intervals: list[tuple[date, date]]) -> bool:
@@ -121,11 +137,20 @@ class IcalSyncService:
             created = updated = unchanged = 0
             for uid, event in active_events.items():
                 booking = existing_by_reference.get(uid)
+                guest_name = extract_guest_name(
+                    calendar.platform.slug,
+                    event.summary,
+                )
                 if booking is None:
+                    guest = (
+                        self._get_or_create_guest(db, guest_name)
+                        if guest_name is not None
+                        else None
+                    )
                     booking = Booking(
                         room_id=calendar.room_id,
                         room_calendar_id=calendar.id,
-                        guest_id=None,
+                        guest_id=guest.id if guest is not None else None,
                         origin=calendar.platform.slug,
                         external_reference=uid,
                         check_in=event.check_in,
@@ -135,17 +160,25 @@ class IcalSyncService:
                     )
                     self.booking_repository.create(db, booking)
                     created += 1
-                elif (
-                    booking.check_in != event.check_in
-                    or booking.check_out != event.check_out
-                ):
-                    booking.check_in = event.check_in
-                    booking.check_out = event.check_out
-                    booking.notes = event.notes
-                    self.booking_repository.update(db, booking)
-                    updated += 1
                 else:
-                    unchanged += 1
+                    changed = False
+                    if (
+                        booking.check_in != event.check_in
+                        or booking.check_out != event.check_out
+                    ):
+                        booking.check_in = event.check_in
+                        booking.check_out = event.check_out
+                        booking.notes = event.notes
+                        changed = True
+                    if booking.guest_id is None and guest_name is not None:
+                        guest = self._get_or_create_guest(db, guest_name)
+                        booking.guest_id = guest.id
+                        changed = True
+                    if changed:
+                        self.booking_repository.update(db, booking)
+                        updated += 1
+                    else:
+                        unchanged += 1
 
             active_uids = set(active_events)
             disappeared = sum(

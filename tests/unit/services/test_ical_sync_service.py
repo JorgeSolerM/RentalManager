@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.integrations.ical_parser import IcalParseError, IcalParser, NormalizedIcalEvent
 from backend.models.booking import Booking
+from backend.models.guest import Guest
 from backend.models.platform import Platform
 from backend.models.property import Property
 from backend.models.room import Room
@@ -75,6 +76,31 @@ def ical_feed(*events):
         "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
         f"{components}END:VCALENDAR\r\n"
     ).encode()
+
+
+def housing_feed(uid, summary, description="Auxiliary information"):
+    return (
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\n"
+        f"UID:{uid}\r\nDTSTART;VALUE=DATE:20260901\r\n"
+        "DTEND;VALUE=DATE:20260906\r\n"
+        f"SUMMARY:{summary}\r\nDESCRIPTION:{description}\r\n"
+        "END:VEVENT\r\nEND:VCALENDAR\r\n"
+    ).encode()
+
+
+def setup_housing_calendar(db_session):
+    room, calendar = setup_calendar(db_session)
+    calendar.platform.slug = "housinganywhere"
+    db_session.commit()
+    return room, calendar
+
+
+class HousingFeedClient:
+    def __init__(self, content):
+        self.content = content
+
+    def download(self, _url):
+        return self.content
 
 
 def test_sync_creates_idempotently_then_updates_existing_booking(db_session):
@@ -158,6 +184,110 @@ def test_resync_corrects_exclusive_ical_end_without_creating_booking(db_session)
     assert by_reference[
         "108253599-2323473@housinganywhere.com"
     ].check_out == date(2027, 2, 28)
+
+
+def test_housinganywhere_name_creates_guest_and_resync_is_idempotent(db_session):
+    _room, calendar = setup_housing_calendar(db_session)
+    service = IcalSyncService(
+        HousingFeedClient(housing_feed("HA-1", "Reservas: Aleksandra")),
+        IcalParser(),
+    )
+
+    first = service.synchronize(db_session, calendar.id)
+    booking = db_session.scalar(
+        select(Booking).where(Booking.external_reference == "HA-1")
+    )
+    booking_id = booking.id
+    second = service.synchronize(db_session, calendar.id)
+
+    guests = db_session.scalars(select(Guest)).all()
+    bookings = db_session.scalars(select(Booking)).all()
+    assert first.success and second.success
+    assert len(guests) == 1 and guests[0].full_name == "Aleksandra"
+    assert len(bookings) == 1 and bookings[0].id == booking_id
+    assert bookings[0].guest_id == guests[0].id
+
+
+def test_housinganywhere_reuses_existing_guest_by_normalized_name(db_session):
+    _room, calendar = setup_housing_calendar(db_session)
+    guest = Guest(full_name="Aleksandra", display_name="Aleksandra", active=True)
+    db_session.add(guest)
+    db_session.commit()
+
+    result = IcalSyncService(
+        HousingFeedClient(housing_feed("HA-REUSE", "Reservas:   Aleksandra  ")),
+        IcalParser(),
+    ).synchronize(db_session, calendar.id)
+
+    booking = db_session.scalar(
+        select(Booking).where(Booking.external_reference == "HA-REUSE")
+    )
+    assert result.success
+    assert booking.guest_id == guest.id
+    assert len(db_session.scalars(select(Guest)).all()) == 1
+
+
+def test_housinganywhere_manual_block_does_not_create_guest(db_session):
+    _room, calendar = setup_housing_calendar(db_session)
+    result = IcalSyncService(
+        HousingFeedClient(housing_feed(
+            "HA-BLOCK", "Manualmente bloqueado", "Aleksandra in description"
+        )),
+        IcalParser(),
+    ).synchronize(db_session, calendar.id)
+
+    booking = db_session.scalar(
+        select(Booking).where(Booking.external_reference == "HA-BLOCK")
+    )
+    assert result.success
+    assert booking.guest_id is None
+    assert db_session.scalar(select(Guest)) is None
+
+
+def test_existing_booking_guest_is_never_overwritten(db_session):
+    room, calendar = setup_housing_calendar(db_session)
+    maria = Guest(full_name="Maria", display_name="Maria", active=True)
+    db_session.add(maria)
+    db_session.flush()
+    booking = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, guest_id=maria.id,
+        origin="housinganywhere", external_reference="HA-EXISTING",
+        check_in=date(2026, 9, 1), check_out=date(2026, 9, 5),
+    )
+    db_session.add(booking)
+    db_session.commit()
+
+    result = IcalSyncService(
+        HousingFeedClient(housing_feed("HA-EXISTING", "Reservas: Aleksandra")),
+        IcalParser(),
+    ).synchronize(db_session, calendar.id)
+
+    assert result.success
+    assert db_session.get(Booking, booking.id).guest_id == maria.id
+    assert db_session.scalar(
+        select(Guest).where(Guest.full_name == "Aleksandra")
+    ) is None
+
+
+def test_guest_creation_rolls_back_with_failed_sync(db_session, monkeypatch):
+    _room, calendar = setup_housing_calendar(db_session)
+    service = IcalSyncService(
+        HousingFeedClient(housing_feed("HA-ROLLBACK", "Reservas: Aleksandra")),
+        IcalParser(),
+    )
+
+    def fail_sync_marker(_db, _calendar):
+        raise RuntimeError("late failure")
+
+    monkeypatch.setattr(service.calendar_repository, "mark_synced", fail_sync_marker)
+    with pytest.raises(RuntimeError, match="late failure"):
+        service.synchronize(db_session, calendar.id)
+
+    assert db_session.scalar(select(Guest)) is None
+    assert db_session.scalar(
+        select(Booking).where(Booking.external_reference == "HA-ROLLBACK")
+    ) is None
+    assert db_session.scalar(select(Booking.id).limit(1)) is None
 
 
 def test_cancelled_and_disappeared_bookings_are_preserved_as_warnings(db_session):

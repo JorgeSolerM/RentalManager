@@ -203,3 +203,9 @@ sola jornada son incompatibles. Los eventos con hora se convierten a
 `Europe/Madrid` sin esa resta. No se admiten recurrencias. Los eventos cancelados y los que
 desaparecen del feed se conservan como Bookings y se notifican como advertencias;
 no se implementa aún el ciclo de vida necesario para liberar esas fechas.
+
+HousingAnywhere identifica huéspedes mediante el patrón específico
+`Reservas: <nombre>` de `SUMMARY`. El nombre normaliza espacios y usa la
+reutilización exacta existente de Guest, incluso si solo contiene un nombre de
+pila. Los textos de bloqueo catalogados no crean Guests, `DESCRIPTION` no se usa
+como identidad y una Booking que ya tenga Guest no se reasigna automáticamente.

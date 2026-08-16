@@ -27,6 +27,7 @@ class NormalizedIcalEvent:
     check_out: date | None
     notes: str | None
     cancelled: bool
+    summary: str | None = None
 
 
 class IcalParser:
@@ -60,6 +61,14 @@ class IcalParser:
                     values.append(text)
         notes = "\n\n".join(values)[:MAX_NOTES_LENGTH]
         return notes or None
+
+    @staticmethod
+    def _summary(component) -> str | None:
+        value = component.get("SUMMARY")
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     def parse(self, content: bytes) -> list[NormalizedIcalEvent]:
         try:
@@ -111,5 +120,12 @@ class IcalParser:
                 )
                 raise IcalParseError(code)
 
-            events.append(NormalizedIcalEvent(uid, check_in, check_out, self._notes(component), False))
+            events.append(NormalizedIcalEvent(
+                uid,
+                check_in,
+                check_out,
+                self._notes(component),
+                False,
+                self._summary(component),
+            ))
         return events
