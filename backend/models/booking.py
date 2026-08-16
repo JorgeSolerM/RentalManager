@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
@@ -71,4 +71,16 @@ class Booking(Base):
 
     guest: Mapped["Guest"] = relationship(
         back_populates="bookings",
+    )
+
+    __table_args__ = (
+        Index(
+            "uq_bookings_calendar_external_reference",
+            "room_calendar_id",
+            "external_reference",
+            unique=True,
+            sqlite_where=text(
+                "room_calendar_id IS NOT NULL AND external_reference IS NOT NULL"
+            ),
+        ),
     )

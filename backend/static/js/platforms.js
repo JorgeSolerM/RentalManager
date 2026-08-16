@@ -20,7 +20,10 @@ const ERROR_MESSAGES = {
         "La plataforma no existe.",
 
     platform_has_room_calendars:
-        "No se puede eliminar una plataforma con calendarios configurados."
+        "No se puede eliminar una plataforma con calendarios configurados.",
+
+    platform_capabilities_in_use:
+        "No se pueden retirar capacidades utilizadas por calendarios configurados."
 
 };
 

@@ -17,6 +17,7 @@ import backend.models  # noqa: F401
 
 INITIAL_REVISION = "22a99ef8f2cb"
 REPAIR_REVISION = "4a3e7bc2d901"
+SAFEGUARDS_REVISION = "c7d9e4a1b602"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -137,7 +138,7 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            REPAIR_REVISION,
+            SAFEGUARDS_REVISION,
         )
     finally:
         connection.close()
@@ -173,8 +174,60 @@ def test_alembic_upgrade_head_repairs_historical_database_copy(
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            REPAIR_REVISION,
+            SAFEGUARDS_REVISION,
         )
     finally:
         connection.close()
     assert file_hash(source_path) == source_hash_before
+
+
+@pytest.mark.alembic_audit
+def test_booking_safeguards_upgrade_and_downgrade_on_temporary_sqlite(
+    tmp_path, monkeypatch
+):
+    database_path = Path(tmp_path) / "safeguards_round_trip.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "head")
+
+    connection = sqlite3.connect(database_path)
+    try:
+        index_names = {
+            row[1] for row in connection.execute("PRAGMA index_list('bookings')")
+        }
+        trigger_names = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'trigger'"
+            )
+        }
+        assert "uq_bookings_calendar_external_reference" in index_names
+        assert trigger_names >= {
+            "trg_bookings_no_overlap_insert",
+            "trg_bookings_no_overlap_update",
+        }
+    finally:
+        connection.close()
+
+    command.downgrade(config, REPAIR_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "uq_bookings_calendar_external_reference" not in {
+            row[1] for row in connection.execute("PRAGMA index_list('bookings')")
+        }
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'trigger'"
+        ).fetchall() == []
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            REPAIR_REVISION,
+        )
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
+    try:
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            SAFEGUARDS_REVISION,
+        )
+    finally:
+        connection.close()

@@ -1,4 +1,5 @@
 from datetime import date
+import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
@@ -193,3 +194,26 @@ def test_integrity_error_during_delete_rolls_back_and_session_is_reusable(
     assert db_session.get(Property, room.property_id) is not None
     created = service.create_property(db_session, make_property("Piso Dos"))
     assert created.success and created.data.id is not None
+
+
+def test_database_overlap_error_is_translated_and_session_remains_usable(
+    db_session, monkeypatch
+):
+    room = persist_room(db_session)
+    service = BookingService()
+
+    def trigger_overlap(*_args, **_kwargs):
+        raise IntegrityError(
+            "INSERT INTO bookings",
+            {},
+            sqlite3.IntegrityError("booking_overlap"),
+        )
+
+    monkeypatch.setattr(service.booking_repository, "create", trigger_overlap)
+    result = service.create_manual_booking(
+        db_session, room.id, "Ana", date(2026, 9, 1),
+        date(2026, 9, 5), 100, None,
+    )
+    assert result.message == "booking_overlap"
+    assert db_session.scalar(select(Guest).where(Guest.full_name == "Ana")) is None
+    assert db_session.get(Room, room.id) is not None

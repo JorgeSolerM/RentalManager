@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from backend.core.operation_result import OperationResult
 from backend.models.platform import Platform
 from backend.repositories.platform_repository import PlatformRepository
+from backend.repositories.room_calendar_repository import RoomCalendarRepository
 
 
 class PlatformService:
@@ -10,6 +11,7 @@ class PlatformService:
     def __init__(self):
 
         self.repository = PlatformRepository()
+        self.room_calendar_repository = RoomCalendarRepository()
 
     def list_platforms(
         self,
@@ -83,6 +85,17 @@ class PlatformService:
             return OperationResult(
                 success=False,
                 message="slug_exists",
+            )
+
+        if self.room_calendar_repository.has_incompatible_urls(
+            db,
+            platform.id,
+            supports_import,
+            supports_export,
+        ):
+            return OperationResult(
+                success=False,
+                message="platform_capabilities_in_use",
             )
 
         try:

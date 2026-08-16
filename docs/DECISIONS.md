@@ -154,3 +154,22 @@ la carrera entre dos escrituras concurrentes que validen antes de que ninguna se
 confirme. Antes de automatizar iCal o cualquier sincronización externa deberá
 incorporarse una garantía de concurrencia en la base de datos o una serialización
 equivalente de las escrituras de reservas.
+
+---
+
+## DEC-016
+
+Fecha: 16/08/2026
+
+Antes de habilitar sincronizaciones externas, SQLite protegerá los solapamientos
+mediante triggers en INSERT y UPDATE con intervalos semiabiertos. La validación
+del servicio se conserva para ofrecer errores de dominio legibles.
+
+Las reservas importadas nuevas requieren una referencia externa estable y se
+identifican por `(room_calendar_id, external_reference)`. Un índice único parcial
+protege esa identidad cuando ambos valores son no nulos. Las referencias nulas
+históricas se conservan, pero no participan en actualizaciones idempotentes.
+
+RoomCalendar mantiene la configuración y el histórico de una Platform para una
+Room. Puede desactivarse sin destruir datos y solo puede borrarse cuando nunca ha
+tenido Bookings.

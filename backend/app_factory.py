@@ -6,6 +6,7 @@ from backend.api.routers import (
     dashboard,
     gantt,
     properties,
+    room_calendars,
     rooms,
     settings,
 )
@@ -31,6 +32,7 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(rooms.router)
     app.include_router(settings.router)
     app.include_router(bookings.router)
+    app.include_router(room_calendars.router)
 
     rooms.templates.env.filters["date"] = format_date
 

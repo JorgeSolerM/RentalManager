@@ -129,6 +129,8 @@ Campos
 
 Existe una única configuración para cada pareja `room_id` y `platform_id`.
 
+Una configuración requiere al menos una URL HTTP/HTTPS compatible con las capacidades de su Platform. Puede desactivarse sin eliminar sus reservas históricas y solo puede borrarse si nunca ha tenido reservas.
+
 ---
 
 # Tabla Guest
@@ -167,6 +169,10 @@ Campos
 Las reservas manuales requieren huésped. Las reservas importadas pueden mantener un huésped desconocido hasta disponer de sus datos.
 
 No pueden existir reservas con periodos solapados para la misma habitación.
+
+Las reservas importadas nuevas se identifican de forma idempotente mediante la pareja `room_calendar_id` y `external_reference`. Esta pareja es única cuando ambos valores son no nulos; las reservas históricas con referencia nula se conservan fuera del mecanismo idempotente.
+
+SQLite aplica triggers en INSERT y UPDATE para garantizar los intervalos semiabiertos `[check_in, check_out)` incluso ante escrituras concurrentes.
 
 ---
 

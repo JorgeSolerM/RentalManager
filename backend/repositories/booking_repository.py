@@ -30,6 +30,19 @@ class BookingRepository(BaseRepository):
 
         return db.scalar(statement) is not None
 
+    def get_by_external_reference(
+        self,
+        db: Session,
+        room_calendar_id: int,
+        external_reference: str,
+    ) -> Booking | None:
+        return db.scalar(
+            select(Booking).where(
+                Booking.room_calendar_id == room_calendar_id,
+                Booking.external_reference == external_reference,
+            )
+        )
+
     def get_by_id(
         self,
         db: Session,

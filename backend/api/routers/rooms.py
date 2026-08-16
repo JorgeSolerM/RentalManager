@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from backend.database.session import get_db
 from backend.models.room import Room
 from backend.services.booking_service import BookingService
-from backend.services.platform_service import PlatformService
 from backend.services.property_service import PropertyService
+from backend.services.room_calendar_service import RoomCalendarService
 from backend.services.room_service import RoomService
 
 router = APIRouter(prefix="/rooms")
@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory="backend/templates")
 property_service = PropertyService()
 room_service = RoomService()
 booking_service = BookingService()
-platform_service = PlatformService()
+room_calendar_service = RoomCalendarService()
 
 
 @router.get("/property/{property_id}")
@@ -118,9 +118,7 @@ def room_workspace(
         room_id,
     )
 
-    platforms = platform_service.list_platforms(
-        db,
-    )
+    calendar_configurations = room_calendar_service.list_configurations(db, room_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -132,7 +130,7 @@ def room_workspace(
             "property": property_obj,
             "current_booking": current_booking,
             "future_bookings": future_bookings,
-            "platforms": platforms,
+            "calendar_configurations": calendar_configurations,
         },
     )
 
