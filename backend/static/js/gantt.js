@@ -27,7 +27,7 @@ const RMGantt = {
     },
     render() {
         this.root.replaceChildren();const canvas=document.createElement("div");canvas.className="gantt-canvas";const width=this.data.window.day_count*this.DAY_WIDTH;canvas.append(this.header(width));
-        for(const property of this.data.properties){canvas.append(this.propertyRow(property,width));for(const room of property.rooms)canvas.append(this.roomRow(room,width));}
+        for(const property of this.data.properties){for(const room of property.rooms)canvas.append(this.roomRow(room,width));}
         if(!this.data.properties.length){const empty=document.createElement("div");empty.className="gantt-empty";empty.textContent="No hay habitaciones para los filtros seleccionados.";canvas.append(empty);}this.root.append(canvas);
     },
     header(width) {
@@ -36,11 +36,10 @@ const RMGantt = {
         while(cursor<end){const current=new Date(cursor),next=Date.UTC(current.getUTCFullYear(),current.getUTCMonth()+1,1),segmentEnd=Math.min(next,end),month=document.createElement("div");month.className="gantt-month";month.style.left=`${((cursor-this.parseDate(this.data.window.start))/this.DAY_MS)*this.DAY_WIDTH}px`;month.style.width=`${((segmentEnd-cursor)/this.DAY_MS)*this.DAY_WIDTH}px`;month.textContent=`${this.MONTHS[current.getUTCMonth()]} ${current.getUTCFullYear()}`;timeline.append(month);cursor=next;}
         for(let offset=0;offset<this.data.window.day_count;offset++){const value=new Date(this.parseDate(this.data.window.start)+offset*this.DAY_MS),day=document.createElement("div");day.className="gantt-day";if([0,6].includes(value.getUTCDay()))day.classList.add("gantt-weekend");day.style.left=`${offset*this.DAY_WIDTH}px`;day.innerHTML=`<span>${value.getUTCDate()}</span><br><span>${this.WEEKDAYS[value.getUTCDay()]}</span>`;timeline.append(day);}this.addTodayLine(timeline);row.append(label,timeline);return row;
     },
-    propertyRow(property,width){const row=document.createElement("div");row.className="gantt-property-row";const label=document.createElement("div");label.className="gantt-label";label.textContent=property.name;const fill=document.createElement("div");fill.className="gantt-timeline gantt-property-fill";fill.style.width=`${width}px`;row.append(label,fill);return row;},
     roomRow(room,width) {
         const maxLane=Math.max(0,...room.bookings.map(item=>item.lane)),height=Math.max(48,(maxLane+1)*36+8),row=document.createElement("div");row.className="gantt-room-row";
-        const label=document.createElement("div");label.className="gantt-label";label.style.height=`${height}px`;const link=document.createElement("a");link.className="gantt-room-link";link.href=`/rooms/${room.id}`;link.textContent=room.code;if(!room.active)link.insertAdjacentHTML("beforeend",' <span class="badge text-bg-secondary">Inactiva</span>');
-        const sync=document.createElement("a");sync.href=`/rooms/${room.id}#configuracion`;sync.className=`gantt-sync gantt-sync-${room.sync.severity}`;sync.setAttribute("aria-label",this.syncLabel(room.sync));sync.title=this.syncLabel(room.sync);label.append(link,sync);
+        const label=document.createElement("div");label.className="gantt-label";label.style.height=`${height}px`;const identity=document.createElement("div");identity.className="gantt-room-identity";const details=document.createElement("div");details.className="gantt-room-details";const link=document.createElement("a");link.className="gantt-room-link";link.href=`/rooms/${room.id}`;link.textContent=room.code;if(!room.active)link.insertAdjacentHTML("beforeend",' <span class="badge text-bg-secondary">Inactiva</span>');details.append(link);identity.append(details);
+        const sync=document.createElement("a");sync.href=`/rooms/${room.id}#configuracion`;sync.className=`gantt-sync gantt-sync-${room.sync.severity}`;sync.setAttribute("aria-label",this.syncLabel(room.sync));sync.title=this.syncLabel(room.sync);label.append(identity,sync);
         const timeline=document.createElement("div");timeline.className="gantt-timeline gantt-room-timeline";timeline.style.cssText=`width:${width}px;height:${height}px`;timeline.addEventListener("click",event=>this.openGap(event,room,timeline));for(const booking of room.bookings)timeline.append(this.bookingBar(booking));this.addTodayLine(timeline);row.append(label,timeline);return row;
     },
     bookingBar(booking) {

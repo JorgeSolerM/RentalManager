@@ -23,6 +23,8 @@ def test_page_contains_accessible_gantt_and_dedicated_assets(client, db_session)
     assert 'aria-live="polite"' in response.text
     assert "/static/css/gantt.css" in response.text
     assert "/static/js/gantt.js" in response.text
+    assert "<h2 id=\"ganttTitle\" class=\"mb-1\">Calendario</h2>" in response.text
+    assert "Calendario de ocupación" not in response.text
 
 
 def test_data_contract_filters_window_and_excludes_private_data(client, db_session):
@@ -69,3 +71,13 @@ def test_gantt_scroll_is_confined_to_one_internal_viewport():
     template = open("backend/templates/pages/gantt.html", encoding="utf-8").read()
     assert "{% block body_class %}gantt-layout{% endblock %}" in template
     assert "{% block main_class %}gantt-main{% endblock %}" in template
+
+
+def test_gantt_renders_continuous_room_list_without_property_rows():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    styles = open("backend/static/css/gantt.css", encoding="utf-8").read()
+    assert "propertyRow" not in source
+    assert "gantt-property-row" not in source
+    assert "gantt-property-row" not in styles
+    assert "gantt-room-identity" in source
+    assert "gantt-room-details" in source
