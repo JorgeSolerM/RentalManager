@@ -8,6 +8,7 @@ from backend.models.room_calendar import RoomCalendar
 from backend.repositories.platform_repository import PlatformRepository
 from backend.repositories.room_calendar_repository import RoomCalendarRepository
 from backend.repositories.room_repository import RoomRepository
+from backend.services.room_calendar_sync_runner import RoomCalendarSyncRunner
 
 
 class RoomCalendarService:
@@ -15,6 +16,7 @@ class RoomCalendarService:
         self.repository = RoomCalendarRepository()
         self.room_repository = RoomRepository()
         self.platform_repository = PlatformRepository()
+        self.sync_runner = RoomCalendarSyncRunner()
 
     def get_by_id(self, db: Session, calendar_id: int) -> RoomCalendar | None:
         return self.repository.get_by_id(db, calendar_id)
@@ -24,10 +26,30 @@ class RoomCalendarService:
             calendar.platform_id: calendar
             for calendar in self.repository.list_by_room(db, room_id)
         }
-        return [
-            {"platform": platform, "calendar": calendars.get(platform.id)}
-            for platform in self.platform_repository.get_all(db)
-        ]
+        configurations = []
+        for platform in self.platform_repository.get_all(db):
+            calendar = calendars.get(platform.id)
+            configurations.append({
+                "platform": platform,
+                "calendar": calendar,
+                "automatic_active": bool(
+                    calendar
+                    and calendar.active
+                    and calendar.automatic_sync_enabled
+                    and calendar.import_url
+                    and calendar.room.active
+                    and platform.active
+                ),
+                "overdue": bool(
+                    calendar and self.sync_runner.is_overdue(calendar)
+                ),
+                "last_sync_error_text": (
+                    self.sync_runner.error_message(calendar.last_sync_error)
+                    if calendar
+                    else None
+                ),
+            })
+        return configurations
 
     @staticmethod
     def _normalize_url(value: str | None) -> str | None:
@@ -99,7 +121,41 @@ class RoomCalendarService:
         if error:
             return OperationResult(success=False, message=error, data=calendar)
         try:
+            url_changed = calendar.import_url != import_url
             calendar.import_url = import_url
+            if url_changed:
+                calendar.last_sync_attempt_at = None
+                calendar.last_sync_status = None
+                calendar.last_sync_error = None
+                calendar.consecutive_failures = 0
+            self.repository.update(db, calendar)
+            db.commit()
+            return OperationResult(success=True, data=calendar)
+        except Exception:
+            db.rollback()
+            raise
+
+    def toggle_automatic_sync(
+        self, db: Session, calendar_id: int
+    ) -> OperationResult[RoomCalendar]:
+        calendar = self.repository.get_by_id(db, calendar_id)
+        if calendar is None:
+            return OperationResult(success=False, message="not_found")
+        if not calendar.automatic_sync_enabled:
+            if (
+                not calendar.active
+                or not calendar.room.active
+                or not calendar.platform.active
+                or not calendar.platform.supports_import
+                or not calendar.import_url
+            ):
+                return OperationResult(
+                    success=False,
+                    message="room_calendar_automatic_unavailable",
+                    data=calendar,
+                )
+        try:
+            calendar.automatic_sync_enabled = not calendar.automatic_sync_enabled
             self.repository.update(db, calendar)
             db.commit()
             return OperationResult(success=True, data=calendar)

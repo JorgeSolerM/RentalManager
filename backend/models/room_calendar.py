@@ -56,6 +56,33 @@ class RoomCalendar(Base):
         nullable=True,
     )
 
+    last_sync_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    last_sync_status: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+
+    last_sync_error: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    consecutive_failures: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    automatic_sync_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
     room: Mapped["Room"] = relationship(
         back_populates="room_calendars",
     )

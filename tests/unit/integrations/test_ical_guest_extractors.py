@@ -35,4 +35,5 @@ def test_housinganywhere_extracts_name_and_normalizes_only_spaces():
 
 def test_extractor_is_not_applied_to_other_platforms():
     assert extract_guest_name("flatio", "Reservas: Aleksandra") is None
+    assert extract_guest_name("spotahome", "Spotahome") is None
     assert extract_guest_name("housinganywhere", "Reservas: Aleksandra") == "Aleksandra"

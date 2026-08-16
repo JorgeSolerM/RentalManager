@@ -230,3 +230,24 @@ def test_delete_without_booking_is_allowed_but_history_blocks_delete(db_session)
     assert db_session.get(RoomCalendar, historical.id) is not None
     assert deleted.success
     assert db_session.get(RoomCalendar, removable.id) is None
+
+
+def test_automatic_sync_can_pause_reactivate_and_requires_valid_configuration(
+    db_session,
+):
+    room = create_room(db_session)
+    platform = create_platform(db_session)
+    calendar = create_calendar(db_session, room, platform)
+    service = RoomCalendarService()
+
+    paused = service.toggle_automatic_sync(db_session, calendar.id)
+    assert paused.success and not paused.data.automatic_sync_enabled
+    resumed = service.toggle_automatic_sync(db_session, calendar.id)
+    assert resumed.success and resumed.data.automatic_sync_enabled
+
+    service.toggle_automatic_sync(db_session, calendar.id)
+    room.active = False
+    db_session.commit()
+    rejected = service.toggle_automatic_sync(db_session, calendar.id)
+    assert rejected.message == "room_calendar_automatic_unavailable"
+    assert not calendar.automatic_sync_enabled

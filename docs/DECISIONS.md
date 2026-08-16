@@ -232,3 +232,23 @@ esta diferencia es deliberada y conserva el significado de salida real.
 Las URLs solo se construyen desde `PUBLIC_BASE_URL`; nunca desde el encabezado
 Host de una petición. Una Room inactiva mantiene accesible su ocupación y la
 regeneración del token revoca inmediatamente todas sus vistas anteriores.
+
+---
+
+## DEC-020
+
+Fecha: 16/08/2026
+
+La sincronización iCal automática se ejecuta mediante un CLI de una pasada
+invocado cada 10 minutos por el Programador de tareas de Windows. No reside en el
+proceso FastAPI y reutiliza el mismo IcalSyncService que el flujo manual.
+
+Un lock de fichero global impide ciclos automáticos simultáneos y un lock por
+RoomCalendar coordina ejecuciones manuales y automáticas. Cada calendario usa su
+propia sesión y frontera transaccional; un fallo no detiene los siguientes. Los
+errores temporales aplican backoff de 10, 20, 40 y 60 minutos sin reintentos
+dentro del ciclo.
+
+RoomCalendar conserva únicamente último intento, último éxito, estado, código de
+error, fallos consecutivos y habilitación automática. No se introduce histórico
+de ejecuciones, `next_sync_at`, telemetría acumulada ni un sistema de incidencias.

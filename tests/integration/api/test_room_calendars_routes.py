@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy import create_engine
@@ -109,6 +109,35 @@ def test_room_calendar_http_errors_and_blocked_history(client, db_session):
     assert db_session.get(RoomCalendar, calendar.id) is not None
 
 
+def test_automatic_sync_toggle_preserves_redirect_contract(client, db_session):
+    room, platform = setup_room_and_platform(db_session)
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id,
+        import_url="https://example.com/in.ics", active=True,
+    )
+    db_session.add(calendar)
+    db_session.commit()
+
+    paused = client.post(
+        f"/room-calendars/automatic/{calendar.id}", follow_redirects=False
+    )
+    db_session.refresh(calendar)
+    assert paused.status_code == 303
+    assert paused.headers["location"] == (
+        f"/rooms/{room.id}?success=room_calendar_automatic_paused"
+    )
+    assert not calendar.automatic_sync_enabled
+
+    resumed = client.post(
+        f"/room-calendars/automatic/{calendar.id}", follow_redirects=False
+    )
+    db_session.refresh(calendar)
+    assert resumed.headers["location"] == (
+        f"/rooms/{room.id}?success=room_calendar_automatic_enabled"
+    )
+    assert calendar.automatic_sync_enabled
+
+
 def test_workspace_shows_configuration_history_and_unknown_guest(client, db_session):
     room, active_platform = setup_room_and_platform(db_session)
     inactive_platform = Platform(
@@ -127,6 +156,12 @@ def test_workspace_shows_configuration_history_and_unknown_guest(client, db_sess
     )
     db_session.add_all([active_calendar, legacy_calendar])
     db_session.flush()
+    active_calendar.last_sync_attempt_at = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=31)
+    )
+    active_calendar.last_sync_status = "error"
+    active_calendar.last_sync_error = "room_calendar_sync_timeout"
+    active_calendar.consecutive_failures = 2
     today = date.today()
     db_session.add(Booking(
         room_id=room.id, room_calendar_id=active_calendar.id,
@@ -146,6 +181,11 @@ def test_workspace_shows_configuration_history_and_unknown_guest(client, db_sess
     assert "Compatible con calendario maestro: Sí" in response.text
     assert 'data-room-calendar-action="save"' in response.text
     assert 'data-room-calendar-action="sync"' in response.text
+    assert "Sincronización automática:" in response.text
+    assert "Atrasado" in response.text
+    assert "Fallos consecutivos: 2" in response.text
+    assert "La descarga agotó el tiempo disponible." in response.text
+    assert f'action="/room-calendars/automatic/{active_calendar.id}"' in response.text
     assert "Legacy Platform" in response.text
     assert "Platform inactiva" in response.text
     assert "Sin configurar" not in response.text

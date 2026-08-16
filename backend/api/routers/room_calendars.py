@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from backend.database.session import get_db
 from backend.services.room_calendar_service import RoomCalendarService
 from backend.services.ical_sync_service import IcalSyncService
+from backend.services.room_calendar_sync_runner import RoomCalendarSyncRunner
 
 
 router = APIRouter(prefix="/room-calendars")
@@ -66,12 +67,29 @@ def delete_calendar(calendar_id: int, db: Session = Depends(get_db)):
     return _redirect(result.data.room_id, "error", result.message)
 
 
+@router.post("/automatic/{calendar_id}")
+def toggle_automatic_sync(calendar_id: int, db: Session = Depends(get_db)):
+    result = service.toggle_automatic_sync(db, calendar_id)
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Calendario no encontrado.")
+    if result.success:
+        message = (
+            "room_calendar_automatic_enabled"
+            if result.data.automatic_sync_enabled
+            else "room_calendar_automatic_paused"
+        )
+        return _redirect(result.data.room_id, "success", message)
+    return _redirect(result.data.room_id, "error", result.message)
+
+
 @router.post("/{calendar_id}/sync")
 def sync_calendar(calendar_id: int, db: Session = Depends(get_db)):
     calendar = service.get_by_id(db, calendar_id)
     if calendar is None:
         raise HTTPException(status_code=404, detail="Calendario no encontrado.")
     room_id = calendar.room_id
-    result = ical_sync_service.synchronize(db, calendar_id)
+    result = RoomCalendarSyncRunner(
+        sync_service=ical_sync_service
+    ).synchronize(db, calendar_id)
     kind = "success" if result.success else "error"
     return _redirect(room_id, kind, result.message)

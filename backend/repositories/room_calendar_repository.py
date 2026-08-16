@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backend.models.booking import Booking
 from backend.models.room_calendar import RoomCalendar
@@ -23,6 +23,21 @@ class RoomCalendarRepository(BaseRepository):
     def list_by_room(self, db: Session, room_id: int) -> list[RoomCalendar]:
         return db.scalars(
             select(RoomCalendar).where(RoomCalendar.room_id == room_id)
+        ).all()
+
+    def list_automatic_candidates(self, db: Session) -> list[RoomCalendar]:
+        return db.scalars(
+            select(RoomCalendar)
+            .options(
+                joinedload(RoomCalendar.platform),
+                joinedload(RoomCalendar.room),
+            )
+            .where(
+                RoomCalendar.active.is_(True),
+                RoomCalendar.automatic_sync_enabled.is_(True),
+                RoomCalendar.import_url.is_not(None),
+            )
+            .order_by(RoomCalendar.id)
         ).all()
 
     def mark_synced(self, db: Session, calendar: RoomCalendar) -> RoomCalendar:

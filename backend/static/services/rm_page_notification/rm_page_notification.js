@@ -19,6 +19,8 @@ const RMPageNotification = {
         room_calendar_deleted: "Calendario eliminado.",
         room_calendar_sync_completed: "Calendario sincronizado correctamente.",
         room_calendar_sync_completed_with_warnings: "Calendario sincronizado con advertencias; las reservas canceladas o desaparecidas se han conservado.",
+        room_calendar_automatic_enabled: "Sincronización automática activada.",
+        room_calendar_automatic_paused: "Sincronización automática pausada.",
         master_calendar_token_regenerated: "URL del calendario maestro regenerada. Actualiza esta URL en todas las plataformas."
     },
 
@@ -59,7 +61,16 @@ const RMPageNotification = {
         room_calendar_sync_too_many_events: "El calendario supera el número máximo de eventos.",
         room_calendar_sync_recurrence_not_supported: "Los eventos recurrentes todavía no están admitidos.",
         room_calendar_sync_incompatible_stay: "El calendario contiene una estancia de una sola jornada, incompatible con RentalManager.",
-        room_calendar_sync_invalid_feed: "El contenido recibido no es un calendario iCal válido."
+        room_calendar_sync_invalid_feed: "El contenido recibido no es un calendario iCal válido.",
+        room_calendar_sync_in_progress: "Este calendario ya se está sincronizando.",
+        room_calendar_sync_rate_limited: "La plataforma ha limitado temporalmente las consultas.",
+        room_calendar_sync_http_server_error: "La plataforma tiene un error temporal.",
+        room_calendar_sync_http_access_error: "La plataforma rechazó el acceso a la URL configurada.",
+        room_calendar_sync_http_error: "La plataforma rechazó la solicitud del calendario.",
+        room_calendar_sync_database_locked: "La base de datos está ocupada; inténtalo más tarde.",
+        room_calendar_sync_database_error: "Se produjo un error de base de datos.",
+        room_calendar_sync_unexpected_error: "Se produjo un error inesperado durante la sincronización.",
+        room_calendar_automatic_unavailable: "La sincronización automática no está disponible para esta configuración."
     },
 
     show() {

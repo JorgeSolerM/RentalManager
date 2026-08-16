@@ -313,6 +313,48 @@
 
             {% if calendar %}
 
+            {% if platform.supports_import %}
+            <div class="small mt-2">
+                <div>
+                    Sincronización automática:
+                    <span class="badge {{ 'bg-success' if configuration.automatic_active else 'bg-secondary' }}">
+                        {{ 'Activa' if configuration.automatic_active else 'Pausada' }}
+                    </span>
+                    {% if configuration.overdue %}
+                    <span class="badge bg-warning text-dark">Atrasado</span>
+                    {% endif %}
+                </div>
+                <div class="text-muted mt-1">
+                    Última sincronización correcta:
+                    {{ calendar.last_sync_at if calendar.last_sync_at else 'Nunca' }}
+                </div>
+                <div class="text-muted">
+                    Último intento:
+                    {{ calendar.last_sync_attempt_at if calendar.last_sync_attempt_at else 'Nunca' }}
+                </div>
+                <div>
+                    Estado:
+                    {% if calendar.last_sync_status == 'ok' %}
+                    <span class="text-success">Correcto</span>
+                    {% elif calendar.last_sync_status == 'warning' %}
+                    <span class="text-warning">Con advertencias</span>
+                    {% elif calendar.last_sync_status == 'error' %}
+                    <span class="text-danger">Error</span>
+                    {% else %}
+                    <span class="text-muted">Sin intentos</span>
+                    {% endif %}
+                </div>
+                {% if configuration.last_sync_error_text %}
+                <div class="text-danger">{{ configuration.last_sync_error_text }}</div>
+                {% endif %}
+                {% if calendar.consecutive_failures > 0 %}
+                <div class="text-danger">
+                    Fallos consecutivos: {{ calendar.consecutive_failures }}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <form method="post" action="/room-calendars/update/{{ calendar.id }}" class="mt-3"
                 data-room-calendar-action="save">
 
@@ -339,6 +381,14 @@
             </form>
 
             <div class="d-flex gap-2 mt-2">
+
+                {% if platform.supports_import %}
+                <form method="post" action="/room-calendars/automatic/{{ calendar.id }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">
+                        {{ 'Pausar automática' if calendar.automatic_sync_enabled else 'Reactivar automática' }}
+                    </button>
+                </form>
+                {% endif %}
 
                 <form method="post" action="/room-calendars/toggle/{{ calendar.id }}">
                     <button class="btn btn-sm btn-outline-secondary" type="submit">

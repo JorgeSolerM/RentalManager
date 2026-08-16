@@ -195,6 +195,22 @@ class SafeIcalHttpClient:
                                 raise IcalDownloadError("room_calendar_sync_too_many_redirects")
                             current_url = urljoin(target.url, location)
                             continue
+                        if response.status_code == 429:
+                            raise IcalDownloadError(
+                                "room_calendar_sync_rate_limited"
+                            )
+                        if response.status_code in {401, 403, 404}:
+                            raise IcalDownloadError(
+                                "room_calendar_sync_http_access_error"
+                            )
+                        if 500 <= response.status_code <= 599:
+                            raise IcalDownloadError(
+                                "room_calendar_sync_http_server_error"
+                            )
+                        if 400 <= response.status_code <= 499:
+                            raise IcalDownloadError(
+                                "room_calendar_sync_http_error"
+                            )
                         response.raise_for_status()
                         content_length = response.headers.get("content-length")
                         if content_length:

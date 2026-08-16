@@ -19,6 +19,7 @@ REPAIR_REVISION = "4a3e7bc2d901"
 SAFEGUARDS_REVISION = "c7d9e4a1b602"
 ROOM_CALENDAR_EXPORT_REVISION = "d4e8f1a2c703"
 MASTER_CALENDAR_REVISION = "a6f3b9c8d210"
+AUTOMATIC_SYNC_REVISION = "e5a7c9d1b304"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -139,7 +140,7 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            MASTER_CALENDAR_REVISION,
+            AUTOMATIC_SYNC_REVISION,
         )
     finally:
         connection.close()
@@ -167,6 +168,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
             SAFEGUARDS_REVISION,
             ROOM_CALENDAR_EXPORT_REVISION,
             MASTER_CALENDAR_REVISION,
+            AUTOMATIC_SYNC_REVISION,
         }
     finally:
         connection.close()
@@ -176,14 +178,14 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
 
     assert table_counts(database_path) == counts_before
     assert schema_snapshot(database_path, ("properties",)) == roots_before
-    if source_revision == MASTER_CALENDAR_REVISION:
+    if source_revision == AUTOMATIC_SYNC_REVISION:
         assert file_hash(database_path) == copy_hash_before
     assert_schema_matches_models(database_url)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            MASTER_CALENDAR_REVISION,
+            AUTOMATIC_SYNC_REVISION,
         )
     finally:
         connection.close()
@@ -236,7 +238,7 @@ def test_booking_safeguards_upgrade_and_downgrade_on_temporary_sqlite(
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            MASTER_CALENDAR_REVISION,
+            AUTOMATIC_SYNC_REVISION,
     )
     finally:
         connection.close()
@@ -276,7 +278,7 @@ def test_room_calendar_export_column_upgrade_downgrade_upgrade(
         }
         assert "export_url" not in columns
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            MASTER_CALENDAR_REVISION,
+            AUTOMATIC_SYNC_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
@@ -310,6 +312,7 @@ def test_master_calendar_identity_backfill_and_round_trip(tmp_path, monkeypatch)
         connection.commit()
     finally:
         connection.close()
+
 
     command.upgrade(config, "head")
     connection = sqlite3.connect(database_path)
@@ -368,10 +371,83 @@ def test_master_calendar_identity_backfill_and_round_trip(tmp_path, monkeypatch)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            MASTER_CALENDAR_REVISION,
+            AUTOMATIC_SYNC_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] == 2
         assert connection.execute("SELECT COUNT(*) FROM bookings").fetchone()[0] == 2
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_automatic_sync_state_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "automatic_sync_round_trip.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, MASTER_CALENDAR_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute(
+            "INSERT INTO properties (id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Calle','Madrid','Owner',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'R1',1,500,1,'room-token')"
+        )
+        connection.execute(
+            "INSERT INTO platforms "
+            "(id,name,slug,supports_import,supports_export,active) "
+            "VALUES (1,'Platform','platform',1,1,1)"
+        )
+        connection.execute(
+            "INSERT INTO room_calendars "
+            "(id,room_id,platform_id,import_url,active) "
+            "VALUES (1,1,1,'https://example.com/feed.ics',1)"
+        )
+        connection.execute(
+            "INSERT INTO bookings "
+            "(id,room_id,room_calendar_id,origin,external_reference,check_in,check_out,ical_uid) "
+            "VALUES (1,1,1,'platform','EXT','2026-09-01','2026-09-05','ical-uid')"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        row = connection.execute(
+            "SELECT last_sync_attempt_at,last_sync_status,last_sync_error,"
+            "consecutive_failures,automatic_sync_enabled FROM room_calendars"
+        ).fetchone()
+        assert row == (None, None, None, 0, 1)
+    finally:
+        connection.close()
+
+    command.downgrade(config, MASTER_CALENDAR_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(room_calendars)")
+        }
+        assert "automatic_sync_enabled" not in columns
+        assert "last_sync_attempt_at" not in columns
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert connection.execute("SELECT COUNT(*) FROM bookings").fetchone()[0] == 1
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
+    try:
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            AUTOMATIC_SYNC_REVISION,
+        )
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert connection.execute(
+            "SELECT consecutive_failures,automatic_sync_enabled FROM room_calendars"
+        ).fetchone() == (0, 1)
     finally:
         connection.close()

@@ -218,3 +218,35 @@ def test_rejects_invalid_mime_or_content(content_type, content):
     )
     with pytest.raises(IcalDownloadError, match="room_calendar_sync_invalid_feed"):
         client.download("https://calendar.example/feed.ics")
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected_code"),
+    [
+        (429, "room_calendar_sync_rate_limited"),
+        (500, "room_calendar_sync_http_server_error"),
+        (503, "room_calendar_sync_http_server_error"),
+        (401, "room_calendar_sync_http_access_error"),
+        (403, "room_calendar_sync_http_access_error"),
+        (404, "room_calendar_sync_http_access_error"),
+        (400, "room_calendar_sync_http_error"),
+    ],
+)
+def test_http_statuses_are_classified_without_exposing_response_content(
+    status_code, expected_code
+):
+    transport = lambda *_: httpx.MockTransport(
+        lambda _request: httpx.Response(
+            status_code,
+            content=b"sensitive external body",
+            headers={"Retry-After": "120"},
+        )
+    )
+    client = SafeIcalHttpClient(
+        resolver=resolver_for("93.184.216.34"), transport_factory=transport
+    )
+    with pytest.raises(IcalDownloadError) as captured:
+        client.download("https://calendar.example/secret-token.ics")
+    assert captured.value.code == expected_code
+    assert "secret-token" not in str(captured.value)
+    assert "sensitive external body" not in str(captured.value)
