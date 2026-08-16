@@ -313,7 +313,8 @@
 
             {% if calendar %}
 
-            <form method="post" action="/room-calendars/update/{{ calendar.id }}" class="mt-3">
+            <form method="post" action="/room-calendars/update/{{ calendar.id }}" class="mt-3"
+                data-room-calendar-action="save">
 
                 {% if platform.supports_import %}
                 <label class="form-label small">URL externa de importación</label>
@@ -330,7 +331,8 @@
                     {{ calendar.last_sync_at if calendar.last_sync_at else 'Nunca' }}
                 </div>
 
-                <button class="btn btn-sm btn-outline-primary mt-2" type="submit">
+                <button class="btn btn-sm btn-outline-primary mt-2" type="submit"
+                    data-room-calendar-action-button>
                     Guardar configuración
                 </button>
 
@@ -351,8 +353,10 @@
                 </form>
 
                 {% if calendar.active and room.active and platform.active and platform.supports_import and calendar.import_url %}
-                <form method="post" action="/room-calendars/{{ calendar.id }}/sync">
-                    <button class="btn btn-sm btn-outline-primary" type="submit">
+                <form method="post" action="/room-calendars/{{ calendar.id }}/sync"
+                    data-room-calendar-action="sync">
+                    <button class="btn btn-sm btn-outline-primary" type="submit"
+                        data-room-calendar-action-button>
                         Sincronizar ahora
                     </button>
                 </form>
@@ -411,5 +415,6 @@
 
 <script src="{{ url_for('static', path='js/bookings.js') }}"></script>
 <script src="{{ url_for('static', path='js/master_calendar.js') }}"></script>
+<script src="{{ url_for('static', path='js/room_calendar_actions.js') }}"></script>
 
 {% endblock %}

@@ -65,3 +65,27 @@ def test_page_notification_registry_covers_existing_redirect_contracts():
     assert 'params.delete("success")' in source
     assert 'params.delete("error")' in source
     assert "history.replaceState" in source
+    assert 'room_calendar_updated: "Configuración guardada."' in source
+    assert (
+        'room_calendar_sync_completed: "Calendario sincronizado correctamente."'
+        in source
+    )
+
+
+def test_room_calendar_actions_show_progress_and_prevent_duplicate_submits():
+    source = (STATIC_ROOT / "js/room_calendar_actions.js").read_text(
+        encoding="utf-8"
+    )
+    template = Path("backend/templates/pages/room_workspace.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Guardando configuración…" in source
+    assert "Sincronizando calendario…" in source
+    assert 'form.dataset.processing === "true"' in source
+    assert "button.disabled = true" in source
+    assert "spinner-border" in source
+    assert 'window.addEventListener("pageshow"' in source
+    assert 'data-room-calendar-action="save"' in template
+    assert 'data-room-calendar-action="sync"' in template
+    assert "js/room_calendar_actions.js" in template

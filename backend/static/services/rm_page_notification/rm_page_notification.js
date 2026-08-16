@@ -14,10 +14,10 @@ const RMPageNotification = {
         platform_updated: "Plataforma actualizada.",
         platform_deleted: "Plataforma eliminada.",
         room_calendar_created: "Calendario configurado.",
-        room_calendar_updated: "Configuración de calendario actualizada.",
+        room_calendar_updated: "Configuración guardada.",
         room_calendar_toggled: "Estado del calendario actualizado.",
         room_calendar_deleted: "Calendario eliminado.",
-        room_calendar_sync_completed: "Calendario sincronizado.",
+        room_calendar_sync_completed: "Calendario sincronizado correctamente.",
         room_calendar_sync_completed_with_warnings: "Calendario sincronizado con advertencias; las reservas canceladas o desaparecidas se han conservado.",
         master_calendar_token_regenerated: "URL del calendario maestro regenerada. Actualiza esta URL en todas las plataformas."
     },

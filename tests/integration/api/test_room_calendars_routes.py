@@ -144,6 +144,8 @@ def test_workspace_shows_configuration_history_and_unknown_guest(client, db_sess
     assert "https://example.com/active.ics" in response.text
     assert 'name="export_url"' not in response.text
     assert "Compatible con calendario maestro: Sí" in response.text
+    assert 'data-room-calendar-action="save"' in response.text
+    assert 'data-room-calendar-action="sync"' in response.text
     assert "Legacy Platform" in response.text
     assert "Platform inactiva" in response.text
     assert "Sin configurar" not in response.text
