@@ -1,0 +1,208 @@
+from datetime import date, datetime
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+
+from backend.integrations.ical_parser import IcalParseError, NormalizedIcalEvent
+from backend.models.booking import Booking
+from backend.models.platform import Platform
+from backend.models.property import Property
+from backend.models.room import Room
+from backend.models.room_calendar import RoomCalendar
+from backend.services.ical_sync_service import IcalSyncService
+
+
+class FakeHttpClient:
+    def download(self, _url):
+        return b"ical"
+
+
+class FakeParser:
+    def __init__(self, events=None, error=None):
+        self.events = events or []
+        self.error = error
+
+    def parse(self, _content):
+        if self.error:
+            raise self.error
+        return self.events
+
+
+def imported(uid, start, end, notes=None, cancelled=False):
+    return NormalizedIcalEvent(uid, start, end, notes, cancelled)
+
+
+def setup_calendar(db_session, suffix="one"):
+    property_obj = Property(
+        name=f"Piso {suffix}", address="Calle Uno", city="Elche",
+        owner="HSI", active=True,
+    )
+    db_session.add(property_obj)
+    db_session.flush()
+    room = Room(
+        property_id=property_obj.id, code=f"H-{suffix}", display_order=1,
+        base_price=350, active=True,
+    )
+    platform = Platform(
+        name=f"Platform {suffix}", slug=f"platform-{suffix}", active=True,
+        supports_import=True, supports_export=False,
+    )
+    db_session.add_all([room, platform])
+    db_session.flush()
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id,
+        import_url=f"https://calendar.example/{suffix}.ics", active=True,
+    )
+    db_session.add(calendar)
+    db_session.commit()
+    return room, calendar
+
+
+def service_for(events=None, error=None):
+    return IcalSyncService(FakeHttpClient(), FakeParser(events, error))
+
+
+def test_sync_creates_idempotently_then_updates_existing_booking(db_session):
+    room, calendar = setup_calendar(db_session)
+    first_event = imported(
+        "UID-1", date(2026, 9, 1), date(2026, 9, 5), "Guest text"
+    )
+    first = service_for([first_event]).synchronize(db_session, calendar.id)
+    first_sync_at = calendar.last_sync_at
+    second = service_for([first_event]).synchronize(db_session, calendar.id)
+    moved = service_for([imported(
+        "UID-1", date(2026, 9, 2), date(2026, 9, 6), "Moved"
+    )]).synchronize(db_session, calendar.id)
+
+    bookings = db_session.scalars(select(Booking)).all()
+    assert first.success and first.data.created == 1
+    assert second.success and second.data.unchanged == 1
+    assert moved.success and moved.data.updated == 1
+    assert len(bookings) == 1
+    assert bookings[0].room_id == room.id
+    assert bookings[0].room_calendar_id == calendar.id
+    assert bookings[0].external_reference == "UID-1"
+    assert bookings[0].origin == calendar.platform.slug
+    assert bookings[0].guest_id is None and bookings[0].price is None
+    assert bookings[0].check_in == date(2026, 9, 2)
+    assert first_sync_at is not None
+
+
+def test_cancelled_and_disappeared_bookings_are_preserved_as_warnings(db_session):
+    room, calendar = setup_calendar(db_session)
+    cancelled = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, origin="platform-one",
+        external_reference="CANCEL", check_in=date(2026, 9, 1),
+        check_out=date(2026, 9, 3),
+    )
+    disappeared = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, origin="platform-one",
+        external_reference="GONE", check_in=date(2026, 10, 1),
+        check_out=date(2026, 10, 3),
+    )
+    db_session.add_all([cancelled, disappeared])
+    db_session.commit()
+
+    result = service_for([
+        imported("CANCEL", None, None, cancelled=True),
+        imported("NEW-CANCEL", None, None, cancelled=True),
+    ]).synchronize(db_session, calendar.id)
+
+    assert result.success
+    assert result.message == "room_calendar_sync_completed_with_warnings"
+    assert result.data.cancelled == 2
+    assert result.data.disappeared == 1
+    assert db_session.get(Booking, cancelled.id) is not None
+    assert db_session.get(Booking, disappeared.id) is not None
+    assert db_session.scalar(
+        select(Booking).where(Booking.external_reference == "NEW-CANCEL")
+    ) is None
+
+
+def test_same_uid_in_another_calendar_is_never_modified(db_session):
+    first_room, first_calendar = setup_calendar(db_session, "one")
+    second_room, second_calendar = setup_calendar(db_session, "two")
+    other = Booking(
+        room_id=second_room.id, room_calendar_id=second_calendar.id,
+        origin="platform-two", external_reference="SAME",
+        check_in=date(2026, 9, 1), check_out=date(2026, 9, 5),
+    )
+    db_session.add(other)
+    db_session.commit()
+
+    result = service_for([imported(
+        "SAME", date(2026, 10, 1), date(2026, 10, 5)
+    )]).synchronize(db_session, first_calendar.id)
+
+    assert result.success and result.data.created == 1
+    db_session.refresh(other)
+    assert other.check_in == date(2026, 9, 1)
+    assert len(db_session.scalars(
+        select(Booking).where(Booking.external_reference == "SAME")
+    ).all()) == 2
+
+
+def test_overlap_with_manual_booking_rejects_every_event_and_session_is_reusable(db_session):
+    room, calendar = setup_calendar(db_session)
+    manual = Booking(
+        room_id=room.id, room_calendar_id=None, guest_id=None, origin="manual",
+        external_reference=None, check_in=date(2026, 9, 3),
+        check_out=date(2026, 9, 7),
+    )
+    db_session.add(manual)
+    db_session.commit()
+
+    result = service_for([
+        imported("SAFE", date(2026, 8, 1), date(2026, 8, 5)),
+        imported("OVERLAP", date(2026, 9, 1), date(2026, 9, 5)),
+    ]).synchronize(db_session, calendar.id)
+
+    assert result.message == "room_calendar_sync_overlap"
+    assert calendar.last_sync_at is None
+    assert db_session.scalar(
+        select(Booking).where(Booking.external_reference == "SAFE")
+    ) is None
+    assert db_session.scalar(select(Booking).where(Booking.id == manual.id)) is not None
+
+
+def test_invalid_feed_rolls_back_and_does_not_update_last_sync(db_session):
+    _room, calendar = setup_calendar(db_session)
+    result = service_for(error=IcalParseError()).synchronize(db_session, calendar.id)
+    assert result.message == "room_calendar_sync_invalid_feed"
+    assert calendar.last_sync_at is None
+
+
+def test_trigger_failure_during_multi_update_rolls_back_all_changes(db_session, monkeypatch):
+    room, calendar = setup_calendar(db_session)
+    first = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, origin="platform-one",
+        external_reference="FIRST", check_in=date(2026, 9, 1), check_out=date(2026, 9, 3),
+    )
+    second = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, origin="platform-one",
+        external_reference="SECOND", check_in=date(2026, 9, 3), check_out=date(2026, 9, 5),
+    )
+    db_session.add_all([first, second])
+    db_session.commit()
+    service = service_for([
+        imported("FIRST", date(2026, 9, 3), date(2026, 9, 5)),
+        imported("SECOND", date(2026, 9, 1), date(2026, 9, 3)),
+    ])
+    original_update = service.booking_repository.update
+    calls = 0
+
+    def fail_second(db, booking):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise IntegrityError("update", {}, Exception("booking_overlap"))
+        return original_update(db, booking)
+
+    monkeypatch.setattr(service.booking_repository, "update", fail_second)
+    result = service.synchronize(db_session, calendar.id)
+
+    assert result.message == "room_calendar_sync_overlap"
+    assert db_session.get(Booking, first.id).check_in == date(2026, 9, 1)
+    assert db_session.get(Booking, second.id).check_in == date(2026, 9, 3)
+    assert db_session.scalar(select(Booking.id).limit(1)) is not None

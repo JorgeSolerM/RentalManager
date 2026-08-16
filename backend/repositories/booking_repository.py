@@ -43,6 +43,17 @@ class BookingRepository(BaseRepository):
             )
         )
 
+    def list_by_room_calendar(
+        self,
+        db: Session,
+        room_calendar_id: int,
+    ) -> list[Booking]:
+        return db.scalars(
+            select(Booking).where(
+                Booking.room_calendar_id == room_calendar_id
+            )
+        ).all()
+
     def get_by_id(
         self,
         db: Session,

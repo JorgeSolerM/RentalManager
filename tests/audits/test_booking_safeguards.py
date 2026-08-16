@@ -1,12 +1,22 @@
 import sqlite3
 import threading
+from datetime import date
 from pathlib import Path
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 import backend.database.session as database_session
+from backend.integrations.ical_parser import NormalizedIcalEvent
+from backend.models.booking import Booking
+from backend.models.platform import Platform
+from backend.models.property import Property
+from backend.models.room import Room
+from backend.models.room_calendar import RoomCalendar
+from backend.services.ical_sync_service import IcalSyncService
 
 
 def migrated_database(tmp_path, monkeypatch, name="safeguards.db"):
@@ -129,3 +139,71 @@ def test_safeguard_migration_stops_on_historical_overlap(tmp_path, monkeypatch):
 
     with pytest.raises(RuntimeError, match="historical overlaps"):
         command.upgrade(config, "head")
+
+
+@pytest.mark.alembic_audit
+def test_ical_multi_update_swap_is_rejected_atomically_by_real_trigger(
+    tmp_path, monkeypatch
+):
+    path = migrated_database(tmp_path, monkeypatch, "ical_swap.db")
+    engine = create_engine(f"sqlite:///{path.as_posix()}")
+    session = sessionmaker(bind=engine, autoflush=False)()
+    property_obj = Property(
+        name="Piso", address="Calle", city="Elche", owner="HSI", active=True
+    )
+    session.add(property_obj)
+    session.flush()
+    room = Room(
+        property_id=property_obj.id, code="H01", display_order=1,
+        base_price=350, active=True,
+    )
+    platform = Platform(
+        name="Platform", slug="platform", active=True,
+        supports_import=True, supports_export=False,
+    )
+    session.add_all([room, platform])
+    session.flush()
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id,
+        import_url="https://calendar.example/feed.ics", active=True,
+    )
+    session.add(calendar)
+    session.flush()
+    first = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, origin="platform",
+        external_reference="FIRST", check_in=date(2026, 9, 1), check_out=date(2026, 9, 3),
+    )
+    second = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, origin="platform",
+        external_reference="SECOND", check_in=date(2026, 9, 3), check_out=date(2026, 9, 5),
+    )
+    session.add_all([first, second])
+    session.commit()
+
+    class HttpClient:
+        def download(self, _url):
+            return b"ical"
+
+    class Parser:
+        def parse(self, _content):
+            return [
+                NormalizedIcalEvent(
+                    "FIRST", date(2026, 9, 3), date(2026, 9, 5), None, False
+                ),
+                NormalizedIcalEvent(
+                    "SECOND", date(2026, 9, 1), date(2026, 9, 3), None, False
+                ),
+            ]
+
+    result = IcalSyncService(HttpClient(), Parser()).synchronize(
+        session, calendar.id
+    )
+
+    assert result.message == "room_calendar_sync_overlap"
+    session.refresh(first)
+    session.refresh(second)
+    assert first.check_in == date(2026, 9, 1)
+    assert second.check_in == date(2026, 9, 3)
+    assert calendar.last_sync_at is None
+    session.close()
+    engine.dispose()

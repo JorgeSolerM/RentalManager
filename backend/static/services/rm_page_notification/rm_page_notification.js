@@ -16,7 +16,9 @@ const RMPageNotification = {
         room_calendar_created: "Calendario configurado.",
         room_calendar_updated: "Configuración de calendario actualizada.",
         room_calendar_toggled: "Estado del calendario actualizado.",
-        room_calendar_deleted: "Calendario eliminado."
+        room_calendar_deleted: "Calendario eliminado.",
+        room_calendar_sync_completed: "Calendario sincronizado.",
+        room_calendar_sync_completed_with_warnings: "Calendario sincronizado con advertencias; las reservas canceladas o desaparecidas se han conservado."
     },
 
     errorMessages: {
@@ -44,7 +46,18 @@ const RMPageNotification = {
         room_calendar_import_not_supported: "La plataforma no admite URL de importación.",
         room_calendar_export_not_supported: "La plataforma no admite URL de exportación.",
         room_calendar_invalid_url: "Las URLs deben ser direcciones http o https válidas.",
-        room_calendar_has_bookings: "No se puede eliminar un calendario con reservas históricas."
+        room_calendar_has_bookings: "No se puede eliminar un calendario con reservas históricas.",
+        room_calendar_inactive: "El calendario está inactivo.",
+        room_calendar_sync_overlap: "La sincronización se solapa con otra reserva y no se ha aplicado.",
+        room_calendar_sync_unsafe_url: "La URL del calendario apunta a un destino de red no permitido.",
+        room_calendar_sync_download_failed: "No se pudo descargar el calendario.",
+        room_calendar_sync_failed: "La sincronización no pudo aplicarse y no se guardó ningún cambio.",
+        room_calendar_sync_timeout: "La descarga del calendario agotó el tiempo disponible.",
+        room_calendar_sync_too_large: "El calendario supera el tamaño máximo permitido.",
+        room_calendar_sync_too_many_redirects: "El calendario contiene demasiadas redirecciones.",
+        room_calendar_sync_too_many_events: "El calendario supera el número máximo de eventos.",
+        room_calendar_sync_recurrence_not_supported: "Los eventos recurrentes todavía no están admitidos.",
+        room_calendar_sync_invalid_feed: "El contenido recibido no es un calendario iCal válido."
     },
 
     show() {

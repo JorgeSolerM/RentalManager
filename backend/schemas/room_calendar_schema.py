@@ -22,3 +22,13 @@ class RoomCalendarResponse(BaseModel):
     last_sync_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class IcalSyncResponse(BaseModel):
+    room_calendar_id: int
+    received: int
+    created: int
+    updated: int
+    unchanged: int
+    cancelled: int
+    disappeared: int

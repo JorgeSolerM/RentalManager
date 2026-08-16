@@ -1,12 +1,21 @@
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from fastapi.testclient import TestClient
 
+from backend.app_factory import create_app
+from backend.core.operation_result import OperationResult
+from backend.database.base import Base
+from backend.database.session import get_db
+from backend.integrations.ical_parser import NormalizedIcalEvent
 from backend.models.booking import Booking
 from backend.models.platform import Platform
 from backend.models.property import Property
 from backend.models.room import Room
 from backend.models.room_calendar import RoomCalendar
+from backend.services.ical_sync_service import IcalSyncService
 
 
 def setup_room_and_platform(db_session, platform_active=True):
@@ -138,3 +147,104 @@ def test_workspace_shows_configuration_history_and_unknown_guest(client, db_sess
     assert "Legacy Platform" in response.text
     assert "Platform inactiva" in response.text
     assert "Sin configurar" not in response.text
+    assert f'action="/room-calendars/{active_calendar.id}/sync"' in response.text
+
+
+def test_sync_endpoint_uses_independent_session_and_committed_data_is_visible(
+    tmp_path, monkeypatch
+):
+    database_path = tmp_path / "independent_sync.db"
+    engine = create_engine(
+        f"sqlite:///{database_path.as_posix()}",
+        connect_args={"check_same_thread": False},
+    )
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(engine)
+    setup_session = session_factory()
+    room, platform = setup_room_and_platform(setup_session)
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id,
+        import_url="https://calendar.example/feed.ics", active=True,
+    )
+    setup_session.add(calendar)
+    setup_session.commit()
+    calendar_id = calendar.id
+    room_id = room.id
+    setup_session.close()
+
+    class HttpClient:
+        def download(self, _url):
+            return b"ical"
+
+    class Parser:
+        def parse(self, _content):
+            return [NormalizedIcalEvent(
+                "HTTP-UID", date(2026, 11, 1), date(2026, 11, 5), None, False
+            )]
+
+    from backend.api.routers import room_calendars as calendar_router
+    monkeypatch.setattr(
+        calendar_router,
+        "ical_sync_service",
+        IcalSyncService(HttpClient(), Parser()),
+    )
+    request_sessions = []
+    app = create_app(initialize_database=False)
+
+    def independent_db():
+        session = session_factory()
+        request_sessions.append(session)
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = independent_db
+    try:
+        with TestClient(app) as independent_client:
+            response = independent_client.post(
+                f"/room-calendars/{calendar_id}/sync", follow_redirects=False
+            )
+        verification_session = session_factory()
+        imported_booking = verification_session.scalar(
+            select(Booking).where(Booking.external_reference == "HTTP-UID")
+        )
+        assert response.status_code == 303
+        assert response.headers["location"] == (
+            f"/rooms/{room_id}?success=room_calendar_sync_completed"
+        )
+        assert len(request_sessions) == 1
+        assert imported_booking is not None
+        assert imported_booking.room_calendar_id == calendar_id
+        verification_session.close()
+    finally:
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+def test_sync_endpoint_preserves_303_error_contract(client, db_session, monkeypatch):
+    room, platform = setup_room_and_platform(db_session)
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id,
+        import_url="https://calendar.example/feed.ics", active=True,
+    )
+    db_session.add(calendar)
+    db_session.commit()
+
+    class RejectedSync:
+        def synchronize(self, _db, _calendar_id):
+            return OperationResult(
+                success=False, message="room_calendar_sync_invalid_feed"
+            )
+
+    from backend.api.routers import room_calendars as calendar_router
+    monkeypatch.setattr(calendar_router, "ical_sync_service", RejectedSync())
+    response = client.post(
+        f"/room-calendars/{calendar.id}/sync", follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"/rooms/{room.id}?error=room_calendar_sync_invalid_feed"
+    )

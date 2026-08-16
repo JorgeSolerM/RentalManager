@@ -185,3 +185,19 @@ almacena la URL externa importada desde una Platform y no contiene una URL de
 exportación por plataforma. `supports_export` indica que la Platform puede
 consumir el calendario maestro; una Platform solo exportadora puede configurarse
 sin `import_url`.
+
+---
+
+## DEC-018
+
+Fecha: 16/08/2026
+
+La primera importación iCal es manual, idempotente por
+`(room_calendar_id, external_reference)` y atómica para el feed completo. Las
+descargas validan cada destino y redirección contra SSRF y fijan la IP validada
+durante la conexión, conservando el hostname para Host y TLS/SNI.
+
+Los intervalos usan `DTEND` exclusivo y los eventos con hora se convierten a
+`Europe/Madrid`. No se admiten recurrencias. Los eventos cancelados y los que
+desaparecen del feed se conservan como Bookings y se notifican como advertencias;
+no se implementa aún el ciclo de vida necesario para liberar esas fechas.

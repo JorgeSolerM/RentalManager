@@ -337,6 +337,14 @@
                     </button>
                 </form>
 
+                {% if calendar.active and room.active and platform.active and platform.supports_import and calendar.import_url %}
+                <form method="post" action="/room-calendars/{{ calendar.id }}/sync">
+                    <button class="btn btn-sm btn-outline-primary" type="submit">
+                        Sincronizar ahora
+                    </button>
+                </form>
+                {% endif %}
+
             </div>
 
             {% elif platform.active and room.active and (platform.supports_import or platform.supports_export) %}

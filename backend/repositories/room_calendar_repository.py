@@ -25,6 +25,9 @@ class RoomCalendarRepository(BaseRepository):
             select(RoomCalendar).where(RoomCalendar.room_id == room_id)
         ).all()
 
+    def mark_synced(self, db: Session, calendar: RoomCalendar) -> RoomCalendar:
+        return self.update(db, calendar)
+
     def has_bookings(self, db: Session, calendar_id: int) -> bool:
         return db.scalar(
             select(Booking.id)
