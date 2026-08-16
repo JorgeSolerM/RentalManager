@@ -1,45 +1,4 @@
-const SUCCESS_MESSAGES = {
-
-    room_created:
-        "Habitación creada.",
-
-    room_updated:
-        "Habitación actualizada.",
-
-    room_deleted:
-        "Habitación eliminada.",
-
-    booking_created:
-        "Reserva creada.",
-
-    booking_updated:
-        "Reserva actualizada.",
-
-    booking_deleted:
-        "Reserva eliminada."
-
-};
-
-const ERROR_MESSAGES = {
-
-    code_exists:
-        "Ya existe una habitación con ese código.",
-
-    room_has_bookings:
-        "No se puede eliminar una habitación con reservas.",
-
-    room_has_room_calendars:
-        "No se puede eliminar una habitación con calendarios configurados."
-
-};
-
 document.addEventListener("DOMContentLoaded", () => {
-
-    RMPageNotification.show(
-        SUCCESS_MESSAGES,
-        ERROR_MESSAGES,
-    );
-
     const roomDeleteButton = document.getElementById(
         "room-modal-delete"
     );

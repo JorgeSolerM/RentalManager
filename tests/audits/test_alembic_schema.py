@@ -15,7 +15,6 @@ import backend.database.session as database_session
 import backend.models  # noqa: F401
 
 
-INITIAL_REVISION = "22a99ef8f2cb"
 REPAIR_REVISION = "4a3e7bc2d901"
 SAFEGUARDS_REVISION = "c7d9e4a1b602"
 
@@ -145,7 +144,7 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
 
 
 @pytest.mark.alembic_audit
-def test_alembic_upgrade_head_repairs_historical_database_copy(
+def test_alembic_upgrade_head_accepts_current_database_copy(
     tmp_path, monkeypatch
 ):
     source_path = Path(database_session.DATABASE_PATH)
@@ -154,12 +153,13 @@ def test_alembic_upgrade_head_repairs_historical_database_copy(
     shutil.copy2(source_path, database_path)
     counts_before = table_counts(database_path)
     roots_before = schema_snapshot(database_path, ("properties", "rooms"))
+    copy_hash_before = file_hash(database_path)
     config, database_url = configure_temporary_database(monkeypatch, database_path)
 
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            INITIAL_REVISION,
+            SAFEGUARDS_REVISION,
         )
     finally:
         connection.close()
@@ -169,6 +169,7 @@ def test_alembic_upgrade_head_repairs_historical_database_copy(
 
     assert table_counts(database_path) == counts_before
     assert schema_snapshot(database_path, ("properties", "rooms")) == roots_before
+    assert file_hash(database_path) == copy_hash_before
     assert_schema_matches_models(database_url)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:

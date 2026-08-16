@@ -1,32 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-
-    RMPageNotification.show(
-
-        {
-
-            property_created:
-                "Propiedad creada.",
-
-            property_updated:
-                "Propiedad actualizada.",
-
-            property_deleted:
-                "Propiedad eliminada.",
-
-        },
-
-        {
-
-            name_exists:
-                "Ya existe una propiedad con ese nombre.",
-
-            property_has_rooms:
-                "No se puede eliminar una propiedad que contiene habitaciones.",
-
-        }
-
-    );
-
     initializePropertySwitches();
 
 });

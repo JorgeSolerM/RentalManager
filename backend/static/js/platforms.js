@@ -1,39 +1,4 @@
-const SUCCESS_MESSAGES = {
-
-    platform_created:
-        "Plataforma creada.",
-
-    platform_updated:
-        "Plataforma actualizada.",
-
-    platform_deleted:
-        "Plataforma eliminada."
-
-};
-
-const ERROR_MESSAGES = {
-
-    slug_exists:
-        "Ya existe una plataforma con ese slug.",
-
-    not_found:
-        "La plataforma no existe.",
-
-    platform_has_room_calendars:
-        "No se puede eliminar una plataforma con calendarios configurados.",
-
-    platform_capabilities_in_use:
-        "No se pueden retirar capacidades utilizadas por calendarios configurados."
-
-};
-
 document.addEventListener("DOMContentLoaded", () => {
-
-    RMPageNotification.show(
-        SUCCESS_MESSAGES,
-        ERROR_MESSAGES,
-    );
-
     const deleteButton = document.getElementById(
         "platform-delete-button"
     );
