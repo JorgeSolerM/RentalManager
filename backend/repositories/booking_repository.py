@@ -1,7 +1,7 @@
 from datetime import date
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backend.models.booking import Booking
 from backend.repositories.base_repository import BaseRepository
@@ -80,6 +80,18 @@ class BookingRepository(BaseRepository):
         )
 
         return db.scalars(statement).all()
+
+    def list_for_master_calendar(
+        self,
+        db: Session,
+        room_id: int,
+    ) -> list[Booking]:
+        return db.scalars(
+            select(Booking)
+            .options(joinedload(Booking.room_calendar))
+            .where(Booking.room_id == room_id)
+            .order_by(Booking.check_in, Booking.id)
+        ).all()
 
     def list_current(
         self,

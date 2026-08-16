@@ -1,4 +1,5 @@
 from datetime import date
+import uuid
 
 from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -73,6 +74,12 @@ class Booking(Base):
         back_populates="bookings",
     )
 
+    ical_uid: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default=lambda: uuid.uuid4().hex,
+    )
+
     __table_args__ = (
         Index(
             "uq_bookings_calendar_external_reference",
@@ -82,5 +89,10 @@ class Booking(Base):
             sqlite_where=text(
                 "room_calendar_id IS NOT NULL AND external_reference IS NOT NULL"
             ),
+        ),
+        Index(
+            "uq_bookings_ical_uid",
+            "ical_uid",
+            unique=True,
         ),
     )

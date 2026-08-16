@@ -33,20 +33,41 @@ def seed_rooms(connection):
         "INSERT INTO properties "
         "(id,name,address,city,owner,active) VALUES (1,'Piso','Calle','Elche','HSI',1)"
     )
-    connection.execute(
-        "INSERT INTO rooms "
-        "(id,property_id,code,display_order,base_price,active) "
-        "VALUES (1,1,'H01',1,350,1),(2,1,'H02',2,350,1)"
-    )
+    room_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info('rooms')")
+    }
+    if "master_calendar_token" in room_columns:
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'H01',1,350,1,'token-room-1'),"
+            "(2,1,'H02',2,350,1,'token-room-2')"
+        )
+    else:
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active) "
+            "VALUES (1,1,'H01',1,350,1),(2,1,'H02',2,350,1)"
+        )
     connection.commit()
 
 
 def insert_booking(connection, booking_id, room_id, check_in, check_out):
-    connection.execute(
-        "INSERT INTO bookings "
-        "(id,room_id,origin,check_in,check_out) VALUES (?,?,?,?,?)",
-        (booking_id, room_id, "manual", check_in, check_out),
-    )
+    booking_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info('bookings')")
+    }
+    if "ical_uid" in booking_columns:
+        connection.execute(
+            "INSERT INTO bookings "
+            "(id,room_id,origin,check_in,check_out,ical_uid) VALUES (?,?,?,?,?,?)",
+            (booking_id, room_id, "manual", check_in, check_out, f"ical-{booking_id}"),
+        )
+    else:
+        connection.execute(
+            "INSERT INTO bookings "
+            "(id,room_id,origin,check_in,check_out) VALUES (?,?,?,?,?)",
+            (booking_id, room_id, "manual", check_in, check_out),
+        )
 
 
 @pytest.mark.alembic_audit

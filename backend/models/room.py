@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
+import secrets
+
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
@@ -6,6 +8,14 @@ from backend.database.base import Base
 
 class Room(Base):
     __tablename__ = "rooms"
+
+    __table_args__ = (
+        Index(
+            "uq_rooms_master_calendar_token",
+            "master_calendar_token",
+            unique=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -52,6 +62,12 @@ class Room(Base):
     room_calendars: Mapped[list["RoomCalendar"]] = relationship(
         back_populates="room",
         passive_deletes="all",
+    )
+
+    master_calendar_token: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default=lambda: secrets.token_urlsafe(32),
     )
 
     bookings: Mapped[list["Booking"]] = relationship(

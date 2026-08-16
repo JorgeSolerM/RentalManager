@@ -8,6 +8,7 @@ from backend.models.room import Room
 from backend.services.booking_service import BookingService
 from backend.services.property_service import PropertyService
 from backend.services.room_calendar_service import RoomCalendarService
+from backend.services.master_calendar_service import MasterCalendarService
 from backend.services.room_service import RoomService
 
 router = APIRouter(prefix="/rooms")
@@ -18,6 +19,7 @@ property_service = PropertyService()
 room_service = RoomService()
 booking_service = BookingService()
 room_calendar_service = RoomCalendarService()
+master_calendar_service = MasterCalendarService()
 
 
 @router.get("/property/{property_id}")
@@ -119,6 +121,7 @@ def room_workspace(
     )
 
     calendar_configurations = room_calendar_service.list_configurations(db, room_id)
+    master_calendar_views = master_calendar_service.list_public_views(db, room)
 
     return templates.TemplateResponse(
         request=request,
@@ -131,6 +134,7 @@ def room_workspace(
             "current_booking": current_booking,
             "future_bookings": future_bookings,
             "calendar_configurations": calendar_configurations,
+            "master_calendar_views": master_calendar_views,
         },
     )
 

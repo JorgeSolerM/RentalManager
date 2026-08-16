@@ -51,6 +51,13 @@ class PlatformRepository(BaseRepository):
 
         return db.scalar(statement)
 
+    def list_active_export_targets(self, db: Session) -> list[Platform]:
+        return db.scalars(
+            select(Platform)
+            .where(Platform.active.is_(True), Platform.supports_export.is_(True))
+            .order_by(Platform.name)
+        ).all()
+
     def has_room_calendars(
         self,
         db: Session,

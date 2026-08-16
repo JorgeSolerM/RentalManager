@@ -5,16 +5,19 @@ from backend.api.routers import (
     bookings,
     dashboard,
     gantt,
+    master_calendars,
     properties,
     room_calendars,
     rooms,
     settings,
 )
 from backend.core.jinja_filters import format_date
+from backend.core.logging import configure_sensitive_url_logging
 
 
 def create_app(initialize_database: bool = False) -> FastAPI:
     """Create the application without creating or migrating database schema."""
+    configure_sensitive_url_logging()
     app = FastAPI(
         title="RentalManager - HSI Rents",
         version="1.0.0",
@@ -33,6 +36,7 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(settings.router)
     app.include_router(bookings.router)
     app.include_router(room_calendars.router)
+    app.include_router(master_calendars.router)
 
     rooms.templates.env.filters["date"] = format_date
 

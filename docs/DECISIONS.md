@@ -209,3 +209,26 @@ HousingAnywhere identifica huéspedes mediante el patrón específico
 reutilización exacta existente de Guest, incluso si solo contiene un nombre de
 pila. Los textos de bloqueo catalogados no crean Guests, `DESCRIPTION` no se usa
 como identidad y una Booking que ya tenga Guest no se reasigna automáticamente.
+
+---
+
+## DEC-019
+
+Fecha: 16/08/2026
+
+Cada Room publica un calendario maestro mediante un token aleatorio persistente,
+revocable y ajeno a su ID. Para evitar bucles sin crear configuraciones de
+exportación por RoomCalendar, la URL incorpora la plataforma consumidora y esa
+vista excluye únicamente las reservas importadas desde dicha plataforma. Incluye
+las reservas manuales y las procedentes de las demás plataformas.
+
+Cada Booking tiene un UID iCal opaco y estable, independiente del token de la
+Room. El feed publica exclusivamente UID, DTSTAMP, DTSTART, DTEND, SUMMARY
+neutro, STATUS y TRANSP. La fecha real de salida se transforma al límite
+exclusivo RFC 5545 mediante `DTEND = check_out + 1 día`. Por ello, dos reservas
+contiguas según la regla interna pueden ocupar el mismo día límite en el feed;
+esta diferencia es deliberada y conserva el significado de salida real.
+
+Las URLs solo se construyen desde `PUBLIC_BASE_URL`; nunca desde el encabezado
+Host de una petición. Una Room inactiva mantiene accesible su ocupación y la
+regeneración del token revoca inmediatamente todas sus vistas anteriores.

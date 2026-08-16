@@ -221,7 +221,7 @@
 
         <div class="card-header">
 
-            Calendario compartido
+            Calendario Maestro
 
         </div>
 
@@ -229,22 +229,35 @@
 
             <p class="text-muted mb-3">
 
-                Esta dirección debe configurarse como calendario
-                de importación en todas las plataformas de reservas.
+                Publica la ocupación consolidada de la habitación sin datos del huésped.
+                Cada plataforma recibe una vista que evita reexportar sus propias reservas.
 
             </p>
 
-            <input type="text" class="form-control" value="Próximamente..." readonly>
-
-            <div class="text-end mt-3">
-
-                <button type="button" class="btn btn-outline-primary" disabled>
-
-                    📋 Copiar
-
+            {% if master_calendar_views and master_calendar_views[0].url %}
+            <div class="d-flex flex-wrap gap-2">
+                {% for view in master_calendar_views %}
+                <button type="button" class="btn btn-outline-primary"
+                    data-master-calendar-url="{{ view.url }}">
+                    📋 Copiar para {{ view.platform.name }}
                 </button>
-
+                {% endfor %}
             </div>
+            {% elif master_calendar_views %}
+            <div class="alert alert-warning mb-0">
+                Configura <code>PUBLIC_BASE_URL</code> para obtener URLs públicas utilizables por plataformas externas.
+                No se utiliza el dominio recibido en el navegador por seguridad.
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No hay plataformas activas compatibles con el calendario maestro.</p>
+            {% endif %}
+
+            <form method="post" action="/master-calendars/rooms/{{ room.id }}/regenerate"
+                class="text-end mt-3" data-master-calendar-regenerate>
+                <button type="submit" class="btn btn-outline-danger">
+                    Regenerar URL
+                </button>
+            </form>
 
         </div>
 
@@ -397,5 +410,6 @@
 {% block scripts %}
 
 <script src="{{ url_for('static', path='js/bookings.js') }}"></script>
+<script src="{{ url_for('static', path='js/master_calendar.js') }}"></script>
 
 {% endblock %}

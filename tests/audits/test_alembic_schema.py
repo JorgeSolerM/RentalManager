@@ -18,6 +18,7 @@ import backend.models  # noqa: F401
 REPAIR_REVISION = "4a3e7bc2d901"
 SAFEGUARDS_REVISION = "c7d9e4a1b602"
 ROOM_CALENDAR_EXPORT_REVISION = "d4e8f1a2c703"
+MASTER_CALENDAR_REVISION = "a6f3b9c8d210"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -138,7 +139,7 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            ROOM_CALENDAR_EXPORT_REVISION,
+            MASTER_CALENDAR_REVISION,
         )
     finally:
         connection.close()
@@ -153,7 +154,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
     database_path = Path(tmp_path) / "historical_copy.db"
     shutil.copy2(source_path, database_path)
     counts_before = table_counts(database_path)
-    roots_before = schema_snapshot(database_path, ("properties", "rooms"))
+    roots_before = schema_snapshot(database_path, ("properties",))
     copy_hash_before = file_hash(database_path)
     config, database_url = configure_temporary_database(monkeypatch, database_path)
 
@@ -165,6 +166,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
         assert source_revision in {
             SAFEGUARDS_REVISION,
             ROOM_CALENDAR_EXPORT_REVISION,
+            MASTER_CALENDAR_REVISION,
         }
     finally:
         connection.close()
@@ -173,15 +175,15 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
     command.current(config)
 
     assert table_counts(database_path) == counts_before
-    assert schema_snapshot(database_path, ("properties", "rooms")) == roots_before
-    if source_revision == ROOM_CALENDAR_EXPORT_REVISION:
+    assert schema_snapshot(database_path, ("properties",)) == roots_before
+    if source_revision == MASTER_CALENDAR_REVISION:
         assert file_hash(database_path) == copy_hash_before
     assert_schema_matches_models(database_url)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            ROOM_CALENDAR_EXPORT_REVISION,
+            MASTER_CALENDAR_REVISION,
         )
     finally:
         connection.close()
@@ -234,7 +236,7 @@ def test_booking_safeguards_upgrade_and_downgrade_on_temporary_sqlite(
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            ROOM_CALENDAR_EXPORT_REVISION,
+            MASTER_CALENDAR_REVISION,
     )
     finally:
         connection.close()
@@ -274,8 +276,102 @@ def test_room_calendar_export_column_upgrade_downgrade_upgrade(
         }
         assert "export_url" not in columns
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            ROOM_CALENDAR_EXPORT_REVISION,
+            MASTER_CALENDAR_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_master_calendar_identity_backfill_and_round_trip(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "master_calendar_round_trip.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, ROOM_CALENDAR_EXPORT_REVISION)
+
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute(
+            "INSERT INTO properties "
+            "(id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Calle','Elche','HSI',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active) "
+            "VALUES (1,1,'H01',1,350,1),(2,1,'H02',2,350,1)"
+        )
+        connection.execute(
+            "INSERT INTO bookings "
+            "(id,room_id,origin,check_in,check_out) VALUES "
+            "(1,1,'manual','2026-09-01','2026-09-05'),"
+            "(2,1,'manual','2026-09-05','2026-09-10')"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        room_tokens = connection.execute(
+            "SELECT master_calendar_token FROM rooms"
+        ).fetchall()
+        booking_uids = connection.execute(
+            "SELECT ical_uid FROM bookings"
+        ).fetchall()
+        assert len({row[0] for row in room_tokens}) == 2
+        assert all(row[0] for row in room_tokens)
+        assert len({row[0] for row in booking_uids}) == 2
+        assert all(row[0] for row in booking_uids)
+        assert {
+            row[1] for row in connection.execute("PRAGMA index_list('bookings')")
+        } >= {
+            "uq_bookings_ical_uid",
+            "uq_bookings_calendar_external_reference",
+        }
+        assert {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger'"
+            )
+        } >= {
+            "trg_bookings_no_overlap_insert",
+            "trg_bookings_no_overlap_update",
+        }
+    finally:
+        connection.close()
+
+    command.downgrade(config, ROOM_CALENDAR_EXPORT_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "master_calendar_token" not in {
+            row[1] for row in connection.execute("PRAGMA table_info('rooms')")
+        }
+        assert "ical_uid" not in {
+            row[1] for row in connection.execute("PRAGMA table_info('bookings')")
+        }
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger'"
+            )
+        } >= {
+            "trg_bookings_no_overlap_insert",
+            "trg_bookings_no_overlap_update",
+        }
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
+    try:
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            MASTER_CALENDAR_REVISION,
+        )
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert connection.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] == 2
+        assert connection.execute("SELECT COUNT(*) FROM bookings").fetchone()[0] == 2
     finally:
         connection.close()

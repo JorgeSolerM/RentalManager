@@ -18,7 +18,8 @@ const RMPageNotification = {
         room_calendar_toggled: "Estado del calendario actualizado.",
         room_calendar_deleted: "Calendario eliminado.",
         room_calendar_sync_completed: "Calendario sincronizado.",
-        room_calendar_sync_completed_with_warnings: "Calendario sincronizado con advertencias; las reservas canceladas o desaparecidas se han conservado."
+        room_calendar_sync_completed_with_warnings: "Calendario sincronizado con advertencias; las reservas canceladas o desaparecidas se han conservado.",
+        master_calendar_token_regenerated: "URL del calendario maestro regenerada. Actualiza esta URL en todas las plataformas."
     },
 
     errorMessages: {

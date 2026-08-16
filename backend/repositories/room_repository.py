@@ -78,6 +78,15 @@ class RoomRepository(BaseRepository):
 
         return db.scalar(statement)
 
+    def get_by_master_calendar_token(
+        self,
+        db: Session,
+        token: str,
+    ) -> Room | None:
+        return db.scalar(
+            select(Room).where(Room.master_calendar_token == token)
+        )
+
     def has_bookings(
         self,
         db: Session,
