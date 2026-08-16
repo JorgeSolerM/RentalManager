@@ -70,6 +70,7 @@ def test_workspace_uses_configured_origin_and_never_request_host(client, db_sess
     assert "https://calendar.example/ical/rooms/" in response.text
     assert 'data-master-calendar-url="http://attacker.example' not in response.text
     assert response.text.count("data-master-calendar-url") == 1
+    assert "Revocar y generar nuevas URLs" in response.text
     assert 'name="export_url"' not in response.text
     assert 'name="referrer" content="no-referrer"' in response.text
 

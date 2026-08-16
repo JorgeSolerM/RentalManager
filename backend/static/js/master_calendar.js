@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (regenerationForm) {
         regenerationForm.addEventListener("submit", (event) => {
             const accepted = window.confirm(
-                "La URL actual dejará de funcionar inmediatamente. Tendrás que actualizarla en todas las plataformas. ¿Continuar?"
+                "Las URLs actuales dejarán de funcionar inmediatamente. Será necesario sustituirlas en HousingAnywhere, Flatio, Spotahome y cualquier otra plataforma donde estén configuradas. No es necesario hacer esto cuando cambian las reservas: el contenido del calendario se actualiza manteniendo las mismas URLs. ¿Continuar?"
             );
             if (!accepted) {
                 event.preventDefault();
