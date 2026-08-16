@@ -4,7 +4,7 @@
 
         <form id="bookingForm" class="modal-content" method="post" action="/bookings/create" novalidate>
 
-            <input type="hidden" id="bookingRoomId" name="room_id" value="{{ room.id }}">
+            <input type="hidden" id="bookingRoomId" name="room_id" value="{{ room.id if room is defined else '' }}">
 
             <div class="modal-header">
 

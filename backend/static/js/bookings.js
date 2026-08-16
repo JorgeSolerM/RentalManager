@@ -42,7 +42,7 @@ const BookingUI = {
 
     bindEvents() {
 
-        this.newBookingButton.addEventListener("click", () => {
+        this.newBookingButton?.addEventListener("click", () => {
 
             this.openCreateModal();
 
@@ -80,7 +80,7 @@ const BookingUI = {
 
     },
 
-    openCreateModal() {
+    openCreateModal(roomId = null, checkIn = null) {
 
         this.clearForm();
 
@@ -92,9 +92,15 @@ const BookingUI = {
 
         this.deleteButton.classList.add("d-none");
 
+        this.setReadOnly(false);
+
+        if (roomId !== null) this.roomId.value = roomId;
+
+        if (checkIn !== null) this.checkIn.value = checkIn;
+
     },
 
-    async openEditModal(bookingId) {
+    async openEditModal(bookingId, readOnly = false) {
 
         try {
 
@@ -118,6 +124,8 @@ const BookingUI = {
 
             this.deleteButton.classList.remove("d-none");
 
+            this.setReadOnly(readOnly);
+
             this.modal.show();
 
         } catch (error) {
@@ -129,6 +137,19 @@ const BookingUI = {
             );
 
         }
+
+    },
+
+    setReadOnly(readOnly) {
+
+        [this.guestName, this.checkIn, this.checkOut, this.price, this.notes]
+            .forEach(field => field.disabled = readOnly);
+
+        this.submitButton.classList.toggle("d-none", readOnly);
+
+        this.deleteButton.classList.toggle("d-none", readOnly || this.form.action === "/bookings/create");
+
+        if (readOnly) this.title.textContent = "Detalle de reserva importada";
 
     },
 
