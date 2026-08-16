@@ -294,7 +294,7 @@
             <div class="text-muted small mt-1">
 
                 Importación: {{ 'Sí' if platform.supports_import else 'No' }} ·
-                Exportación: {{ 'Sí' if platform.supports_export else 'No' }}
+                Compatible con calendario maestro: {{ 'Sí' if platform.supports_export else 'No' }}
 
             </div>
 
@@ -302,15 +302,15 @@
 
             <form method="post" action="/room-calendars/update/{{ calendar.id }}" class="mt-3">
 
-                <label class="form-label small">URL de importación</label>
+                {% if platform.supports_import %}
+                <label class="form-label small">URL externa de importación</label>
                 <input type="url" name="import_url" class="form-control form-control-sm"
-                    value="{{ calendar.import_url or '' }}"
-                    {{ 'disabled' if not platform.supports_import else '' }}>
-
-                <label class="form-label small mt-2">URL de exportación</label>
-                <input type="url" name="export_url" class="form-control form-control-sm"
-                    value="{{ calendar.export_url or '' }}"
-                    {{ 'disabled' if not platform.supports_export else '' }}>
+                    value="{{ calendar.import_url or '' }}" required>
+                {% elif platform.supports_export %}
+                <div class="text-muted small">
+                    Esta plataforma utiliza el calendario maestro de la habitación.
+                </div>
+                {% endif %}
 
                 <div class="text-muted small mt-2">
                     Última sincronización:
@@ -347,13 +347,12 @@
                 <input type="hidden" name="platform_id" value="{{ platform.id }}">
 
                 {% if platform.supports_import %}
-                <label class="form-label small">URL de importación</label>
-                <input type="url" name="import_url" class="form-control form-control-sm">
-                {% endif %}
-
-                {% if platform.supports_export %}
-                <label class="form-label small mt-2">URL de exportación</label>
-                <input type="url" name="export_url" class="form-control form-control-sm">
+                <label class="form-label small">URL externa de importación</label>
+                <input type="url" name="import_url" class="form-control form-control-sm" required>
+                {% elif platform.supports_export %}
+                <div class="text-muted small">
+                    Esta plataforma utilizará el calendario maestro de la habitación.
+                </div>
                 {% endif %}
 
                 <button class="btn btn-sm btn-outline-primary mt-2" type="submit">

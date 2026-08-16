@@ -7,12 +7,10 @@ class RoomCalendarCreate(BaseModel):
     room_id: int
     platform_id: int
     import_url: str | None = None
-    export_url: str | None = None
 
 
 class RoomCalendarUpdate(BaseModel):
     import_url: str | None = None
-    export_url: str | None = None
 
 
 class RoomCalendarResponse(BaseModel):
@@ -20,7 +18,6 @@ class RoomCalendarResponse(BaseModel):
     room_id: int
     platform_id: int
     import_url: str | None
-    export_url: str | None
     active: bool
     last_sync_at: datetime | None
 

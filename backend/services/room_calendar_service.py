@@ -38,22 +38,17 @@ class RoomCalendarService:
         self,
         platform: Platform,
         import_url: str | None,
-        export_url: str | None,
-    ) -> tuple[str | None, str | None, str | None]:
+    ) -> tuple[str | None, str | None]:
         import_url = self._normalize_url(import_url)
-        export_url = self._normalize_url(export_url)
-        if import_url is None and export_url is None:
-            return import_url, export_url, "room_calendar_url_required"
+        if platform.supports_import and import_url is None:
+            return import_url, "room_calendar_import_url_required"
         if import_url is not None and not platform.supports_import:
-            return import_url, export_url, "room_calendar_import_not_supported"
-        if export_url is not None and not platform.supports_export:
-            return import_url, export_url, "room_calendar_export_not_supported"
-        for value in (import_url, export_url):
-            if value is not None:
-                parsed = urlparse(value)
-                if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-                    return import_url, export_url, "room_calendar_invalid_url"
-        return import_url, export_url, None
+            return import_url, "room_calendar_import_not_supported"
+        if import_url is not None:
+            parsed = urlparse(import_url)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                return import_url, "room_calendar_invalid_url"
+        return import_url, None
 
     def create_calendar(
         self,
@@ -61,7 +56,6 @@ class RoomCalendarService:
         room_id: int,
         platform_id: int,
         import_url: str | None,
-        export_url: str | None,
     ) -> OperationResult[RoomCalendar]:
         room = self.room_repository.get_by_id(db, room_id)
         if room is None:
@@ -75,16 +69,13 @@ class RoomCalendarService:
             return OperationResult(success=False, message="room_calendar_platform_inactive")
         if self.repository.get_by_room_and_platform(db, room_id, platform_id):
             return OperationResult(success=False, message="room_calendar_exists")
-        import_url, export_url, error = self._validate_urls(
-            platform, import_url, export_url
-        )
+        import_url, error = self._validate_urls(platform, import_url)
         if error:
             return OperationResult(success=False, message=error)
         calendar = RoomCalendar(
             room_id=room_id,
             platform_id=platform_id,
             import_url=import_url,
-            export_url=export_url,
             active=True,
         )
         try:
@@ -100,19 +91,15 @@ class RoomCalendarService:
         db: Session,
         calendar_id: int,
         import_url: str | None,
-        export_url: str | None,
     ) -> OperationResult[RoomCalendar]:
         calendar = self.repository.get_by_id(db, calendar_id)
         if calendar is None:
             return OperationResult(success=False, message="not_found")
-        import_url, export_url, error = self._validate_urls(
-            calendar.platform, import_url, export_url
-        )
+        import_url, error = self._validate_urls(calendar.platform, import_url)
         if error:
             return OperationResult(success=False, message=error, data=calendar)
         try:
             calendar.import_url = import_url
-            calendar.export_url = export_url
             self.repository.update(db, calendar)
             db.commit()
             return OperationResult(success=True, data=calendar)

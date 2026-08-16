@@ -173,3 +173,15 @@ históricas se conservan, pero no participan en actualizaciones idempotentes.
 RoomCalendar mantiene la configuración y el histórico de una Platform para una
 Room. Puede desactivarse sin destruir datos y solo puede borrarse cuando nunca ha
 tenido Bookings.
+
+---
+
+## DEC-017
+
+Fecha: 16/08/2026
+
+RentalManager ofrece un único calendario maestro por Room. `RoomCalendar` solo
+almacena la URL externa importada desde una Platform y no contiene una URL de
+exportación por plataforma. `supports_export` indica que la Platform puede
+consumir el calendario maestro; una Platform solo exportadora puede configurarse
+sin `import_url`.

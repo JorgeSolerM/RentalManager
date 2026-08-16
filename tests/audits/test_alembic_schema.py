@@ -17,6 +17,7 @@ import backend.models  # noqa: F401
 
 REPAIR_REVISION = "4a3e7bc2d901"
 SAFEGUARDS_REVISION = "c7d9e4a1b602"
+ROOM_CALENDAR_EXPORT_REVISION = "d4e8f1a2c703"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -137,7 +138,7 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            SAFEGUARDS_REVISION,
+            ROOM_CALENDAR_EXPORT_REVISION,
         )
     finally:
         connection.close()
@@ -158,9 +159,13 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
 
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
-        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+        source_revision = connection.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0]
+        assert source_revision in {
             SAFEGUARDS_REVISION,
-        )
+            ROOM_CALENDAR_EXPORT_REVISION,
+        }
     finally:
         connection.close()
 
@@ -169,13 +174,14 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
 
     assert table_counts(database_path) == counts_before
     assert schema_snapshot(database_path, ("properties", "rooms")) == roots_before
-    assert file_hash(database_path) == copy_hash_before
+    if source_revision == ROOM_CALENDAR_EXPORT_REVISION:
+        assert file_hash(database_path) == copy_hash_before
     assert_schema_matches_models(database_url)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            SAFEGUARDS_REVISION,
+            ROOM_CALENDAR_EXPORT_REVISION,
         )
     finally:
         connection.close()
@@ -228,7 +234,48 @@ def test_booking_safeguards_upgrade_and_downgrade_on_temporary_sqlite(
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            ROOM_CALENDAR_EXPORT_REVISION,
+    )
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_room_calendar_export_column_upgrade_downgrade_upgrade(
+    tmp_path, monkeypatch
+):
+    database_path = Path(tmp_path) / "room_calendar_export_round_trip.db"
+    config, database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "head")
+
+    inspector = inspect(create_engine(database_url))
+    assert "export_url" not in {
+        column["name"] for column in inspector.get_columns("room_calendars")
+    }
+
+    command.downgrade(config, SAFEGUARDS_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(room_calendars)")
+        }
+        assert "export_url" in columns
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
             SAFEGUARDS_REVISION,
         )
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(room_calendars)")
+        }
+        assert "export_url" not in columns
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            ROOM_CALENDAR_EXPORT_REVISION,
+        )
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         connection.close()

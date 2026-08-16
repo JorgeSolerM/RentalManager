@@ -46,13 +46,11 @@ def create_calendar(db_session, room, platform, **overrides):
     values = {
         "import_url": "https://example.com/import.ics"
         if platform.supports_import else None,
-        "export_url": "https://example.com/export.ics"
-        if platform.supports_export else None,
     }
     values.update(overrides)
     result = RoomCalendarService().create_calendar(
         db_session, room.id, platform.id,
-        values["import_url"], values["export_url"],
+        values["import_url"],
     )
     assert result.success
     return result.data
@@ -69,11 +67,11 @@ def test_room_platform_is_unique_and_same_platform_can_configure_other_rooms(
 
     duplicate = service.create_calendar(
         db_session, first_room.id, platform.id,
-        "https://example.com/other.ics", None,
+        "https://example.com/other.ics",
     )
     second = service.create_calendar(
         db_session, second_room.id, platform.id,
-        "https://example.com/second.ics", None,
+        "https://example.com/second.ics",
     )
 
     assert duplicate.message == "room_calendar_exists"
@@ -101,11 +99,11 @@ def test_inactive_platform_or_room_cannot_create_or_reactivate(db_session):
 
     assert service.create_calendar(
         db_session, active_room.id, inactive_platform.id,
-        "https://example.com/import.ics", None,
+        "https://example.com/import.ics",
     ).message == "room_calendar_platform_inactive"
     assert service.create_calendar(
         db_session, inactive_room.id, active_platform.id,
-        "https://example.com/import.ics", None,
+        "https://example.com/import.ics",
     ).message == "room_calendar_room_inactive"
 
     calendar = create_calendar(db_session, active_room, active_platform)
@@ -124,17 +122,16 @@ def test_inactive_platform_or_room_cannot_create_or_reactivate(db_session):
 
 
 @pytest.mark.parametrize(
-    ("supports_import", "supports_export", "import_url", "export_url", "message"),
+    ("supports_import", "supports_export", "import_url", "message"),
     [
-        (False, True, "https://example.com/in.ics", None, "room_calendar_import_not_supported"),
-        (True, False, None, "https://example.com/out.ics", "room_calendar_export_not_supported"),
-        (True, True, "", "", "room_calendar_url_required"),
-        (True, True, "ftp://example.com/in.ics", None, "room_calendar_invalid_url"),
-        (True, True, "https:///missing-host", None, "room_calendar_invalid_url"),
+        (False, True, "https://example.com/in.ics", "room_calendar_import_not_supported"),
+        (True, False, "", "room_calendar_import_url_required"),
+        (True, True, "ftp://example.com/in.ics", "room_calendar_invalid_url"),
+        (True, True, "https:///missing-host", "room_calendar_invalid_url"),
     ],
 )
 def test_capabilities_and_urls_are_validated(
-    db_session, supports_import, supports_export, import_url, export_url, message
+    db_session, supports_import, supports_export, import_url, message
 ):
     room = create_room(db_session)
     platform = create_platform(
@@ -143,7 +140,7 @@ def test_capabilities_and_urls_are_validated(
         supports_export=supports_export,
     )
     result = RoomCalendarService().create_calendar(
-        db_session, room.id, platform.id, import_url, export_url
+        db_session, room.id, platform.id, import_url
     )
     assert result.message == message
 
@@ -157,12 +154,11 @@ def test_update_and_toggle_preserve_urls_history_and_last_sync(db_session):
     service = RoomCalendarService()
 
     updated = service.update_calendar(
-        db_session, calendar.id, " https://example.com/new.ics ", None
+        db_session, calendar.id, " https://example.com/new.ics "
     )
     toggled = service.toggle_calendar(db_session, calendar.id)
 
     assert updated.data.import_url == "https://example.com/new.ics"
-    assert updated.data.export_url is None
     assert updated.data.last_sync_at == datetime(2026, 8, 1, 12, 0)
     assert not toggled.data.active
     assert toggled.data.import_url == "https://example.com/new.ics"
@@ -178,6 +174,35 @@ def test_platform_capabilities_cannot_invalidate_existing_calendar(db_session):
     )
     assert result.message == "platform_capabilities_in_use"
     assert db_session.get(Platform, platform.id).supports_import is True
+
+
+def test_export_only_platform_can_be_configured_without_import_url(db_session):
+    room = create_room(db_session)
+    platform = create_platform(
+        db_session, supports_import=False, supports_export=True
+    )
+
+    result = RoomCalendarService().create_calendar(
+        db_session, room.id, platform.id, None
+    )
+
+    assert result.success
+    assert result.data.import_url is None
+
+
+def test_export_capability_can_be_reduced_without_calendar_url_data(db_session):
+    room = create_room(db_session)
+    platform = create_platform(
+        db_session, supports_import=False, supports_export=True
+    )
+    create_calendar(db_session, room, platform)
+
+    result = PlatformService().update_platform(
+        db_session, platform.id, platform.name, platform.slug, False, False
+    )
+
+    assert result.success
+    assert db_session.get(Platform, platform.id).supports_export is False
 
 
 def test_delete_without_booking_is_allowed_but_history_blocks_delete(db_session):

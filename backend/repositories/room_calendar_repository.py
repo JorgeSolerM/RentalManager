@@ -1,4 +1,4 @@
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.models.booking import Booking
@@ -32,23 +32,19 @@ class RoomCalendarRepository(BaseRepository):
             .limit(1)
         ) is not None
 
-    def has_incompatible_urls(
+    def has_incompatible_import_urls(
         self,
         db: Session,
         platform_id: int,
         supports_import: bool,
-        supports_export: bool,
     ) -> bool:
-        statement = select(RoomCalendar.id).where(
-            RoomCalendar.platform_id == platform_id
-        )
-        incompatible_conditions = []
-        if not supports_import:
-            incompatible_conditions.append(RoomCalendar.import_url.is_not(None))
-        if not supports_export:
-            incompatible_conditions.append(RoomCalendar.export_url.is_not(None))
-        if not incompatible_conditions:
+        if supports_import:
             return False
         return db.scalar(
-            statement.where(or_(*incompatible_conditions)).limit(1)
+            select(RoomCalendar.id)
+            .where(
+                RoomCalendar.platform_id == platform_id,
+                RoomCalendar.import_url.is_not(None),
+            )
+            .limit(1)
         ) is not None

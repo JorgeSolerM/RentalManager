@@ -37,7 +37,6 @@ def test_room_calendar_http_create_update_toggle_delete_contracts(client, db_ses
             "room_id": room.id,
             "platform_id": platform.id,
             "import_url": "https://example.com/in.ics",
-            "export_url": "https://example.com/out.ics",
         },
         follow_redirects=False,
     )
@@ -46,7 +45,7 @@ def test_room_calendar_http_create_update_toggle_delete_contracts(client, db_ses
     db_session.commit()
     update_response = client.post(
         f"/room-calendars/update/{calendar.id}",
-        data={"import_url": "https://example.com/new.ics", "export_url": ""},
+        data={"import_url": "https://example.com/new.ics"},
         follow_redirects=False,
     )
     toggle_response = client.post(
@@ -134,6 +133,8 @@ def test_workspace_shows_configuration_history_and_unknown_guest(client, db_sess
     assert "Huésped desconocido" in response.text
     assert "Booking.com" in response.text
     assert "https://example.com/active.ics" in response.text
+    assert 'name="export_url"' not in response.text
+    assert "Compatible con calendario maestro: Sí" in response.text
     assert "Legacy Platform" in response.text
     assert "Platform inactiva" in response.text
     assert "Sin configurar" not in response.text

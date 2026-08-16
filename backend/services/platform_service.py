@@ -87,11 +87,10 @@ class PlatformService:
                 message="slug_exists",
             )
 
-        if self.room_calendar_repository.has_incompatible_urls(
+        if self.room_calendar_repository.has_incompatible_import_urls(
             db,
             platform.id,
             supports_import,
-            supports_export,
         ):
             return OperationResult(
                 success=False,

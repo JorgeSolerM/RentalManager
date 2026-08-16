@@ -22,12 +22,9 @@ def create_calendar(
     room_id: int = Form(...),
     platform_id: int = Form(...),
     import_url: str = Form(""),
-    export_url: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    result = service.create_calendar(
-        db, room_id, platform_id, import_url, export_url
-    )
+    result = service.create_calendar(db, room_id, platform_id, import_url)
     if result.success:
         return _redirect(room_id, "success", "room_calendar_created")
     return _redirect(room_id, "error", result.message)
@@ -37,10 +34,9 @@ def create_calendar(
 def update_calendar(
     calendar_id: int,
     import_url: str = Form(""),
-    export_url: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    result = service.update_calendar(db, calendar_id, import_url, export_url)
+    result = service.update_calendar(db, calendar_id, import_url)
     if not result.success and result.message == "not_found":
         raise HTTPException(status_code=404, detail="Calendario no encontrado.")
     if result.success:

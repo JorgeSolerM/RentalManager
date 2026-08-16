@@ -123,13 +123,15 @@ Campos
 - room_id
 - platform_id
 - import_url
-- export_url
 - active
 - last_sync_at
 
 Existe una única configuración para cada pareja `room_id` y `platform_id`.
 
-Una configuración requiere al menos una URL HTTP/HTTPS compatible con las capacidades de su Platform. Puede desactivarse sin eliminar sus reservas históricas y solo puede borrarse si nunca ha tenido reservas.
+Una Platform con importación requiere una URL externa HTTP/HTTPS. Una Platform
+que solo admite exportación puede configurarse sin URL y utiliza el calendario
+maestro único de la Room. La configuración puede desactivarse sin eliminar sus
+reservas históricas y solo puede borrarse si nunca ha tenido reservas.
 
 ---
 

@@ -40,7 +40,7 @@ const RMPageNotification = {
         room_calendar_exists: "Esta plataforma ya está configurada para la habitación.",
         room_calendar_room_inactive: "No se puede crear o reactivar un calendario en una habitación inactiva.",
         room_calendar_platform_inactive: "No se puede crear o reactivar un calendario de una plataforma inactiva.",
-        room_calendar_url_required: "Debe indicar al menos una URL compatible.",
+        room_calendar_import_url_required: "Debe indicar la URL externa de importación.",
         room_calendar_import_not_supported: "La plataforma no admite URL de importación.",
         room_calendar_export_not_supported: "La plataforma no admite URL de exportación.",
         room_calendar_invalid_url: "Las URLs deben ser direcciones http o https válidas.",

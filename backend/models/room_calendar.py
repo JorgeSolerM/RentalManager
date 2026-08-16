@@ -45,11 +45,6 @@ class RoomCalendar(Base):
         nullable=True,
     )
 
-    export_url: Mapped[str | None] = mapped_column(
-        String(500),
-        nullable=True,
-    )
-
     active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
