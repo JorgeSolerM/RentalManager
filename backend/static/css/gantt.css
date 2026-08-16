@@ -1,10 +1,16 @@
 :root { --gantt-day-width: 28px; --gantt-label-width: 240px; --gantt-header-height: 64px; --gantt-lane-height: 36px; }
-.gantt-root { max-height:calc(100vh - 220px); overflow:auto; border:1px solid var(--bs-border-color); border-radius:.5rem; background:var(--bs-body-bg); position:relative; }
-.gantt-canvas { min-width:max-content; position:relative; }
+body.gantt-layout { width:100%; height:100vh; height:100dvh; overflow:hidden; display:flex; flex-direction:column; }
+body.gantt-layout > header, body.gantt-layout > footer { flex:0 0 auto; }
+body.gantt-layout .app-shell { width:100%; min-width:0; min-height:0; flex:1 1 auto; overflow:hidden; }
+.gantt-main { width:0; min-width:0; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
+.gantt-page { width:100%; max-width:100%; min-width:0; min-height:0; flex:1 1 auto; display:flex; flex-direction:column; overflow:hidden; }
+.gantt-page-header { flex:0 0 auto; }
+.gantt-root { width:100%; max-width:100%; min-width:0; min-height:0; flex:1 1 auto; overflow:auto; overscroll-behavior:contain; border:1px solid var(--bs-border-color); border-radius:.5rem; background:var(--bs-body-bg); position:relative; scrollbar-gutter:stable; }
+.gantt-canvas { width:max-content; min-width:100%; position:relative; }
 .gantt-header,.gantt-property-row,.gantt-room-row { display:flex; }
-.gantt-header { position:sticky; top:0; z-index:20; background:var(--bs-body-bg); }
+.gantt-header { position:sticky; top:0; z-index:20; width:max-content; min-width:100%; background:var(--bs-body-bg); }
 .gantt-label { position:sticky; left:0; z-index:10; flex:0 0 var(--gantt-label-width); width:var(--gantt-label-width); border-right:1px solid var(--bs-border-color); background:var(--bs-body-bg); padding:.55rem .75rem; }
-.gantt-header .gantt-label { z-index:30; height:var(--gantt-header-height); }
+.gantt-header .gantt-label { z-index:30; height:var(--gantt-header-height); background:var(--bs-body-bg); }
 .gantt-timeline { position:relative; flex:0 0 auto; }
 .gantt-header-timeline { height:var(--gantt-header-height); border-bottom:1px solid var(--bs-border-color); }
 .gantt-month { position:absolute; top:0; height:30px; border-right:1px solid var(--bs-border-color); padding:.25rem .4rem; font-weight:600; }
@@ -28,4 +34,4 @@
 .gantt-sync { display:inline-flex; width:11px; height:11px; border-radius:50%; flex:0 0 auto; }
 .gantt-sync-ok { background:var(--bs-success); }.gantt-sync-error { background:var(--bs-danger); }.gantt-sync-overdue { background:var(--bs-warning); }.gantt-sync-paused { background:var(--bs-secondary); }.gantt-sync-none { border:1px solid var(--bs-secondary); background:transparent; }
 .gantt-empty { padding:2rem; text-align:center; color:var(--bs-secondary-color); }.gantt-loading { opacity:.55; pointer-events:none; }
-@media (max-width:768px) { :root { --gantt-label-width:150px; } .gantt-root { max-height:calc(100vh - 275px); } .gantt-label { padding-inline:.45rem; } .gantt-booking { font-size:.7rem; } }
+@media (max-width:768px) { :root { --gantt-label-width:150px; } .gantt-main { padding:1rem !important; } .gantt-label { padding-inline:.45rem; } .gantt-booking { font-size:.7rem; } }

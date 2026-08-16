@@ -53,3 +53,19 @@ def test_frontend_uses_utc_offsets_and_half_open_widths():
     assert "check_out + 1" not in source
     assert "Entrada:" in source and "Salida:" in source
     assert "event.target!==timeline||!room.active" in source
+
+
+def test_gantt_scroll_is_confined_to_one_internal_viewport():
+    source = open("backend/static/css/gantt.css", encoding="utf-8").read()
+    assert "body.gantt-layout" in source
+    assert ".gantt-main { width:0; min-width:0" in source
+    assert "min-width:0" in source
+    assert ".gantt-page { width:100%; max-width:100%" in source
+    assert ".gantt-root { width:100%; max-width:100%" in source
+    assert "overflow:auto" in source
+    assert "flex:1 1 auto" in source
+    assert ".gantt-canvas { width:max-content; min-width:100%" in source
+    assert "max-height:calc" not in source
+    template = open("backend/templates/pages/gantt.html", encoding="utf-8").read()
+    assert "{% block body_class %}gantt-layout{% endblock %}" in template
+    assert "{% block main_class %}gantt-main{% endblock %}" in template

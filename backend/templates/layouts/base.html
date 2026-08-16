@@ -30,17 +30,17 @@
 </head>
 
 
-<body>
+<body class="{% block body_class %}{% endblock %}">
 
     {% include "components/header.html" %}
 
     {% include "components/rm_toast.html" %}
 
-    <div class="d-flex">
+    <div class="app-shell d-flex">
 
         {% include "components/sidebar.html" %}
 
-        <main class="flex-grow-1 p-4">
+        <main class="flex-grow-1 p-4 {% block main_class %}{% endblock %}">
 
             {% block content %}
             {% endblock %}
