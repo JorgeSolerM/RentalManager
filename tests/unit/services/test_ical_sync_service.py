@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from backend.integrations.ical_parser import IcalParseError, NormalizedIcalEvent
+from backend.integrations.ical_parser import IcalParseError, IcalParser, NormalizedIcalEvent
 from backend.models.booking import Booking
 from backend.models.platform import Platform
 from backend.models.property import Property
@@ -63,6 +63,20 @@ def service_for(events=None, error=None):
     return IcalSyncService(FakeHttpClient(), FakeParser(events, error))
 
 
+def ical_feed(*events):
+    components = "".join(
+        "BEGIN:VEVENT\r\n"
+        f"UID:{uid}\r\nDTSTART;VALUE=DATE:{start}\r\n"
+        f"DTEND;VALUE=DATE:{exclusive_end}\r\n"
+        "END:VEVENT\r\n"
+        for uid, start, exclusive_end in events
+    )
+    return (
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
+        f"{components}END:VCALENDAR\r\n"
+    ).encode()
+
+
 def test_sync_creates_idempotently_then_updates_existing_booking(db_session):
     room, calendar = setup_calendar(db_session)
     first_event = imported(
@@ -87,6 +101,63 @@ def test_sync_creates_idempotently_then_updates_existing_booking(db_session):
     assert bookings[0].guest_id is None and bookings[0].price is None
     assert bookings[0].check_in == date(2026, 9, 2)
     assert first_sync_at is not None
+
+
+def test_resync_corrects_exclusive_ical_end_without_creating_booking(db_session):
+    room, calendar = setup_calendar(db_session)
+    existing = Booking(
+        room_id=room.id,
+        room_calendar_id=calendar.id,
+        guest_id=None,
+        origin=calendar.platform.slug,
+        external_reference="105947659-2323473@housinganywhere.com",
+        check_in=date(2026, 5, 8),
+        check_out=date(2026, 9, 1),
+    )
+    second_existing = Booking(
+        room_id=room.id,
+        room_calendar_id=calendar.id,
+        guest_id=None,
+        origin=calendar.platform.slug,
+        external_reference="108253599-2323473@housinganywhere.com",
+        check_in=date(2026, 10, 1),
+        check_out=date(2027, 3, 1),
+    )
+    db_session.add_all([existing, second_existing])
+    db_session.commit()
+    existing_ids = {existing.id, second_existing.id}
+
+    class FeedClient:
+        def download(self, _url):
+            return ical_feed(
+                (
+                    "105947659-2323473@housinganywhere.com",
+                    "20260508",
+                    "20260901",
+                ),
+                (
+                    "108253599-2323473@housinganywhere.com",
+                    "20261001",
+                    "20270301",
+                ),
+            )
+
+    result = IcalSyncService(FeedClient(), IcalParser()).synchronize(
+        db_session, calendar.id
+    )
+
+    bookings = db_session.scalars(select(Booking)).all()
+    assert result.success and result.data.updated == 2
+    assert result.data.created == 0
+    assert len(bookings) == 2
+    assert {booking.id for booking in bookings} == existing_ids
+    by_reference = {booking.external_reference: booking for booking in bookings}
+    assert by_reference[
+        "105947659-2323473@housinganywhere.com"
+    ].check_out == date(2026, 8, 31)
+    assert by_reference[
+        "108253599-2323473@housinganywhere.com"
+    ].check_out == date(2027, 2, 28)
 
 
 def test_cancelled_and_disappeared_bookings_are_preserved_as_warnings(db_session):
@@ -164,6 +235,30 @@ def test_overlap_with_manual_booking_rejects_every_event_and_session_is_reusable
         select(Booking).where(Booking.external_reference == "SAFE")
     ) is None
     assert db_session.scalar(select(Booking).where(Booking.id == manual.id)) is not None
+
+
+def test_overlap_is_checked_after_all_day_checkout_conversion(db_session):
+    room, calendar = setup_calendar(db_session)
+    manual = Booking(
+        room_id=room.id, room_calendar_id=None, guest_id=None, origin="manual",
+        external_reference=None, check_in=date(2026, 8, 30),
+        check_out=date(2026, 9, 2),
+    )
+    db_session.add(manual)
+    db_session.commit()
+
+    class FeedClient:
+        def download(self, _url):
+            return ical_feed(("OVERLAP", "20260508", "20260901"))
+
+    result = IcalSyncService(FeedClient(), IcalParser()).synchronize(
+        db_session, calendar.id
+    )
+
+    assert result.message == "room_calendar_sync_overlap"
+    assert db_session.scalar(
+        select(Booking).where(Booking.external_reference == "OVERLAP")
+    ) is None
 
 
 def test_invalid_feed_rolls_back_and_does_not_update_last_sync(db_session):

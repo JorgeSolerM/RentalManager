@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -14,17 +14,38 @@ def event(uid="UID-1", extra="DTSTART;VALUE=DATE:20260901\r\nDTEND;VALUE=DATE:20
     return f"BEGIN:VEVENT\r\nUID:{uid}\r\n{extra}\r\nEND:VEVENT"
 
 
-def test_all_day_dtend_is_exclusive_and_missing_dtend_means_one_day():
-    parsed = IcalParser().parse(calendar(
-        event("WITH-END"),
-        event("ONE-DAY", "DTSTART;VALUE=DATE:20261010"),
-    ))
-    assert (parsed[0].check_in, parsed[0].check_out) == (
-        date(2026, 9, 1), date(2026, 9, 5)
-    )
-    assert (parsed[1].check_in, parsed[1].check_out) == (
-        date(2026, 10, 10), date(2026, 10, 11)
-    )
+@pytest.mark.parametrize(
+    ("start", "exclusive_end", "expected_checkout"),
+    [
+        ("20260508", "20260901", date(2026, 8, 31)),
+        ("20261001", "20270301", date(2027, 2, 28)),
+        ("20240101", "20240301", date(2024, 2, 29)),
+        ("20250101", "20250301", date(2025, 2, 28)),
+    ],
+)
+def test_all_day_exclusive_end_becomes_real_checkout_date(
+    start, exclusive_end, expected_checkout
+):
+    parsed = IcalParser().parse(calendar(event(
+        extra=(
+            f"DTSTART;VALUE=DATE:{start}\r\n"
+            f"DTEND;VALUE=DATE:{exclusive_end}"
+        )
+    )))[0]
+    assert parsed.check_in == datetime.strptime(start, "%Y%m%d").date()
+    assert parsed.check_out == expected_checkout
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        "DTSTART;VALUE=DATE:20261010\r\nDTEND;VALUE=DATE:20261011",
+        "DTSTART;VALUE=DATE:20261010",
+    ],
+)
+def test_single_day_or_missing_end_is_incompatible(extra):
+    with pytest.raises(IcalParseError, match="incompatible_stay"):
+        IcalParser().parse(calendar(event("ONE-DAY", extra)))
 
 
 def test_timed_events_are_converted_to_europe_madrid_before_dates():
@@ -35,9 +56,17 @@ def test_timed_events_are_converted_to_europe_madrid_before_dates():
     assert parsed.check_out == date(2026, 9, 3)
 
 
+def test_converted_all_day_events_can_remain_contiguous_in_booking_domain():
+    parsed = IcalParser().parse(calendar(
+        event("FIRST", "DTSTART;VALUE=DATE:20260901\r\nDTEND;VALUE=DATE:20260906"),
+        event("SECOND", "DTSTART;VALUE=DATE:20260905\r\nDTEND;VALUE=DATE:20260910"),
+    ))
+    assert parsed[0].check_out == parsed[1].check_in == date(2026, 9, 5)
+
+
 def test_summary_and_description_are_plain_bounded_notes():
     parsed = IcalParser().parse(calendar(event(
-        extra="DTSTART;VALUE=DATE:20260901\r\nDTEND;VALUE=DATE:20260902\r\nSUMMARY:<b>Guest</b>\r\nDESCRIPTION:External text"
+        extra="DTSTART;VALUE=DATE:20260901\r\nDTEND;VALUE=DATE:20260903\r\nSUMMARY:<b>Guest</b>\r\nDESCRIPTION:External text"
     )))[0]
     assert parsed.notes == "<b>Guest</b>\n\nExternal text"
 

@@ -57,6 +57,7 @@ const RMPageNotification = {
         room_calendar_sync_too_many_redirects: "El calendario contiene demasiadas redirecciones.",
         room_calendar_sync_too_many_events: "El calendario supera el número máximo de eventos.",
         room_calendar_sync_recurrence_not_supported: "Los eventos recurrentes todavía no están admitidos.",
+        room_calendar_sync_incompatible_stay: "El calendario contiene una estancia de una sola jornada, incompatible con RentalManager.",
         room_calendar_sync_invalid_feed: "El contenido recibido no es un calendario iCal válido."
     },
 

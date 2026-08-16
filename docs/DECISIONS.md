@@ -197,7 +197,9 @@ La primera importación iCal es manual, idempotente por
 descargas validan cada destino y redirección contra SSRF y fijan la IP validada
 durante la conexión, conservando el hostname para Host y TLS/SNI.
 
-Los intervalos usan `DTEND` exclusivo y los eventos con hora se convierten a
-`Europe/Madrid`. No se admiten recurrencias. Los eventos cancelados y los que
+En eventos all-day, el `DTEND` exclusivo de iCal se convierte a la fecha real de
+salida mediante `check_out = DTEND - 1 día`; las estancias resultantes de una
+sola jornada son incompatibles. Los eventos con hora se convierten a
+`Europe/Madrid` sin esa resta. No se admiten recurrencias. Los eventos cancelados y los que
 desaparecen del feed se conservan como Bookings y se notifican como advertencias;
 no se implementa aún el ciclo de vida necesario para liberar esas fechas.

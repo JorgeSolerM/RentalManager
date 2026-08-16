@@ -92,11 +92,24 @@ class IcalParser:
             if component.get("DTEND") is None:
                 if isinstance(start_value, datetime):
                     raise IcalParseError()
-                check_out = check_in + timedelta(days=1)
+                raise IcalParseError("room_calendar_sync_incompatible_stay")
             else:
-                check_out = self._to_business_date(self._decoded(component, "DTEND"))
+                end_value = self._decoded(component, "DTEND")
+                if isinstance(start_value, datetime):
+                    if not isinstance(end_value, datetime):
+                        raise IcalParseError()
+                    check_out = self._to_business_date(end_value)
+                else:
+                    if isinstance(end_value, datetime):
+                        raise IcalParseError()
+                    check_out = self._to_business_date(end_value) - timedelta(days=1)
             if check_out <= check_in:
-                raise IcalParseError()
+                code = (
+                    "room_calendar_sync_incompatible_stay"
+                    if not isinstance(start_value, datetime)
+                    else "room_calendar_sync_invalid_feed"
+                )
+                raise IcalParseError(code)
 
             events.append(NormalizedIcalEvent(uid, check_in, check_out, self._notes(component), False))
         return events

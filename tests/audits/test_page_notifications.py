@@ -54,6 +54,7 @@ def test_page_notification_registry_covers_existing_redirect_contracts():
         "room_calendar_sync_overlap",
         "room_calendar_sync_unsafe_url",
         "room_calendar_sync_invalid_feed",
+        "room_calendar_sync_incompatible_stay",
         "room_calendar_sync_failed",
         "platform_capabilities_in_use",
     }
