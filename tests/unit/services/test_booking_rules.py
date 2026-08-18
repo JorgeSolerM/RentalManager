@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -330,6 +330,76 @@ def test_imported_booking_without_guest_is_valid_and_manual_edit_is_read_only(
     assert persisted.check_in == date(2026, 9, 10)
 
 
+def test_imported_guest_can_be_assigned_reused_changed_and_removed(db_session):
+    booking = create_imported_booking_without_guest(db_session)
+    service = BookingService()
+    original = (
+        booking.room_id, booking.room_calendar_id, booking.origin,
+        booking.external_reference, booking.check_in, booking.check_out,
+        booking.price,
+    )
+    existing = Guest(full_name="Ana Pérez", display_name="Ana Pérez", active=True)
+    db_session.add(existing)
+    db_session.commit()
+
+    assigned = service.update_imported_guest(
+        db_session, booking.id, "  Ana   Pérez  "
+    )
+    assert assigned.success
+    assert assigned.data.guest_id == existing.id
+    assert db_session.scalar(
+        select(Guest).where(Guest.full_name == "Ana Pérez")
+    ).id == existing.id
+
+    changed = service.update_imported_guest(db_session, booking.id, "Bea López")
+    assert changed.success
+    assert changed.data.guest.full_name == "Bea López"
+
+    removed = service.update_imported_guest(db_session, booking.id, "   ")
+    assert removed.success
+    assert removed.data.guest_id is None
+    assert (
+        removed.data.room_id, removed.data.room_calendar_id, removed.data.origin,
+        removed.data.external_reference, removed.data.check_in,
+        removed.data.check_out, removed.data.price,
+    ) == original
+
+
+def test_imported_guest_update_rejects_manual_booking(db_session):
+    room = make_room(db_session)
+    booking = create_manual(
+        db_session, BookingService(), room.id,
+        date(2026, 9, 1), date(2026, 9, 5),
+    )
+
+    result = BookingService().update_imported_guest(
+        db_session, booking.id, "No permitido"
+    )
+
+    assert not result.success
+    assert result.message == "booking_not_imported"
+    assert booking.guest.full_name == "Ana"
+
+
+def test_imported_guest_update_rolls_back_and_session_remains_usable(
+    db_session, monkeypatch
+):
+    booking = create_imported_booking_without_guest(db_session)
+    service = BookingService()
+    original_update = service.booking_repository.update
+
+    def fail_update(db, entity):
+        original_update(db, entity)
+        raise RuntimeError("forced failure")
+
+    monkeypatch.setattr(service.booking_repository, "update", fail_update)
+    with pytest.raises(RuntimeError, match="forced failure"):
+        service.update_imported_guest(db_session, booking.id, "Temporal")
+
+    assert db_session.get(Booking, booking.id).guest_id is None
+    assert db_session.scalar(select(Room).where(Room.id == booking.room_id)) is not None
+
+
 @pytest.mark.parametrize(
     ("check_in", "check_out"),
     [
@@ -388,3 +458,92 @@ def test_imported_booking_cannot_be_deleted_and_session_is_reusable(db_session):
     assert result.message == "booking_imported_read_only"
     assert db_session.get(Booking, booking.id) is not None
     assert db_session.scalar(select(Room).where(Room.id == booking.room_id)) is not None
+
+
+def make_external_booking(db_session, slug, notes, last_seen=None, tracking=None):
+    room = make_room(db_session, code=f"EXT-{slug}")
+    platform = Platform(name=slug.title(), slug=slug, active=True)
+    db_session.add(platform)
+    db_session.flush()
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id, active=True,
+        feed_presence_tracking_started_at=tracking,
+        last_sync_at=tracking,
+    )
+    db_session.add(calendar)
+    db_session.flush()
+    guest = Guest(full_name="Conservado", display_name="Conservado", active=True)
+    db_session.add(guest)
+    db_session.flush()
+    booking = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, guest_id=guest.id,
+        origin=slug, external_reference="EXT-UID", notes=notes,
+        check_in=date(2026, 9, 1), check_out=date(2026, 9, 5),
+        last_seen_in_feed_at=last_seen,
+    )
+    other = Booking(
+        room_id=room.id, origin="manual", guest_id=guest.id,
+        check_in=date(2026, 9, 5), check_out=date(2026, 9, 10),
+    )
+    db_session.add_all([booking, other])
+    db_session.commit()
+    return booking, other, guest
+
+
+def test_housing_external_block_delete_requires_demonstrated_disappearance(db_session):
+    sync_at = datetime(2026, 8, 19, 10, 0)
+    unknown, _, _ = make_external_booking(
+        db_session, "housinganywhere", "Manualmente bloqueado"
+    )
+    service = BookingService()
+    rejected = service.delete_booking(db_session, unknown)
+    assert rejected.message == "booking_external_block_presence_unknown"
+
+    unknown.room_calendar.feed_presence_tracking_started_at = sync_at
+    unknown.room_calendar.last_sync_at = sync_at
+    unknown.last_seen_in_feed_at = sync_at
+    db_session.commit()
+    present = service.delete_booking(db_session, unknown)
+    assert present.message == "booking_external_block_still_present"
+
+    unknown.last_seen_in_feed_at = sync_at - timedelta(minutes=1)
+    db_session.commit()
+    deleted = service.delete_booking(db_session, unknown)
+    assert deleted.success
+    assert deleted.message == "booking_external_block_deleted"
+
+
+def test_disappeared_external_block_delete_preserves_guest_and_other_booking(db_session):
+    sync_at = datetime(2026, 8, 19, 10, 0)
+    booking, other, guest = make_external_booking(
+        db_session, "housinganywhere", "Manualmente bloqueado", tracking=sync_at
+    )
+
+    result = BookingService().delete_booking(db_session, booking)
+
+    assert result.success
+    assert db_session.get(Booking, booking.id) is None
+    assert db_session.get(Booking, other.id) is not None
+    assert db_session.get(Guest, guest.id) is not None
+
+
+@pytest.mark.parametrize(
+    ("slug", "notes"),
+    [
+        ("housinganywhere", "Reservas: Ana"),
+        ("flatio", "Reserved by Dylan (Flatio)"),
+        ("spotahome", "Spotahome"),
+    ],
+)
+def test_commercial_or_unclassified_imports_remain_non_deletable(
+    db_session, slug, notes
+):
+    sync_at = datetime(2026, 8, 19, 10, 0)
+    booking, _, _ = make_external_booking(
+        db_session, slug, notes, tracking=sync_at
+    )
+
+    result = BookingService().delete_booking(db_session, booking)
+
+    assert result.message == "booking_imported_read_only"
+    assert db_session.get(Booking, booking.id) is not None

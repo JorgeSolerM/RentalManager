@@ -21,6 +21,8 @@ ROOM_CALENDAR_EXPORT_REVISION = "d4e8f1a2c703"
 MASTER_CALENDAR_REVISION = "a6f3b9c8d210"
 AUTOMATIC_SYNC_REVISION = "e5a7c9d1b304"
 HISTORICAL_OVERLAP_REVISION = "f8b2d4e6a405"
+MASTER_CALENDAR_OBSERVATION_REVISION = "c9e1f3a5b607"
+HEAD_REVISION = "d2f4a6b8c901"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -42,6 +44,157 @@ def table_counts(database_path: Path) -> dict[str, int]:
             ).fetchone()[0]
             for table_name in Base.metadata.tables
         }
+    finally:
+        connection.close()
+
+@pytest.mark.alembic_audit
+def test_master_calendar_observations_upgrade_downgrade_upgrade(
+    tmp_path, monkeypatch
+):
+    database_path = Path(tmp_path) / "master_calendar_observations.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, HISTORICAL_OVERLAP_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute(
+            "INSERT INTO properties (id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Calle','Madrid','Owner',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'R1',1,500,1,'token')"
+        )
+        connection.execute(
+            "INSERT INTO platforms "
+            "(id,name,slug,supports_import,supports_export,active) "
+            "VALUES (1,'Platform','platform',1,1,1)"
+        )
+        connection.execute(
+            "INSERT INTO room_calendars "
+            "(id,room_id,platform_id,active,automatic_sync_enabled,consecutive_failures) "
+            "VALUES (1,1,1,1,1,0)"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(room_calendars)")
+        }
+        assert {
+            "master_calendar_first_request_at",
+            "last_master_calendar_request_at",
+            "master_calendar_request_count",
+        } <= columns
+        assert connection.execute(
+            "SELECT master_calendar_request_count FROM room_calendars"
+        ).fetchone() == (0,)
+    finally:
+        connection.close()
+
+    command.downgrade(config, HISTORICAL_OVERLAP_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(room_calendars)")
+        }
+        assert "master_calendar_request_count" not in columns
+        assert connection.execute("SELECT COUNT(*) FROM room_calendars").fetchone() == (1,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone() == (HEAD_REVISION,)
+        assert connection.execute(
+            "SELECT master_calendar_request_count FROM room_calendars"
+        ).fetchone() == (0,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_imported_presence_tracking_upgrade_downgrade_upgrade(
+    tmp_path, monkeypatch
+):
+    database_path = Path(tmp_path) / "imported_presence_tracking.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, MASTER_CALENDAR_OBSERVATION_REVISION)
+    connection = sqlite3.connect(database_path)
+    database_session.register_sqlite_functions(connection)
+    try:
+        connection.execute(
+            "INSERT INTO properties (id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Calle','Madrid','Owner',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'R1',1,500,1,'token')"
+        )
+        connection.execute(
+            "INSERT INTO platforms "
+            "(id,name,slug,supports_import,supports_export,active) "
+            "VALUES (1,'HousingAnywhere','housinganywhere',1,1,1)"
+        )
+        connection.execute(
+            "INSERT INTO room_calendars "
+            "(id,room_id,platform_id,active,automatic_sync_enabled,consecutive_failures,master_calendar_request_count) "
+            "VALUES (1,1,1,1,1,0,0)"
+        )
+        connection.execute(
+            "INSERT INTO bookings "
+            "(id,room_id,room_calendar_id,origin,external_reference,check_in,check_out,ical_uid,notes) "
+            "VALUES (1,1,1,'housinganywhere','UID','2026-08-01','2026-08-05','ical-uid','Manualmente bloqueado')"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT last_seen_in_feed_at FROM bookings"
+        ).fetchone() == (None,)
+        assert connection.execute(
+            "SELECT feed_presence_tracking_started_at FROM room_calendars"
+        ).fetchone() == (None,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.downgrade(config, MASTER_CALENDAR_OBSERVATION_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "last_seen_in_feed_at" not in {
+            row[1] for row in connection.execute("PRAGMA table_info(bookings)")
+        }
+        assert "feed_presence_tracking_started_at" not in {
+            row[1] for row in connection.execute("PRAGMA table_info(room_calendars)")
+        }
+        assert connection.execute("SELECT COUNT(*) FROM bookings").fetchone() == (1,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone() == (HEAD_REVISION,)
+        assert connection.execute("SELECT COUNT(*) FROM bookings").fetchone() == (1,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         connection.close()
 
@@ -141,7 +294,7 @@ def test_alembic_upgrade_head_builds_complete_schema_in_temporary_sqlite(
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            HISTORICAL_OVERLAP_REVISION,
+            HEAD_REVISION,
         )
     finally:
         connection.close()
@@ -171,6 +324,8 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
             MASTER_CALENDAR_REVISION,
             AUTOMATIC_SYNC_REVISION,
             HISTORICAL_OVERLAP_REVISION,
+            MASTER_CALENDAR_OBSERVATION_REVISION,
+            HEAD_REVISION,
         }
     finally:
         connection.close()
@@ -180,14 +335,14 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
 
     assert table_counts(database_path) == counts_before
     assert schema_snapshot(database_path, ("properties",)) == roots_before
-    if source_revision == HISTORICAL_OVERLAP_REVISION:
+    if source_revision == HEAD_REVISION:
         assert file_hash(database_path) == copy_hash_before
     assert_schema_matches_models(database_url)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            HISTORICAL_OVERLAP_REVISION,
+            HEAD_REVISION,
         )
     finally:
         connection.close()
@@ -240,7 +395,7 @@ def test_booking_safeguards_upgrade_and_downgrade_on_temporary_sqlite(
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            HISTORICAL_OVERLAP_REVISION,
+            HEAD_REVISION,
     )
     finally:
         connection.close()
@@ -280,7 +435,7 @@ def test_room_calendar_export_column_upgrade_downgrade_upgrade(
         }
         assert "export_url" not in columns
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            HISTORICAL_OVERLAP_REVISION,
+            HEAD_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
@@ -373,7 +528,7 @@ def test_master_calendar_identity_backfill_and_round_trip(tmp_path, monkeypatch)
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            HISTORICAL_OVERLAP_REVISION,
+            HEAD_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] == 2
@@ -445,7 +600,7 @@ def test_automatic_sync_state_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            HISTORICAL_OVERLAP_REVISION,
+            HEAD_REVISION,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
         assert connection.execute(

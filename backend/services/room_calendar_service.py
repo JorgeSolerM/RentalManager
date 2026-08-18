@@ -9,6 +9,11 @@ from backend.repositories.platform_repository import PlatformRepository
 from backend.repositories.room_calendar_repository import RoomCalendarRepository
 from backend.repositories.room_repository import RoomRepository
 from backend.services.room_calendar_sync_runner import RoomCalendarSyncRunner
+from backend.core.master_calendar_observation import (
+    master_calendar_evidence,
+    master_calendar_evidence_label,
+)
+from datetime import datetime, timezone
 
 
 class RoomCalendarService:
@@ -29,6 +34,14 @@ class RoomCalendarService:
         configurations = []
         for platform in self.platform_repository.get_all(db):
             calendar = calendars.get(platform.id)
+            outbound = (
+                master_calendar_evidence(
+                    calendar,
+                    datetime.now(timezone.utc).replace(tzinfo=None),
+                )
+                if calendar
+                else None
+            )
             configurations.append({
                 "platform": platform,
                 "calendar": calendar,
@@ -46,6 +59,12 @@ class RoomCalendarService:
                 "last_sync_error_text": (
                     self.sync_runner.error_message(calendar.last_sync_error)
                     if calendar
+                    else None
+                ),
+                "master_calendar_evidence": outbound,
+                "master_calendar_evidence_label": (
+                    master_calendar_evidence_label(outbound)
+                    if outbound
                     else None
                 ),
             })

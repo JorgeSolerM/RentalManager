@@ -132,6 +132,22 @@ class RoomCalendarSyncRunner:
         threshold = sync_interval_minutes(calendar.platform.slug) * 3
         return calendar.last_sync_attempt_at + timedelta(minutes=threshold) < now
 
+    def health_state(self, calendar, now: datetime | None = None) -> str:
+        """Return the concise operational state used by read-only UI summaries."""
+        if not calendar.active:
+            return "inactive"
+        if not calendar.platform.active:
+            return "platform_inactive"
+        if not calendar.automatic_sync_enabled:
+            return "paused"
+        if calendar.last_sync_status == "error":
+            return "error"
+        if calendar.last_sync_at is None:
+            return "never_synced"
+        if self.is_overdue(calendar, now=now):
+            return "overdue"
+        return "ok"
+
     def _record_result(
         self,
         db: Session,

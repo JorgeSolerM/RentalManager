@@ -63,6 +63,8 @@ def get_booking(
 
         editable=booking_service.is_manual_booking(booking),
 
+        external_block_deletable=booking_service.can_delete_imported_block(booking),
+
     )
 
 
@@ -176,6 +178,30 @@ def delete_booking(
         )
 
     return RedirectResponse(
-        url=f"/rooms/{room_id}?success=booking_deleted",
+        url=f"/rooms/{room_id}?success={result.message}",
+        status_code=303,
+    )
+
+
+@router.post("/update-imported-guest/{booking_id}")
+def update_imported_guest(
+    booking_id: int,
+    guest_name: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    result = booking_service.update_imported_guest(db, booking_id, guest_name)
+
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Reserva no encontrada.")
+
+    room_id = result.data.room_id
+    if not result.success:
+        return RedirectResponse(
+            url=f"/rooms/{room_id}?error={result.message}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/rooms/{room_id}?success=booking_guest_updated",
         status_code=303,
     )

@@ -19,6 +19,8 @@ from backend.repositories.room_repository import RoomRepository
 class CalendarExport:
     content: bytes
     etag: str
+    room_id: int
+    platform_id: int
 
 
 class MasterCalendarService:
@@ -99,7 +101,12 @@ class MasterCalendarService:
             event.add("transp", "OPAQUE")
             calendar.add_component(event)
 
-        return CalendarExport(content=calendar.to_ical(), etag=etag)
+        return CalendarExport(
+            content=calendar.to_ical(),
+            etag=etag,
+            room_id=room.id,
+            platform_id=platform.id,
+        )
 
     @staticmethod
     def _belongs_to_platform(booking, platform: Platform) -> bool:

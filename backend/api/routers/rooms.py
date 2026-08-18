@@ -41,7 +41,7 @@ def list_rooms(
             detail="Propiedad no encontrada.",
         )
 
-    rooms = room_service.list_rooms_by_property(
+    rooms = room_service.list_rooms_with_platform_status(
         db,
         property_id,
     )

@@ -36,12 +36,17 @@ def test_page_notification_registry_covers_existing_redirect_contracts():
         "booking_created",
         "booking_updated",
         "booking_deleted",
+        "booking_guest_updated",
+        "booking_external_block_deleted",
         "booking_overlap",
         "booking_room_inactive",
         "booking_guest_required",
         "booking_invalid_dates",
         "booking_invalid_price",
         "booking_imported_read_only",
+        "booking_not_imported",
+        "booking_external_block_still_present",
+        "booking_external_block_presence_unknown",
         "booking_room_not_found",
         "room_calendar_created",
         "room_calendar_updated",
@@ -70,6 +75,24 @@ def test_page_notification_registry_covers_existing_redirect_contracts():
         'room_calendar_sync_completed: "Calendario sincronizado correctamente."'
         in source
     )
+
+
+def test_imported_booking_ui_only_enables_guest_editing():
+    source = (STATIC_ROOT / "js/bookings.js").read_text(encoding="utf-8")
+    modal = Path("backend/templates/components/booking_modal.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "/bookings/update-imported-guest/" in source
+    assert 'this.guestName.disabled = false' in source
+    assert '[this.checkIn, this.checkOut, this.price, this.notes]' in source
+    assert 'this.guestName.required = !readOnly' in source
+    assert '"Guardar huésped"' in source
+    assert "externalBlockDeletable" in source
+    assert '"Eliminar bloqueo"' in source
+    assert 'this.form.action = `/bookings/delete/${this.bookingId}`' in source
+    assert "bookingImportedNotice" in modal
+    assert "únicamente puede modificarse el huésped" in modal
 
 
 def test_room_calendar_actions_show_progress_and_prevent_duplicate_submits():

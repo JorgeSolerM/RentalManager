@@ -418,6 +418,32 @@ def test_existing_booking_guest_is_never_overwritten(db_session):
     ) is None
 
 
+def test_existing_manual_guest_is_preserved_when_feed_has_no_identity(db_session):
+    room, calendar = setup_calendar(db_session, "spotahome")
+    calendar.platform.slug = "spotahome"
+    guest = Guest(full_name="Nombre real", display_name="Nombre real", active=True)
+    db_session.add(guest)
+    db_session.flush()
+    booking = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, guest_id=guest.id,
+        origin="spotahome", external_reference="SPOT-35",
+        check_in=date(2026, 9, 1), check_out=date(2026, 9, 5),
+    )
+    db_session.add(booking)
+    db_session.commit()
+
+    result = service_for([
+        imported(
+            "SPOT-35", date(2026, 9, 1), date(2026, 9, 5),
+            summary="Spotahome",
+        )
+    ]).synchronize(db_session, calendar.id)
+
+    assert result.success
+    assert result.data.unchanged == 1
+    assert db_session.get(Booking, booking.id).guest_id == guest.id
+
+
 def test_guest_creation_rolls_back_with_failed_sync(db_session, monkeypatch):
     _room, calendar = setup_housing_calendar(db_session)
     service = IcalSyncService(
@@ -545,6 +571,72 @@ def test_invalid_feed_rolls_back_and_does_not_update_last_sync(db_session):
     result = service_for(error=IcalParseError()).synchronize(db_session, calendar.id)
     assert result.message == "room_calendar_sync_invalid_feed"
     assert calendar.last_sync_at is None
+
+
+def test_successful_sync_tracks_present_uids_and_proves_absent_ones(db_session):
+    room, calendar = setup_calendar(db_session, "presence")
+    first_sync = datetime(2026, 8, 19, 10, 0)
+    second_sync = datetime(2026, 8, 19, 10, 10)
+    present = Booking(
+        room_id=room.id, room_calendar_id=calendar.id,
+        origin=calendar.platform.slug, external_reference="PRESENT",
+        check_in=date(2026, 9, 1), check_out=date(2026, 9, 5),
+    )
+    disappeared = Booking(
+        room_id=room.id, room_calendar_id=calendar.id,
+        origin=calendar.platform.slug, external_reference="GONE",
+        check_in=date(2026, 10, 1), check_out=date(2026, 10, 5),
+    )
+    db_session.add_all([present, disappeared])
+    db_session.commit()
+    events = [imported("PRESENT", date(2026, 9, 1), date(2026, 9, 5))]
+
+    first = IcalSyncService(
+        FakeHttpClient(), FakeParser(events), now_factory=lambda: first_sync
+    ).synchronize(db_session, calendar.id)
+
+    assert first.success
+    assert calendar.feed_presence_tracking_started_at == first_sync
+    assert calendar.last_sync_at == first_sync
+    assert present.last_seen_in_feed_at == first_sync
+    assert disappeared.last_seen_in_feed_at is None
+
+    second = IcalSyncService(
+        FakeHttpClient(), FakeParser(events), now_factory=lambda: second_sync
+    ).synchronize(db_session, calendar.id)
+    assert second.success
+    assert calendar.feed_presence_tracking_started_at == first_sync
+    assert calendar.last_sync_at == second_sync
+    assert present.last_seen_in_feed_at == second_sync
+    assert disappeared.last_seen_in_feed_at is None
+
+
+def test_presence_tracking_rolls_back_with_late_sync_failure(db_session, monkeypatch):
+    room, calendar = setup_calendar(db_session, "presence-rollback")
+    booking = Booking(
+        room_id=room.id, room_calendar_id=calendar.id,
+        origin=calendar.platform.slug, external_reference="PRESENT",
+        check_in=date(2026, 9, 1), check_out=date(2026, 9, 5),
+    )
+    db_session.add(booking)
+    db_session.commit()
+    service = IcalSyncService(
+        FakeHttpClient(),
+        FakeParser([imported("PRESENT", date(2026, 9, 1), date(2026, 9, 5))]),
+        now_factory=lambda: datetime(2026, 8, 19, 10, 0),
+    )
+
+    def fail_marker(_db, _calendar):
+        raise RuntimeError("late failure")
+
+    monkeypatch.setattr(service.calendar_repository, "mark_synced", fail_marker)
+    with pytest.raises(RuntimeError, match="late failure"):
+        service.synchronize(db_session, calendar.id)
+
+    assert db_session.get(Booking, booking.id).last_seen_in_feed_at is None
+    persisted_calendar = db_session.get(RoomCalendar, calendar.id)
+    assert persisted_calendar.feed_presence_tracking_started_at is None
+    assert persisted_calendar.last_sync_at is None
 
 
 def test_trigger_failure_during_multi_update_rolls_back_all_changes(db_session, monkeypatch):

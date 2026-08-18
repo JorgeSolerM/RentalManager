@@ -6,6 +6,11 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.core.business_time import business_today
 from backend.core.operation_result import OperationResult
+from backend.core.external_booking_policy import (
+    can_delete_external_block,
+    external_block_presence,
+    is_external_manual_block,
+)
 from backend.models.booking import Booking
 from backend.models.guest import Guest
 from backend.repositories.booking_repository import BookingRepository
@@ -22,7 +27,7 @@ class BookingService:
         self.room_calendar_repository = RoomCalendarRepository()
 
     def _get_or_create_guest(self, db: Session, full_name: str) -> Guest:
-        full_name = full_name.strip()
+        full_name = " ".join(full_name.split())
         guest = self.guest_repository.get_by_full_name(db, full_name)
         if guest is None:
             guest = Guest(
@@ -105,6 +110,13 @@ class BookingService:
 
     def is_manual_booking(self, booking: Booking) -> bool:
         return self._is_manual(booking)
+
+    def can_delete_imported_block(self, booking: Booking) -> bool:
+        return can_delete_external_block(booking)
+
+    @staticmethod
+    def is_imported_booking(booking: Booking) -> bool:
+        return booking.room_calendar_id is not None
 
     def list_bookings_by_room(self, db: Session, room_id: int) -> list[Booking]:
         return self.booking_repository.list_by_room(db, room_id)
@@ -255,6 +267,33 @@ class BookingService:
             db.rollback()
             raise
 
+    def update_imported_guest(
+        self,
+        db: Session,
+        booking_id: int,
+        guest_name: str,
+    ) -> OperationResult[Booking]:
+        try:
+            booking = self.booking_repository.get_by_id(db, booking_id)
+            if booking is None:
+                return self._rejected(db, "not_found")
+            if not self.is_imported_booking(booking):
+                return self._rejected(db, "booking_not_imported", booking)
+
+            normalized_guest_name = " ".join(guest_name.split())
+            if normalized_guest_name:
+                guest = self._get_or_create_guest(db, normalized_guest_name)
+                booking.guest_id = guest.id
+            else:
+                booking.guest_id = None
+
+            self.booking_repository.update(db, booking)
+            db.commit()
+            return OperationResult(success=True, data=booking)
+        except Exception:
+            db.rollback()
+            raise
+
     def upsert_imported_booking(
         self,
         db: Session,
@@ -330,12 +369,30 @@ class BookingService:
         db: Session,
         booking: Booking,
     ) -> OperationResult[None]:
+        imported_block = is_external_manual_block(booking)
         if not self._is_manual(booking):
-            return self._rejected(db, "booking_imported_read_only", booking)
+            if not imported_block:
+                return self._rejected(db, "booking_imported_read_only", booking)
+            presence = external_block_presence(booking)
+            if presence == "unknown":
+                return self._rejected(
+                    db, "booking_external_block_presence_unknown", booking
+                )
+            if presence == "present":
+                return self._rejected(
+                    db, "booking_external_block_still_present", booking
+                )
         try:
             self.booking_repository.delete(db, booking)
             db.commit()
-            return OperationResult(success=True)
+            return OperationResult(
+                success=True,
+                message=(
+                    "booking_external_block_deleted"
+                    if imported_block
+                    else "booking_deleted"
+                ),
+            )
         except Exception:
             db.rollback()
             raise

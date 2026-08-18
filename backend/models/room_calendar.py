@@ -83,6 +83,27 @@ class RoomCalendar(Base):
         nullable=False,
     )
 
+    master_calendar_first_request_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    last_master_calendar_request_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    master_calendar_request_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    feed_presence_tracking_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
     room: Mapped["Room"] = relationship(
         back_populates="room_calendars",
     )

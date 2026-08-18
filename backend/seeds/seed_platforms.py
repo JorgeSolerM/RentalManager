@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from backend.database.session import SessionLocal
 from backend.models.platform import Platform
+from backend.core.platform_favicons import PLATFORM_FAVICONS
 
 
 PLATFORMS = [
@@ -78,6 +79,8 @@ def seed_platforms():
                     name=item["name"],
 
                     slug=item["slug"],
+
+                    favicon=PLATFORM_FAVICONS.get(item["slug"]),
 
                     supports_import=item["supports_import"],
 

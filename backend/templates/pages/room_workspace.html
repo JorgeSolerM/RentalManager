@@ -309,6 +309,24 @@
 
             {% if calendar %}
 
+            {% if platform.supports_export %}
+            <div class="small mt-2">
+                <div class="fw-semibold">Calendario maestro</div>
+                {% if calendar.last_master_calendar_request_at %}
+                <div class="text-muted">
+                    Última consulta externa: {{ calendar.last_master_calendar_request_at }}
+                </div>
+                <div class="text-muted">
+                    Consultas observadas: {{ calendar.master_calendar_request_count }}
+                </div>
+                {% else %}
+                <div class="text-muted">
+                    Aún no se han observado consultas externas.
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             {% if platform.supports_import %}
             <div class="small mt-2">
                 <div>

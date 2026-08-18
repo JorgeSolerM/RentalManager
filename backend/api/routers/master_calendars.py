@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 
 from backend.database.session import get_db
 from backend.services.master_calendar_service import MasterCalendarService
+from backend.services.master_calendar_observation_service import (
+    MasterCalendarObservationService,
+)
 
 
 router = APIRouter()
 service = MasterCalendarService()
+observation_service = MasterCalendarObservationService()
 
 
 def _headers(etag: str) -> dict[str, str]:
@@ -30,6 +34,7 @@ def get_master_calendar(
     if export is None:
         raise HTTPException(status_code=404, detail="Calendario no encontrado.")
     headers = _headers(export.etag)
+    observation_service.observe(db, export.room_id, export.platform_id)
     if request.headers.get("if-none-match") == export.etag:
         return Response(status_code=304, headers=headers)
     return Response(

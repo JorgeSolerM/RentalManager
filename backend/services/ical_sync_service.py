@@ -37,12 +37,15 @@ class IcalSyncReport:
 
 
 class IcalSyncService:
-    def __init__(self, http_client=None, parser=None):
+    def __init__(self, http_client=None, parser=None, now_factory=None):
         self.http_client = http_client or SafeIcalHttpClient()
         self.parser = parser or IcalParser()
         self.booking_repository = BookingRepository()
         self.guest_repository = GuestRepository()
         self.calendar_repository = RoomCalendarRepository()
+        self.now_factory = now_factory or (
+            lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+        )
 
     def _get_or_create_guest(self, db: Session, full_name: str) -> Guest:
         normalized_name = full_name.strip()
@@ -180,6 +183,7 @@ class IcalSyncService:
                 return OperationResult(success=False, message="room_calendar_sync_overlap")
 
             created = updated = unchanged = 0
+            sync_at = self.now_factory()
             for uid, event in active_events.items():
                 booking = existing_by_reference.get(uid)
                 guest_name = extract_guest_name(
@@ -202,11 +206,13 @@ class IcalSyncService:
                         check_out=event.check_out,
                         price=None,
                         notes=event.notes,
+                        last_seen_in_feed_at=sync_at,
                     )
                     self.booking_repository.create(db, booking)
                     created += 1
                 else:
                     changed = False
+                    booking.last_seen_in_feed_at = sync_at
                     if (
                         booking.check_in != event.check_in
                         or booking.check_out != event.check_out
@@ -225,6 +231,11 @@ class IcalSyncService:
                     else:
                         unchanged += 1
 
+            for uid in cancelled_uids:
+                booking = existing_by_reference.get(uid)
+                if booking is not None:
+                    booking.last_seen_in_feed_at = sync_at
+
             active_uids = set(active_events)
             disappeared = sum(
                 1
@@ -235,7 +246,9 @@ class IcalSyncService:
             )
             cancelled = len(cancelled_uids)
 
-            calendar.last_sync_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            if calendar.feed_presence_tracking_started_at is None:
+                calendar.feed_presence_tracking_started_at = sync_at
+            calendar.last_sync_at = sync_at
             self.calendar_repository.mark_synced(db, calendar)
             db.commit()
             report = IcalSyncReport(

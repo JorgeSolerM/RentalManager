@@ -1,5 +1,5 @@
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.models.booking import Booking
 from backend.models.room import Room
@@ -32,8 +32,13 @@ class RoomRepository(BaseRepository):
 
         statement = (
             select(Room)
+            .options(
+                selectinload(Room.room_calendars).joinedload(
+                    RoomCalendar.platform
+                )
+            )
             .where(Room.property_id == property_id)
-            .order_by(Room.display_order)
+            .order_by(Room.display_order, Room.code)
         )
 
         return db.scalars(statement).all()

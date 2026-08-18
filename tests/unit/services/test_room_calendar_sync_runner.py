@@ -97,6 +97,25 @@ def test_frequency_backoff_intervention_and_overdue(db_session, tmp_path):
     assert runner.is_overdue(calendar)
 
 
+def test_health_state_has_one_consistent_operational_and_review_scale(db_session):
+    _room, calendar = seed_calendar(db_session)
+    runner = RoomCalendarSyncRunner(now_factory=lambda: NOW)
+
+    calendar.last_sync_at = NOW
+    calendar.last_sync_attempt_at = NOW
+    calendar.last_sync_status = "ok"
+    assert runner.health_state(calendar) == "ok"
+
+    calendar.last_sync_at = None
+    assert runner.health_state(calendar) == "never_synced"
+    calendar.last_sync_status = "error"
+    assert runner.health_state(calendar) == "error"
+    calendar.automatic_sync_enabled = False
+    assert runner.health_state(calendar) == "paused"
+    calendar.active = False
+    assert runner.health_state(calendar) == "inactive"
+
+
 def test_status_survives_failure_rollback_and_success_recovers(
     db_session, tmp_path
 ):

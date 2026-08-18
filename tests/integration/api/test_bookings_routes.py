@@ -4,6 +4,8 @@ from sqlalchemy import select
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from icalendar import Calendar
+from datetime import datetime
 
 from backend.app_factory import create_app
 from backend.database.base import Base
@@ -86,6 +88,7 @@ def test_booking_create_list_and_get_use_overridden_temporary_database(
             "price": 450.5,
             "notes": "Reserva de prueba",
             "editable": True,
+            "external_block_deletable": False,
         }
 
 
@@ -170,7 +173,8 @@ def test_deleted_manual_booking_disappears_from_workspace_and_gantt(
 def test_booking_ui_hides_imported_delete_and_confirms_manual_delete():
     source = open("backend/static/js/bookings.js", encoding="utf-8").read()
     assert "readOnly || booking.editable === false" in source
-    assert 'this.deleteButton.classList.toggle("d-none", readOnly' in source
+    assert "externalBlockDeletable" in source
+    assert '"Eliminar bloqueo"' in source
     assert "Esta acción no se puede deshacer" in source
 
 
@@ -320,3 +324,174 @@ def test_imported_booking_without_guest_returns_null_and_is_read_only(
         f"/rooms/{room.id}?error=booking_imported_read_only"
     )
     assert db_session.get(Booking, booking.id) is not None
+
+
+def test_imported_guest_endpoint_updates_only_guest_and_supports_empty_name(
+    client, db_session
+):
+    room = create_room(db_session)
+    platform = Platform(name="Spotahome", slug="spotahome", active=True)
+    db_session.add(platform)
+    db_session.flush()
+    calendar = RoomCalendar(room_id=room.id, platform_id=platform.id, active=True)
+    db_session.add(calendar)
+    db_session.flush()
+    booking = Booking(
+        room_id=room.id, room_calendar_id=calendar.id, origin="spotahome",
+        external_reference="spot-35", check_in=date(2026, 11, 1),
+        check_out=date(2026, 11, 5), price=725,
+    )
+    db_session.add(booking)
+    db_session.commit()
+    original = (
+        booking.room_id, booking.room_calendar_id, booking.origin,
+        booking.external_reference, booking.check_in, booking.check_out,
+        booking.price,
+    )
+
+    response = client.post(
+        f"/bookings/update-imported-guest/{booking.id}",
+        data={"guest_name": "  Nombre   Real  "}, follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"/rooms/{room.id}?success=booking_guest_updated"
+    )
+    db_session.refresh(booking)
+    assert booking.guest.full_name == "Nombre Real"
+    assert (
+        booking.room_id, booking.room_calendar_id, booking.origin,
+        booking.external_reference, booking.check_in, booking.check_out,
+        booking.price,
+    ) == original
+    assert "Nombre Real" in client.get(f"/rooms/{room.id}").text
+    gantt = client.get(
+        "/gantt/data?start=2026-11-01&end=2026-12-01"
+    ).json()
+    assert gantt["properties"][0]["rooms"][0]["bookings"][0]["guest_name"] == "Nombre Real"
+
+    cleared = client.post(
+        f"/bookings/update-imported-guest/{booking.id}",
+        data={"guest_name": ""}, follow_redirects=False,
+    )
+    assert cleared.status_code == 303
+    db_session.refresh(booking)
+    assert booking.guest_id is None
+
+
+def test_imported_guest_endpoint_rejects_manual_booking(client, db_session):
+    room = create_room(db_session)
+    created = client.post(
+        "/bookings/create",
+        data=booking_data(room.id, guest_name="Manual"),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    booking = db_session.scalar(select(Booking).where(Booking.room_id == room.id))
+
+    response = client.post(
+        f"/bookings/update-imported-guest/{booking.id}",
+        data={"guest_name": "Intruso"}, follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"/rooms/{room.id}?error=booking_not_imported"
+    )
+    db_session.refresh(booking)
+    assert booking.guest.full_name == "Manual"
+
+
+def test_disappeared_housing_block_can_be_deleted_then_replaced_by_manual(
+    client, db_session
+):
+    room = create_room(db_session)
+    platform = Platform(
+        name="HousingAnywhere", slug="housinganywhere", active=True,
+        supports_import=True, supports_export=True,
+    )
+    db_session.add(platform)
+    db_session.flush()
+    sync_at = datetime(2026, 8, 19, 10, 0)
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id, active=True,
+        feed_presence_tracking_started_at=sync_at, last_sync_at=sync_at,
+    )
+    db_session.add(calendar)
+    db_session.flush()
+    block = Booking(
+        room_id=room.id, room_calendar_id=calendar.id,
+        origin="housinganywhere", external_reference="BLOCK-GONE",
+        notes="Manualmente bloqueado", check_in=date(2026, 11, 1),
+        check_out=date(2026, 11, 5), last_seen_in_feed_at=None,
+    )
+    db_session.add(block)
+    db_session.commit()
+
+    detail = client.get(f"/bookings/{block.id}")
+    deleted = client.post(
+        f"/bookings/delete/{block.id}", follow_redirects=False
+    )
+
+    assert detail.json()["external_block_deletable"] is True
+    assert deleted.status_code == 303
+    assert deleted.headers["location"] == (
+        f"/rooms/{room.id}?success=booking_external_block_deleted"
+    )
+    assert db_session.get(Booking, block.id) is None
+    assert "BLOCK-GONE" not in client.get(f"/rooms/{room.id}").text
+    gantt = client.get(
+        "/gantt/data?start=2026-11-01&end=2026-12-01"
+    ).json()
+    assert gantt["properties"][0]["rooms"][0]["bookings"] == []
+
+    created = client.post(
+        "/bookings/create",
+        data=booking_data(
+            room.id, guest_name="Reconstruida",
+            check_in="2026-11-01", check_out="2026-11-05",
+        ),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    exported = client.get(
+        f"/ical/rooms/{room.master_calendar_token}/{platform.slug}.ics"
+    )
+    events = [item for item in Calendar.from_ical(exported.content).walk()
+              if item.name == "VEVENT"]
+    assert len(events) == 1
+    assert events[0].decoded("DTSTART") == date(2026, 11, 1)
+
+
+def test_direct_delete_of_present_external_block_is_protected(client, db_session):
+    room = create_room(db_session)
+    platform = Platform(name="HousingAnywhere", slug="housinganywhere", active=True)
+    db_session.add(platform)
+    db_session.flush()
+    sync_at = datetime(2026, 8, 19, 10, 0)
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id, active=True,
+        feed_presence_tracking_started_at=sync_at, last_sync_at=sync_at,
+    )
+    db_session.add(calendar)
+    db_session.flush()
+    block = Booking(
+        room_id=room.id, room_calendar_id=calendar.id,
+        origin="housinganywhere", external_reference="BLOCK-PRESENT",
+        notes="Manualmente bloqueado", check_in=date(2026, 11, 1),
+        check_out=date(2026, 11, 5), last_seen_in_feed_at=sync_at,
+    )
+    db_session.add(block)
+    db_session.commit()
+
+    detail = client.get(f"/bookings/{block.id}")
+    response = client.post(
+        f"/bookings/delete/{block.id}", follow_redirects=False
+    )
+
+    assert detail.json()["external_block_deletable"] is False
+    assert response.headers["location"] == (
+        f"/rooms/{room.id}?error=booking_external_block_still_present"
+    )
+    assert db_session.get(Booking, block.id) is not None

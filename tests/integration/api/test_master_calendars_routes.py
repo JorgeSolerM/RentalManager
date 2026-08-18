@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from icalendar import Calendar
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from backend.app_factory import create_app
@@ -12,6 +12,10 @@ from backend.models.booking import Booking
 from backend.models.platform import Platform
 from backend.models.property import Property
 from backend.models.room import Room
+from backend.models.room_calendar import RoomCalendar
+from backend.services.master_calendar_observation_service import (
+    MasterCalendarObservationService,
+)
 
 
 def seed(db_session):
@@ -22,6 +26,10 @@ def seed(db_session):
     platform = Platform(name="HousingAnywhere", slug="housinganywhere", active=True, supports_import=True, supports_export=True)
     db_session.add_all([room, platform])
     db_session.flush()
+    db_session.add(RoomCalendar(
+        room_id=room.id, platform_id=platform.id,
+        import_url="https://external.example/feed.ics", active=True,
+    ))
     booking = Booking(room_id=room.id, origin="manual", check_in=date(2026, 5, 8), check_out=date(2026, 8, 31))
     db_session.add(booking)
     db_session.commit()
@@ -45,6 +53,99 @@ def test_public_calendar_headers_etag_and_generic_not_found(client, db_session):
     assert cached.content == b""
     assert missing.status_code == 404
     assert missing.json() == {"detail": "Calendario no encontrado."}
+    calendar = db_session.scalar(
+        select(RoomCalendar).where(RoomCalendar.room_id == room.id)
+    )
+    assert calendar.master_calendar_request_count == 2
+    assert calendar.master_calendar_first_request_at is not None
+    assert calendar.last_master_calendar_request_at is not None
+    from backend.core.master_calendar_observation import master_calendar_evidence
+    assert master_calendar_evidence(
+        calendar, calendar.last_master_calendar_request_at
+    ).state == "isolated"
+
+
+def test_observation_is_attributed_only_to_requested_room_and_platform(
+    client, db_session
+):
+    room, platform, _ = seed(db_session)
+    other = Platform(
+        name="Flatio", slug="flatio", active=True,
+        supports_import=True, supports_export=True,
+    )
+    db_session.add(other)
+    db_session.flush()
+    other_calendar = RoomCalendar(
+        room_id=room.id, platform_id=other.id,
+        import_url="https://external.example/other.ics", active=True,
+    )
+    db_session.add(other_calendar)
+    db_session.commit()
+
+    response = client.get(
+        f"/ical/rooms/{room.master_calendar_token}/{platform.slug}.ics"
+    )
+
+    assert response.status_code == 200
+    calendars = db_session.scalars(
+        select(RoomCalendar).where(RoomCalendar.room_id == room.id)
+    ).all()
+    counts = {item.platform_id: item.master_calendar_request_count for item in calendars}
+    assert counts == {platform.id: 1, other.id: 0}
+
+
+def test_separated_200_and_304_requests_establish_recurrence(
+    client, db_session, monkeypatch
+):
+    from backend.api.routers import master_calendars as router_module
+    from backend.core.master_calendar_observation import master_calendar_evidence
+
+    room, platform, _ = seed(db_session)
+    first = datetime(2026, 8, 17, 10, 0)
+    times = iter((first, first + timedelta(minutes=11)))
+    observer = MasterCalendarObservationService(now_factory=lambda: next(times))
+    monkeypatch.setattr(router_module, "observation_service", observer)
+    url = f"/ical/rooms/{room.master_calendar_token}/{platform.slug}.ics"
+
+    response = client.get(url)
+    cached = client.get(url, headers={"If-None-Match": response.headers["etag"]})
+    calendar = db_session.scalar(
+        select(RoomCalendar).where(RoomCalendar.room_id == room.id)
+    )
+
+    assert response.status_code == 200 and cached.status_code == 304
+    assert calendar.master_calendar_request_count == 2
+    assert master_calendar_evidence(
+        calendar, first + timedelta(minutes=11)
+    ).state == "recurrent_recent"
+    workspace = client.get(f"/rooms/{room.id}")
+    assert "Consultas observadas: 2" in workspace.text
+    assert "2026-08-17 10:11:00" in workspace.text
+
+
+def test_observation_failure_never_breaks_calendar_delivery(
+    client, db_session, monkeypatch
+):
+    from backend.api.routers import master_calendars as router_module
+
+    room, platform, _ = seed(db_session)
+    observer = MasterCalendarObservationService()
+
+    def fail_update(_db, _calendar):
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(observer.repository, "update", fail_update)
+    monkeypatch.setattr(router_module, "observation_service", observer)
+    response = client.get(
+        f"/ical/rooms/{room.master_calendar_token}/{platform.slug}.ics"
+    )
+
+    assert response.status_code == 200
+    assert str(Calendar.from_ical(response.content)["VERSION"]) == "2.0"
+    calendar = db_session.scalar(
+        select(RoomCalendar).where(RoomCalendar.room_id == room.id)
+    )
+    assert calendar.master_calendar_request_count == 0
 
 
 def test_regeneration_contract_revokes_old_url(client, db_session):
@@ -71,6 +172,7 @@ def test_workspace_uses_configured_origin_and_never_request_host(client, db_sess
     assert 'data-master-calendar-url="http://attacker.example' not in response.text
     assert response.text.count("data-master-calendar-url") == 1
     assert "Revocar y generar nuevas URLs" in response.text
+    assert "Aún no se han observado consultas externas." in response.text
     assert 'name="export_url"' not in response.text
     assert 'name="referrer" content="no-referrer"' in response.text
 

@@ -28,6 +28,7 @@
             <th>Precio base</th>
             <th>m²</th>
             <th>Estado</th>
+            <th class="room-platforms-column">Plataformas</th>
             <th>Acciones</th>
 
         </tr>
@@ -36,7 +37,9 @@
 
     <tbody>
 
-        {% for room in rooms %}
+        {% for item in rooms %}
+
+        {% set room = item.room %}
 
         <tr>
 
@@ -60,6 +63,22 @@
                 ⚪
                 {% endif %}
 
+            </td>
+
+            <td class="room-platforms-column">
+                <span class="room-platforms" aria-label="Plataformas configuradas">
+                    {% for integration in item.integrations %}
+                    <span class="room-platform-icon{% if not integration.operational %} room-platform-icon-review{% endif %}"
+                        title="{{ integration.platform.name }} &middot; {{ integration.status_label }} &middot; {{ integration.master_calendar_status_label }}"
+                        aria-label="{{ integration.platform.name }} &middot; {{ integration.status_label }} &middot; {{ integration.master_calendar_status_label }}">
+                        {% if integration.favicon %}
+                        <img src="{{ integration.favicon }}" alt="" width="16" height="16" loading="lazy">
+                        {% else %}
+                        <img src="{{ url_for('static', path='icons/platform-fallback.svg') }}" alt="" width="16" height="16">
+                        {% endif %}
+                    </span>
+                    {% endfor %}
+                </span>
             </td>
 
             <td>

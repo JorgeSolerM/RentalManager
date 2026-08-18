@@ -23,6 +23,8 @@ class BookingResponse(BaseModel):
 
     editable: bool
 
+    external_block_deletable: bool = False
+
     model_config = ConfigDict(
         from_attributes=True,
     )

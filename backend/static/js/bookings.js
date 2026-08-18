@@ -22,6 +22,8 @@ const BookingUI = {
 
         this.deleteButton = document.getElementById("bookingDeleteButton");
 
+        this.importedNotice = document.getElementById("bookingImportedNotice");
+
         this.roomId = document.getElementById("bookingRoomId");
 
         this.guestName = document.getElementById("bookingGuestName");
@@ -64,7 +66,7 @@ const BookingUI = {
 
         this.form.addEventListener("submit", (event) => {
 
-            if (!this.validateForm()) {
+            if (!this.importedGuestMode && !this.validateForm()) {
 
                 event.preventDefault();
 
@@ -114,17 +116,17 @@ const BookingUI = {
 
             const booking = await response.json();
 
+            this.bookingId = booking.id;
+
             this.fillForm(booking);
 
-            this.title.textContent = "Editar reserva";
+            const imported = readOnly || booking.editable === false;
 
-            this.form.action = `/bookings/update/${booking.id}`;
+            this.form.action = imported
+                ? `/bookings/update-imported-guest/${booking.id}`
+                : `/bookings/update/${booking.id}`;
 
-            this.submitButton.textContent = "Guardar cambios";
-
-            this.deleteButton.classList.remove("d-none");
-
-            this.setReadOnly(readOnly || booking.editable === false);
+            this.setReadOnly(imported, booking.external_block_deletable === true);
 
             this.modal.show();
 
@@ -140,33 +142,54 @@ const BookingUI = {
 
     },
 
-    setReadOnly(readOnly) {
+    setReadOnly(readOnly, externalBlockDeletable = false) {
 
-        [this.guestName, this.checkIn, this.checkOut, this.price, this.notes]
+        this.importedGuestMode = readOnly;
+
+        this.guestName.disabled = false;
+
+        this.guestName.required = !readOnly;
+
+        [this.checkIn, this.checkOut, this.price, this.notes]
             .forEach(field => field.disabled = readOnly);
 
-        this.submitButton.classList.toggle("d-none", readOnly);
+        this.submitButton.classList.remove("d-none");
 
-        this.deleteButton.classList.toggle("d-none", readOnly || this.form.action === "/bookings/create");
+        this.deleteButton.classList.toggle(
+            "d-none",
+            (readOnly && !externalBlockDeletable) || this.form.action === "/bookings/create"
+        );
 
-        if (readOnly) this.title.textContent = "Detalle de reserva importada";
+        this.deleteButton.textContent = externalBlockDeletable
+            ? "Eliminar bloqueo"
+            : "Eliminar";
+
+        this.externalBlockDeletable = externalBlockDeletable;
+
+        this.importedNotice.classList.toggle("d-none", !readOnly);
+
+        this.title.textContent = readOnly
+            ? "Detalle de reserva importada"
+            : (this.form.action === "/bookings/create" ? "Nueva reserva" : "Editar reserva");
+
+        this.submitButton.textContent = readOnly ? "Guardar huésped" :
+            (this.form.action === "/bookings/create" ? "Guardar" : "Guardar cambios");
 
     },
 
     handleDelete() {
 
-        if (!RMConfirm.ask(
-            "¿Desea eliminar esta reserva manual? Esta acción no se puede deshacer."
-        )) {
+        const confirmation = this.externalBlockDeletable
+            ? "¿Desea eliminar este bloqueo desaparecido? Esta acción no se puede deshacer."
+            : "¿Desea eliminar esta reserva manual? Esta acción no se puede deshacer.";
+
+        if (!RMConfirm.ask(confirmation)) {
 
             return;
 
         }
 
-        this.form.action = this.form.action.replace(
-            "/update/",
-            "/delete/"
-        );
+        this.form.action = `/bookings/delete/${this.bookingId}`;
 
         this.form.submit();
 
@@ -174,7 +197,7 @@ const BookingUI = {
 
     fillForm(booking) {
 
-        this.guestName.value = booking.guest_name;
+        this.guestName.value = booking.guest_name ?? "";
 
         this.checkIn.value = booking.check_in;
 

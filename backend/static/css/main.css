@@ -78,6 +78,52 @@ h2 {
     background: #fafafa;
 }
 
+.room-platforms {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    min-height: 16px;
+    line-height: 0;
+}
+
+.room-platform-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    max-width: 20px;
+    max-height: 20px;
+    padding: 1px;
+    box-sizing: border-box;
+    border: 1px solid #495057;
+    border-radius: 3px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.room-platform-icon img {
+    display: block;
+    width: 16px;
+    height: 16px;
+    max-width: 16px;
+    max-height: 16px;
+    object-fit: contain;
+}
+
+.room-platforms-column {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.room-platform-icon-review img {
+    filter: grayscale(100%);
+    opacity: .62;
+}
+
 /* =====================================================
    BOTONES
 ===================================================== */

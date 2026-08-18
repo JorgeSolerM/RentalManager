@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 import uuid
 
-from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, Text, text
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
@@ -78,6 +78,11 @@ class Booking(Base):
         String(64),
         nullable=False,
         default=lambda: uuid.uuid4().hex,
+    )
+
+    last_seen_in_feed_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
     )
 
     __table_args__ = (
