@@ -70,8 +70,6 @@ def test_frontend_uses_utc_offsets_and_half_open_widths():
     assert "width=this.datePosition(visibleEnd)-left" in source
     assert "check_out + 1" not in source
     assert "Entrada:" in source and "Salida:" in source
-    assert "event.target!==timeline||!room.active" in source
-    assert "this.dateAtPosition(x)" in source
     assert "Number(this.root.dataset.viewMonths)||8" in source
     assert "[4,8,12].includes(months)" in source
     assert "this.shiftWindow(-1)" in source and "this.shiftWindow(1)" in source
@@ -134,6 +132,32 @@ def test_booking_visual_inset_preserves_full_clickable_interval():
     assert "left:var(--booking-inset-left)" in styles
     assert "right:var(--booking-inset-right)" in styles
     assert "pointer-events:none" in styles
+
+
+def test_empty_timeline_is_not_a_booking_creation_target():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    styles = open("backend/static/css/gantt.css", encoding="utf-8").read()
+    assert "openGap" not in source
+    assert "openCreateModal" not in source
+    assert 'timeline.addEventListener("click"' not in source
+    assert "clientX" not in source
+    assert "getBoundingClientRect" not in source
+    assert "cursor:crosshair" not in styles
+    assert ".gantt-booking" in styles and "cursor:pointer" in styles
+
+
+def test_existing_bookings_and_rooms_remain_interactive():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    assert "BookingUI.openEditModal(booking.id,!booking.editable)" in source
+    assert 'link.href=`/rooms/${room.id}`' in source
+
+
+def test_room_workspace_remains_the_booking_creation_entry_point(client, db_session):
+    _, room, _ = seed(client, db_session)
+    response = client.get(f"/rooms/{room.id}")
+    assert response.status_code == 200
+    assert "+ Nueva reserva" in response.text
+    assert 'data-bs-target="#bookingModal"' in response.text
 
 
 def test_gantt_scroll_is_confined_to_one_internal_viewport():
