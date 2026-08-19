@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.core.operation_result import OperationResult
-from backend.core.booking_overlap import booking_intervals_conflict
+from backend.core.booking_overlap import is_operational_overlap
 from backend.core.business_time import business_today
 from backend.integrations.ical_event_filters import is_platform_calendar_echo
 from backend.integrations.ical_http_client import IcalDownloadError, SafeIcalHttpClient
@@ -68,7 +68,7 @@ class IcalSyncService:
     ) -> bool:
         candidate_start, candidate_end = candidate_interval
         return any(
-            booking_intervals_conflict(
+            is_operational_overlap(
                 candidate_start,
                 candidate_end,
                 existing_start,

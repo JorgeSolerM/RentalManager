@@ -66,6 +66,53 @@ def test_historical_overlaps_use_lanes_and_operational_is_critical(db_session, m
     assert {bar.overlap_kind for bar in bars} == {"historical"}
 
 
+def test_gantt_classifies_the_shared_interval_not_each_booking_end(
+    db_session, monkeypatch
+):
+    _, _, rooms, _ = seed_gantt(db_session)
+    monkeypatch.setattr(
+        "backend.services.gantt_service.business_today",
+        lambda: date(2026, 7, 25),
+    )
+    historical_room = rooms[0]
+    operational_room = rooms[1]
+    db_session.add_all([
+        Booking(
+            room_id=historical_room.id, origin="manual",
+            check_in=date(2026, 5, 8), check_out=date(2026, 8, 31),
+        ),
+        Booking(
+            room_id=historical_room.id, origin="manual",
+            check_in=date(2026, 4, 13), check_out=date(2026, 5, 31),
+        ),
+        Booking(
+            room_id=operational_room.id, origin="manual",
+            check_in=date(2026, 7, 1), check_out=date(2026, 8, 10),
+        ),
+        Booking(
+            room_id=operational_room.id, origin="manual",
+            check_in=date(2026, 7, 20), check_out=date(2026, 8, 1),
+        ),
+    ])
+    db_session.commit()
+
+    data = GanttService().get_data(
+        db_session, date(2026, 4, 1), date(2026, 9, 1),
+        include_inactive=True,
+    )
+    by_code = {
+        room.code: room
+        for property_item in data.properties
+        for room in property_item.rooms
+    }
+    assert {
+        booking.overlap_kind for booking in by_code[historical_room.code].bookings
+    } == {"historical"}
+    assert {
+        booking.overlap_kind for booking in by_code[operational_room.code].bookings
+    } == {"operational"}
+
+
 def test_guest_fallback_unknown_origin_and_private_fields_are_absent(db_session):
     _, _, rooms, _ = seed_gantt(db_session)
     db_session.add(Booking(room_id=rooms[1].id, origin="new-provider", check_in=date(2027, 1, 1), check_out=date(2027, 2, 1), notes="never expose")); db_session.commit()

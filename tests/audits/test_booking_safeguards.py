@@ -178,6 +178,55 @@ def test_trigger_allows_historical_reconstruction_but_protects_new(
 
 
 @pytest.mark.alembic_audit
+def test_trigger_uses_intersection_end_for_insert_and_update(
+    tmp_path, monkeypatch
+):
+    path = migrated_database(tmp_path, monkeypatch, "intersection_rule.db")
+    connection = sqlite_connection(path)
+    try:
+        connection.create_function(
+            "rentalmanager_business_date", 0, lambda: "2026-08-17"
+        )
+        seed_rooms(connection)
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (3,1,'H03',3,350,1,'token-room-3')"
+        )
+        insert_booking(connection, 1, 1, "2026-04-13", "2026-05-31")
+
+        # The candidate continues into the future, but the shared interval
+        # ended in May and is therefore historical.
+        insert_booking(connection, 2, 1, "2026-05-08", "2026-08-31")
+        insert_booking(connection, 3, 2, "2026-04-13", "2026-05-31")
+        insert_booking(connection, 4, 2, "2026-09-01", "2026-10-01")
+        connection.commit()
+
+        connection.execute(
+            "UPDATE bookings SET check_in='2026-05-10', "
+            "check_out='2026-08-30' WHERE id=4"
+        )
+        connection.commit()
+
+        insert_booking(connection, 5, 3, "2026-08-01", "2026-08-17")
+        insert_booking(connection, 6, 3, "2026-08-10", "2026-09-01")
+        connection.commit()
+
+        with pytest.raises(sqlite3.IntegrityError, match="booking_overlap"):
+            insert_booking(connection, 7, 3, "2026-08-16", "2026-08-20")
+        connection.rollback()
+
+        with pytest.raises(sqlite3.IntegrityError, match="booking_overlap"):
+            connection.execute(
+                "UPDATE bookings SET room_id=3, check_in='2026-08-16', "
+                "check_out='2026-08-20' WHERE id=1"
+            )
+        connection.rollback()
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
 def test_booking_write_without_business_date_function_fails_closed(
     tmp_path, monkeypatch
 ):

@@ -566,6 +566,66 @@ def test_overlap_is_checked_after_all_day_checkout_conversion(db_session):
     ) is None
 
 
+def test_sync_allows_overlap_whose_real_intersection_is_historical(
+    db_session, monkeypatch
+):
+    monkeypatch.setattr(
+        "backend.services.ical_sync_service.business_today",
+        lambda: date(2026, 8, 17),
+    )
+    room, calendar = setup_calendar(db_session, "historical-intersection")
+    db_session.add(Booking(
+        room_id=room.id, origin="manual",
+        check_in=date(2026, 4, 13), check_out=date(2026, 5, 31),
+    ))
+    db_session.commit()
+
+    result = service_for([
+        imported("FUTURE-TAIL", date(2026, 5, 8), date(2026, 8, 31)),
+        imported("PAST-ONE", date(2026, 4, 20), date(2026, 5, 1)),
+        imported("PAST-TWO", date(2026, 5, 1), date(2026, 5, 10)),
+    ]).synchronize(db_session, calendar.id)
+
+    assert result.success
+    assert result.data.created == 3
+    assert calendar.last_sync_at is not None
+
+
+def test_historical_overlaps_do_not_hide_a_future_sync_conflict(
+    db_session, monkeypatch
+):
+    monkeypatch.setattr(
+        "backend.services.ical_sync_service.business_today",
+        lambda: date(2026, 8, 17),
+    )
+    room, calendar = setup_calendar(db_session, "mixed-intersections")
+    db_session.add_all([
+        Booking(
+            room_id=room.id, origin="manual",
+            check_in=date(2026, 4, 13), check_out=date(2026, 5, 31),
+        ),
+        Booking(
+            room_id=room.id, origin="manual",
+            check_in=date(2026, 9, 10), check_out=date(2026, 9, 20),
+        ),
+    ])
+    db_session.commit()
+
+    result = service_for([
+        imported("HISTORICAL", date(2026, 5, 8), date(2026, 8, 31)),
+        imported("FUTURE", date(2026, 9, 15), date(2026, 9, 25)),
+    ]).synchronize(db_session, calendar.id)
+
+    assert result.message == "room_calendar_sync_overlap"
+    assert calendar.last_sync_at is None
+    assert db_session.scalar(
+        select(Booking).where(Booking.external_reference == "HISTORICAL")
+    ) is None
+    assert db_session.scalar(
+        select(Booking).where(Booking.external_reference == "FUTURE")
+    ) is None
+
+
 def test_invalid_feed_rolls_back_and_does_not_update_last_sync(db_session):
     _room, calendar = setup_calendar(db_session)
     result = service_for(error=IcalParseError()).synchronize(db_session, calendar.id)

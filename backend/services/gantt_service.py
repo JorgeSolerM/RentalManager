@@ -4,6 +4,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from backend.core.business_time import business_today
+from backend.core.booking_overlap import intervals_overlap, is_operational_overlap
 from backend.repositories.gantt_repository import GanttRepository
 from backend.schemas.gantt_schema import (
     GanttBooking,
@@ -74,15 +75,28 @@ class GanttService:
                 other
                 for other, _ in assigned
                 if other.id != booking.id
-                and other.check_in < booking.check_out
-                and other.check_out > booking.check_in
+                and intervals_overlap(
+                    booking.check_in,
+                    booking.check_out,
+                    other.check_in,
+                    other.check_out,
+                )
             ]
             overlap_kind = None
             if conflicts:
                 overlap_kind = (
-                    "historical"
-                    if booking.check_out < today
-                    else "operational"
+                    "operational"
+                    if any(
+                        is_operational_overlap(
+                            booking.check_in,
+                            booking.check_out,
+                            other.check_in,
+                            other.check_out,
+                            today,
+                        )
+                        for other in conflicts
+                    )
+                    else "historical"
                 )
             yield booking, lane, overlap_kind
 

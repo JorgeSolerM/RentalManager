@@ -22,7 +22,8 @@ MASTER_CALENDAR_REVISION = "a6f3b9c8d210"
 AUTOMATIC_SYNC_REVISION = "e5a7c9d1b304"
 HISTORICAL_OVERLAP_REVISION = "f8b2d4e6a405"
 MASTER_CALENDAR_OBSERVATION_REVISION = "c9e1f3a5b607"
-HEAD_REVISION = "d2f4a6b8c901"
+IMPORTED_PRESENCE_REVISION = "d2f4a6b8c901"
+HEAD_REVISION = "e3a5c7d9f102"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -199,6 +200,75 @@ def test_imported_presence_tracking_upgrade_downgrade_upgrade(
         connection.close()
 
 
+@pytest.mark.alembic_audit
+def test_operational_intersection_triggers_upgrade_downgrade_upgrade(
+    tmp_path, monkeypatch
+):
+    database_path = Path(tmp_path) / "operational_intersections.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, IMPORTED_PRESENCE_REVISION)
+    connection = sqlite3.connect(database_path)
+    database_session.register_sqlite_functions(connection)
+    try:
+        connection.execute(
+            "INSERT INTO properties (id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Calle','Madrid','Owner',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'R1',1,500,1,'token')"
+        )
+        connection.execute(
+            "INSERT INTO bookings "
+            "(id,room_id,origin,check_in,check_out,ical_uid) "
+            "VALUES (1,1,'manual','2026-04-13','2026-05-31','ical-1')"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    connection.create_function(
+        "rentalmanager_business_date", 0, lambda: "2026-08-17"
+    )
+    try:
+        connection.execute(
+            "INSERT INTO bookings "
+            "(id,room_id,origin,check_in,check_out,ical_uid) "
+            "VALUES (2,1,'manual','2026-05-08','2026-08-31','ical-2')"
+        )
+        connection.commit()
+        trigger_sql = connection.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='trigger' AND name='trg_bookings_no_overlap_insert'"
+        ).fetchone()[0]
+        assert "MIN(existing.check_out, NEW.check_out)" in trigger_sql
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.downgrade(config, IMPORTED_PRESENCE_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM bookings").fetchone() == (2,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone() == (HEAD_REVISION,)
+        assert connection.execute("SELECT COUNT(*) FROM bookings").fetchone() == (2,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+
 def schema_snapshot(database_path: Path, table_names: tuple[str, ...]) -> dict[str, int]:
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
@@ -325,6 +395,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
             AUTOMATIC_SYNC_REVISION,
             HISTORICAL_OVERLAP_REVISION,
             MASTER_CALENDAR_OBSERVATION_REVISION,
+            IMPORTED_PRESENCE_REVISION,
             HEAD_REVISION,
         }
     finally:

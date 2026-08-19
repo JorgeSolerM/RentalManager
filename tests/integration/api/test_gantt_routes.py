@@ -152,6 +152,18 @@ def test_existing_bookings_and_rooms_remain_interactive():
     assert 'link.href=`/rooms/${room.id}`' in source
 
 
+def test_room_hover_highlights_sticky_label_and_timeline_without_interaction():
+    source = open("backend/static/js/gantt.js", encoding="utf-8").read()
+    styles = open("backend/static/css/gantt.css", encoding="utf-8").read()
+    assert ".gantt-room-row:hover .gantt-label" in styles
+    assert ".gantt-room-row:hover .gantt-room-timeline" in styles
+    assert "background-color:rgba(13,110,253,.055)" in styles
+    assert ".gantt-label { position:sticky" in styles
+    assert ".gantt-booking" in styles and "cursor:pointer" in styles
+    assert "openGap" not in source
+    assert 'timeline.addEventListener("click"' not in source
+
+
 def test_room_workspace_remains_the_booking_creation_entry_point(client, db_session):
     _, room, _ = seed(client, db_session)
     response = client.get(f"/rooms/{room.id}")
