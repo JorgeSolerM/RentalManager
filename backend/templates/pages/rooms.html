@@ -51,7 +51,7 @@
 
             </td>
 
-            <td>{{ room.base_price }} €</td>
+            <td>{% if room.base_price is not none %}{{ room.base_price }} €{% else %}<span class="text-muted">—</span>{% endif %}</td>
 
             <td>{{ room.square_meters or "-" }}</td>
 
@@ -82,6 +82,7 @@
             </td>
 
             <td>
+                <a class="btn-secondary text-decoration-none" href="/rooms/{{ room.id }}/publication" title="Configurar publicación">Publicación</a>
 
                 <button type="button" class="btn-link" onclick="openEditRoomModal({{ room.id }})"
                     title="Editar habitación">

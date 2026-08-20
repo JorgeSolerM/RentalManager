@@ -69,6 +69,7 @@ def test_publication_assessment_reports_every_missing_requirement(db_session):
         "property_not_published",
         "property_public_title_required",
         "property_public_location_required",
+        "property_public_slug_required",
         "room_not_published",
         "room_public_title_required",
         "room_public_description_required",
@@ -77,6 +78,31 @@ def test_publication_assessment_reports_every_missing_requirement(db_session):
     }
     assert "Private address" not in assessment.model_dump_json()
     assert property_obj.address == "Private address"
+
+
+def test_price_must_be_strictly_positive_but_surface_is_optional(db_session):
+    property_obj, room = create_property_and_room(db_session)
+    fill_public_fields(property_obj, room)
+    asset = ready_asset(1)
+    db_session.add(asset); db_session.flush()
+    db_session.add(RoomPhoto(room_id=room.id, media_asset_id=asset.id, position=0, is_primary=True))
+
+    room.base_price = None
+    room.square_meters = None
+    db_session.commit()
+    missing = PublicationService().assess_room(db_session, room.id)
+    assert "room_price_invalid" in missing.reasons
+    assert not any("square" in reason for reason in missing.reasons)
+
+    room.base_price = 0
+    db_session.commit()
+    free = PublicationService().assess_room(db_session, room.id)
+    assert "room_price_invalid" in free.reasons
+
+    room.base_price = 1
+    db_session.commit()
+    valid = PublicationService().assess_room(db_session, room.id)
+    assert valid.is_publicable
 
 
 def test_room_can_publish_with_ready_property_photo_fallback(db_session):

@@ -44,8 +44,6 @@ def test_create_room_uses_overridden_temporary_database(client, db_session):
         data={
             "property_id": property_obj.id,
             "code": "H01",
-            "base_price": "350",
-            "square_meters": "12.5",
         },
         follow_redirects=False,
     )
@@ -60,6 +58,16 @@ def test_create_room_uses_overridden_temporary_database(client, db_session):
     )
     assert persisted_room is not None
     assert persisted_room.property_id == property_obj.id
+    assert persisted_room.base_price is None
+    assert persisted_room.square_meters is None
+
+
+def test_room_form_does_not_request_commercial_values(client, db_session):
+    property_obj = create_property(db_session)
+    response = client.get(f"/rooms/property/{property_obj.id}")
+    assert response.status_code == 200
+    assert 'name="base_price"' not in response.text
+    assert 'name="square_meters"' not in response.text
 
 
 def test_room_listing_and_edit_use_overridden_temporary_database(client, db_session):

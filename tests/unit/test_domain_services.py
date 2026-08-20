@@ -99,7 +99,6 @@ def test_room_service_and_repository_cover_order_lookup_update_and_delete(db_ses
     room_second.display_order = 2
     service.update_room(
         db_session, room_second.id, room_second.code,
-        room_second.base_price, room_second.square_meters,
     )
     room_first = create_room(db_session, property_one.id, "H01")
     other_room = create_room(db_session, property_two.id, "A01")
@@ -117,12 +116,10 @@ def test_room_service_and_repository_cover_order_lookup_update_and_delete(db_ses
     assert RoomRepository().get_by_code(db_session, "A01") == other_room
 
     assert service.update_room(
-        db_session, room_first.id, "H03", room_first.base_price,
-        room_first.square_meters,
+        db_session, room_first.id, "H03",
     ).success is True
     duplicate = service.update_room(
-        db_session, room_second.id, "H03", room_second.base_price,
-        room_second.square_meters,
+        db_session, room_second.id, "H03",
     )
     assert duplicate.success is False
     assert duplicate.message == "code_exists"

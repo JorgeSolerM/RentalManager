@@ -8,6 +8,7 @@ from backend.models.property import Property
 from backend.services.property_service import PropertyService
 from backend.services.room_service import RoomService
 from backend.services.photo_service import PhotoService
+from backend.services.commercial_publication_service import CommercialPublicationService, REASON_MESSAGES
 
 router = APIRouter(prefix="/properties")
 
@@ -16,6 +17,7 @@ templates = Jinja2Templates(directory="backend/templates")
 property_service = PropertyService()
 room_service = RoomService()
 photo_service = PhotoService()
+commercial_service = CommercialPublicationService()
 
 
 @router.get("/")
@@ -95,6 +97,25 @@ def property_photos(request: Request, property_id: int, db: Session = Depends(ge
             "photo_gallery": photo_service.property_gallery(db, property_id),
         },
     )
+
+
+@router.get("/{property_id}/publication")
+def property_publication(request: Request, property_id: int, db: Session = Depends(get_db)):
+    obj = property_service.get_by_id(db, property_id)
+    if obj is None: raise HTTPException(404)
+    reasons = commercial_service.property_reasons(obj)
+    return templates.TemplateResponse(request=request, name="pages/property_publication.html", context={
+        "request": request, "current_page": "properties", "property": obj,
+        "features": commercial_service.feature_options(db, obj), "reasons": reasons,
+        "reason_messages": REASON_MESSAGES,
+    })
+
+
+@router.post("/{property_id}/publication")
+def save_property_publication(property_id: int, public_title: str = Form(""), public_location: str = Form(""), public_slug: str = Form(""), is_published: bool = Form(False), feature_ids: list[int] = Form([]), db: Session = Depends(get_db)):
+    result = commercial_service.update_property(db, property_id, title=public_title, location=public_location, slug=public_slug, is_published=is_published, feature_ids=feature_ids)
+    key = "success=publication_saved" if result.success else f"error={result.message}"
+    return RedirectResponse(f"/properties/{property_id}/publication?{key}", status_code=303)
 
 
 @router.post("/create")

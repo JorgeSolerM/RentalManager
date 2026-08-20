@@ -85,8 +85,7 @@ class RoomService:
             raise
 
     def update_room(
-        self, db: Session, room_id: int, code: str, base_price: float,
-        square_meters: float | None,
+        self, db: Session, room_id: int, code: str,
     ) -> OperationResult[Room]:
         room = self.repository.get_by_id(db, room_id)
         if room is None:
@@ -96,8 +95,6 @@ class RoomService:
             return OperationResult(success=False, message="code_exists")
         try:
             room.code = code
-            room.base_price = base_price
-            room.square_meters = square_meters
             self.repository.update(db, room)
             db.commit()
             return OperationResult(success=True, data=room)

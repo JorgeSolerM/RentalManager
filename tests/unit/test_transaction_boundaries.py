@@ -155,7 +155,7 @@ def test_failed_entity_update_restores_previous_values(
         service = RoomService()
         entity = room
         monkeypatch.setattr(service.repository, "update", MagicMock(side_effect=RuntimeError))
-        call = lambda: service.update_room(db_session, entity.id, "OTRA", 999, None)
+        call = lambda: service.update_room(db_session, entity.id, "OTRA")
         expected = lambda: db_session.get(Room, entity.id).code == "H01"
     else:
         service = PlatformService()

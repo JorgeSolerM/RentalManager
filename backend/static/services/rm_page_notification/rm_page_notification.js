@@ -28,6 +28,9 @@ const RMPageNotification = {
         ,photo_primary_updated: "Foto principal actualizada."
         ,photos_reordered: "Orden de fotografías actualizado."
         ,photo_deleted: "Fotografía eliminada."
+        ,publication_saved: "Publicación guardada."
+        ,feature_saved: "Característica guardada."
+        ,feature_deleted: "Característica eliminada."
     },
 
     errorMessages: {
@@ -87,6 +90,15 @@ const RMPageNotification = {
         ,media_mime_mismatch: "El contenido de la imagen no coincide con el tipo declarado."
         ,media_invalid_image: "El archivo no contiene una imagen válida."
         ,media_duplicate_photo: "Esta fotografía ya está asociada al registro."
+        ,public_slug_invalid: "El slug debe contener solo minúsculas, números y guiones."
+        ,public_slug_exists: "Ese slug público ya está en uso."
+        ,publication_requirements: "No se puede publicar porque faltan requisitos. Revisa el estado de publicabilidad."
+        ,feature_invalid: "Los datos de la característica no son válidos."
+        ,feature_slug_exists: "Ese slug de característica ya existe."
+        ,feature_in_use: "No se puede eliminar una característica que está asignada. Desactívala."
+        ,feature_inactive: "No se puede añadir una característica inactiva."
+        ,feature_wrong_scope: "La característica no corresponde a este tipo de registro."
+        ,room_commercial_values_invalid: "El precio y la superficie deben ser números válidos mayores o iguales que cero."
     },
 
     show() {

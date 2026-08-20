@@ -46,9 +46,9 @@ class Room(Base):
         default=1,
     )
 
-    base_price: Mapped[float] = mapped_column(
+    base_price: Mapped[float | None] = mapped_column(
         Numeric(10, 2),
-        nullable=False,
+        nullable=True,
     )
 
     square_meters: Mapped[float | None] = mapped_column(

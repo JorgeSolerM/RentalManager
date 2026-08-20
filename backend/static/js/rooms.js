@@ -75,12 +75,6 @@ async function openEditRoomModal(roomId) {
         document.getElementById("code").value =
             room.code;
 
-        document.getElementById("base_price").value =
-            room.base_price;
-
-        document.getElementById("square_meters").value =
-            room.square_meters ?? "";
-
         document
             .getElementById("room-modal-delete")
             .classList.remove("hidden");

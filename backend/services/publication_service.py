@@ -40,7 +40,7 @@ class PublicationService:
         if value is None:
             return False
         price = Decimal(value)
-        return price.is_finite() and price >= 0
+        return price.is_finite() and price > 0
 
     @staticmethod
     def _ready_primary(photos) -> bool:
@@ -102,6 +102,8 @@ class PublicationService:
         self,
         db: Session,
         room_id: int,
+        *,
+        public_slug_candidate: str | None = None,
     ) -> RoomPublicationAssessment:
         room = self.repository.get_room_candidate(db, room_id)
         if room is None:
@@ -121,6 +123,8 @@ class PublicationService:
             reasons.append("property_public_title_required")
         if not self._has_text(property_obj.public_location):
             reasons.append("property_public_location_required")
+        if not self._valid_slug(property_obj.public_slug):
+            reasons.append("property_public_slug_required")
 
         if not room.active:
             reasons.append("room_inactive")
@@ -130,7 +134,7 @@ class PublicationService:
             reasons.append("room_public_title_required")
         if not self._has_text(room.public_description):
             reasons.append("room_public_description_required")
-        if not self._valid_slug(room.public_slug):
+        if not self._valid_slug(room.public_slug or public_slug_candidate):
             reasons.append("room_public_slug_required")
         if not self._price_is_valid(room.base_price):
             reasons.append("room_price_invalid")

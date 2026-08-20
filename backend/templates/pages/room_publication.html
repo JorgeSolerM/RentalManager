@@ -1,0 +1,38 @@
+{% extends "layouts/base.html" %}
+{% block title %}Publicación · {{ room.code }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><a href="/rooms/property/{{ property.id }}">← Habitaciones de {{ property.name }}</a><h1 class="mt-2">{{ room.code }}</h1></div></div>
+<div class="row g-4">
+<div class="col-lg-8"><div class="card"><div class="card-body">
+    <h2 class="h5">Publicación</h2>
+    <form method="post" action="/rooms/{{ room.id }}/publication">
+        <div class="mb-3"><label class="form-label">Título público</label><input class="form-control" name="public_title" value="{{ room.public_title or '' }}"></div>
+        <div class="mb-3"><label class="form-label">Descripción pública</label><textarea class="form-control" rows="6" name="public_description">{{ room.public_description or '' }}</textarea></div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6"><label class="form-label">Precio mensual</label><div class="input-group"><input class="form-control" type="number" name="base_price" step="0.01" min="0" value="{{ room.base_price if room.base_price is not none else '' }}"><span class="input-group-text">€</span></div></div>
+            <div class="col-md-6"><label class="form-label">Superficie</label><div class="input-group"><input class="form-control" type="number" name="square_meters" step="0.01" min="0" value="{{ room.square_meters if room.square_meters is not none else '' }}"><span class="input-group-text">m²</span></div></div>
+        </div>
+        {% set feature_options = features %}{% set assigned_features = room.features %}{% include "components/publication_features.html" %}
+        <div class="mb-3"><span class="form-label d-block">URL pública</span>
+            {% if room.public_slug or public_slug_preview %}<code>/habitaciones/{{ room.public_slug or public_slug_preview }}</code>{% else %}<p class="text-warning mb-1">Configura primero el slug público del inmueble.</p><a href="/properties/{{ property.id }}/publication">Editar inmueble</a>{% endif %}
+        </div>
+        <label class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_published" {% if room.is_published %}checked{% endif %}> <span class="form-check-label">Publicada</span></label>
+        <button class="btn btn-primary" type="submit">Guardar publicación</button>
+    </form>
+</div></div></div>
+<div class="col-lg-4">
+    <div class="card mb-4"><div class="card-body">
+        <h2 class="h5">Datos heredados del inmueble</h2>
+        <dl class="small mb-3">
+            <dt>Inmueble</dt><dd>{{ property.public_title or 'Sin título público' }}</dd>
+            <dt>Ubicación</dt><dd>{{ property.public_location or 'Sin ubicación pública' }}</dd>
+            <dt>Fotografías comunes</dt><dd>{{ inherited_photo_count }}</dd>
+            <dt>Características comunes</dt><dd>{% if inherited_features %}{{ inherited_features|map(attribute='name')|join(', ') }}{% else %}Ninguna{% endif %}</dd>
+        </dl>
+        <a class="btn btn-sm btn-outline-primary" href="/properties/{{ property.id }}/publication">Editar inmueble</a>
+    </div></div>
+    <div class="card"><div class="card-body"><h2 class="h5">Estado de publicabilidad</h2>
+        {% if assessment.is_publicable %}<p class="text-success fw-semibold mb-0">Lista para publicar</p>{% else %}<p class="text-danger fw-semibold">No publicable</p><ul class="small mb-0">{% for reason in assessment.reasons %}<li>{{ reason_messages.get(reason, reason) }}</li>{% endfor %}</ul>{% endif %}
+    </div></div>
+</div></div>
+{% endblock %}

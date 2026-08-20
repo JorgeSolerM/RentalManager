@@ -24,7 +24,8 @@ HISTORICAL_OVERLAP_REVISION = "f8b2d4e6a405"
 MASTER_CALENDAR_OBSERVATION_REVISION = "c9e1f3a5b607"
 IMPORTED_PRESENCE_REVISION = "d2f4a6b8c901"
 OPERATIONAL_OVERLAP_REVISION = "e3a5c7d9f102"
-HEAD_REVISION = "f6b8d0e2a413"
+PUBLICATION_FOUNDATION_REVISION = "f6b8d0e2a413"
+HEAD_REVISION = "a8c1e4f6b209"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -521,9 +522,10 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
             AUTOMATIC_SYNC_REVISION,
             HISTORICAL_OVERLAP_REVISION,
             MASTER_CALENDAR_OBSERVATION_REVISION,
-            IMPORTED_PRESENCE_REVISION,
-            OPERATIONAL_OVERLAP_REVISION,
-            HEAD_REVISION,
+                IMPORTED_PRESENCE_REVISION,
+                OPERATIONAL_OVERLAP_REVISION,
+                PUBLICATION_FOUNDATION_REVISION,
+                HEAD_REVISION,
         }
     finally:
         connection.close()
@@ -804,5 +806,75 @@ def test_automatic_sync_state_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
         assert connection.execute(
             "SELECT consecutive_failures,automatic_sync_enabled FROM room_calendars"
         ).fetchone() == (0, 1)
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_optional_room_price_upgrade_downgrade_upgrade_preserves_existing_price(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "optional_room_price_round_trip.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, PUBLICATION_FOUNDATION_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute(
+            "INSERT INTO properties (id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Calle','Madrid','Owner',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms (id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'R1',1,500,1,'room-token')"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = {row[1]: row for row in connection.execute("PRAGMA table_info('rooms')")}
+        assert columns["base_price"][3] == 0
+        assert connection.execute("SELECT base_price FROM rooms WHERE id=1").fetchone()[0] == 500
+    finally:
+        connection.close()
+
+    command.downgrade(config, PUBLICATION_FOUNDATION_REVISION)
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
+    try:
+        columns = {row[1]: row for row in connection.execute("PRAGMA table_info('rooms')")}
+        assert columns["base_price"][3] == 0
+        assert connection.execute("SELECT base_price FROM rooms WHERE id=1").fetchone()[0] == 500
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_optional_room_price_downgrade_is_blocked_when_null_prices_exist(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "optional_room_price_blocked_downgrade.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute(
+            "INSERT INTO properties (id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Calle','Madrid','Owner',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms (id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'R1',1,NULL,1,'room-token')"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    with pytest.raises(RuntimeError, match="Downgrade blocked"):
+        command.downgrade(config, PUBLICATION_FOUNDATION_REVISION)
+
+    connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
+    try:
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (HEAD_REVISION,)
+        assert connection.execute("SELECT base_price FROM rooms WHERE id=1").fetchone() == (None,)
     finally:
         connection.close()

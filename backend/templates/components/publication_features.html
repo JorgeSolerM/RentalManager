@@ -1,0 +1,14 @@
+{% for category, items in feature_options|groupby('category') %}
+<fieldset class="mb-3">
+    <legend class="h6">{{ category }}</legend>
+    <div class="d-flex flex-wrap gap-3">
+    {% for feature in items %}
+        <label class="form-check">
+            <input class="form-check-input" type="checkbox" name="feature_ids" value="{{ feature.id }}"
+                {% if feature in assigned_features %}checked{% endif %} {% if not feature.active %}disabled{% endif %}>
+            <span class="form-check-label">{{ feature.name }}{% if not feature.active %} <span class="text-muted">(inactiva)</span>{% endif %}</span>
+        </label>
+    {% endfor %}
+    </div>
+</fieldset>
+{% endfor %}

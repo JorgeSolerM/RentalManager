@@ -11,6 +11,7 @@ from backend.services.room_calendar_service import RoomCalendarService
 from backend.services.master_calendar_service import MasterCalendarService
 from backend.services.room_service import RoomService
 from backend.services.photo_service import PhotoService
+from backend.services.commercial_publication_service import CommercialPublicationService, REASON_MESSAGES
 
 router = APIRouter(prefix="/rooms")
 
@@ -22,6 +23,7 @@ booking_service = BookingService()
 room_calendar_service = RoomCalendarService()
 master_calendar_service = MasterCalendarService()
 photo_service = PhotoService()
+commercial_service = CommercialPublicationService()
 
 
 @router.get("/property/{property_id}")
@@ -143,12 +145,38 @@ def room_workspace(
     )
 
 
+@router.get("/{room_id}/publication")
+def room_publication(request: Request, room_id: int, db: Session = Depends(get_db)):
+    room = room_service.get_room(db, room_id)
+    if room is None: raise HTTPException(404)
+    property_obj = property_service.get_by_id(db, room.property_id)
+    property_gallery = photo_service.property_gallery(db, property_obj.id)
+    public_slug_preview = commercial_service.room_slug_preview(db, room)
+    return templates.TemplateResponse(request=request, name="pages/room_publication.html", context={
+        "request": request, "current_page": "rooms", "room": room,
+        "property": property_obj,
+        "features": commercial_service.feature_options(db, room),
+        "public_slug_preview": public_slug_preview,
+        "inherited_features": property_obj.features,
+        "inherited_photo_count": len(property_gallery),
+        "assessment": commercial_service.publication.assess_room(
+            db, room_id, public_slug_candidate=public_slug_preview
+        ),
+        "reason_messages": REASON_MESSAGES,
+    })
+
+
+@router.post("/{room_id}/publication")
+def save_room_publication(room_id: int, public_title: str = Form(""), public_description: str = Form(""), base_price: str = Form(""), square_meters: str = Form(""), is_published: bool = Form(False), feature_ids: list[int] = Form([]), db: Session = Depends(get_db)):
+    result = commercial_service.update_room(db, room_id, title=public_title, description=public_description, base_price=base_price, square_meters=square_meters, is_published=is_published, feature_ids=feature_ids)
+    key = "success=publication_saved" if result.success else f"error={result.message}"
+    return RedirectResponse(f"/rooms/{room_id}/publication?{key}", status_code=303)
+
+
 @router.post("/create")
 def create_room(
     property_id: int = Form(...),
     code: str = Form(...),
-    base_price: float = Form(...),
-    square_meters: float | None = Form(None),
     db: Session = Depends(get_db),
 ):
 
@@ -156,8 +184,8 @@ def create_room(
         property_id=property_id,
         code=code,
         display_order=1,
-        base_price=base_price,
-        square_meters=square_meters,
+        base_price=None,
+        square_meters=None,
         active=True,
     )
 
@@ -184,13 +212,11 @@ def update_room(
     room_id: int,
     property_id: int = Form(...),
     code: str = Form(...),
-    base_price: float = Form(...),
-    square_meters: float | None = Form(None),
     db: Session = Depends(get_db),
 ):
 
     result = room_service.update_room(
-        db, room_id, code, base_price, square_meters
+        db, room_id, code
     )
 
     if not result.success and result.message == "not_found":

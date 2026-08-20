@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from backend.database.session import get_db
 from backend.core.config import APP_VERSION
 from backend.services.platform_service import PlatformService
+from backend.services.feature_service import FeatureService
 
 from fastapi import Form
 from fastapi.responses import RedirectResponse
@@ -19,9 +20,10 @@ router = APIRouter(prefix="/settings")
 templates = Jinja2Templates(directory="backend/templates")
 
 platform_service = PlatformService()
+feature_service = FeatureService()
 
 @router.get("/")
-def settings(request: Request):
+def settings(request: Request, db: Session = Depends(get_db)):
 
     return templates.TemplateResponse(
         request=request,
@@ -30,6 +32,7 @@ def settings(request: Request):
             "request": request,
             "version": APP_VERSION,
             "current_page": "settings",
+            "features": feature_service.list_all(db),
         },
     )
 
@@ -54,6 +57,24 @@ def platforms(
             "platforms": platforms,
         },
     )
+
+
+@router.post("/features/create")
+def create_feature(name: str = Form(...), slug: str = Form(...), scope: str = Form(...), category: str = Form(...), icon_key: str = Form(""), display_order: int = Form(0), active: bool = Form(False), db: Session = Depends(get_db)):
+    result = feature_service.save(db, None, name=name, slug=slug, scope=scope, category=category, icon_key=icon_key, display_order=display_order, active=active)
+    return RedirectResponse(f"/settings/?{'success=feature_saved' if result.success else 'error='+result.message}", 303)
+
+
+@router.post("/features/update/{feature_id}")
+def update_feature(feature_id: int, name: str = Form(...), slug: str = Form(...), scope: str = Form(...), category: str = Form(...), icon_key: str = Form(""), display_order: int = Form(0), active: bool = Form(False), db: Session = Depends(get_db)):
+    result = feature_service.save(db, feature_id, name=name, slug=slug, scope=scope, category=category, icon_key=icon_key, display_order=display_order, active=active)
+    return RedirectResponse(f"/settings/?{'success=feature_saved' if result.success else 'error='+result.message}", 303)
+
+
+@router.post("/features/delete/{feature_id}")
+def delete_feature(feature_id: int, db: Session = Depends(get_db)):
+    result = feature_service.delete(db, feature_id)
+    return RedirectResponse(f"/settings/?{'success=feature_deleted' if result.success else 'error='+result.message}", 303)
 
 @router.post("/platforms/create")
 def create_platform(

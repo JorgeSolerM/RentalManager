@@ -1,0 +1,18 @@
+{% extends "layouts/base.html" %}
+{% block title %}Publicación · {{ property.name }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><a href="/properties/">← Propiedades</a><h1 class="mt-2">{{ property.name }}</h1></div></div>
+<div class="row g-4"><div class="col-lg-8"><div class="card"><div class="card-body">
+<h2 class="h5">Publicación</h2>
+<form method="post" action="/properties/{{ property.id }}/publication">
+    <div class="mb-3"><label class="form-label">Título público</label><input class="form-control" name="public_title" value="{{ property.public_title or '' }}"></div>
+    <div class="mb-3"><label class="form-label">Ubicación pública</label><input class="form-control" name="public_location" value="{{ property.public_location or '' }}"><div class="form-text">Texto visible para clientes. Ejemplo: Zona Universidad Miguel Hernández · Elche. No se publica la dirección interna.</div></div>
+    <div class="mb-3"><label class="form-label">Slug estable</label><input class="form-control" name="public_slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value="{{ property.public_slug or '' }}"><div class="form-text">Minúsculas y guiones. Cambiar el título no modifica este valor.</div></div>
+    {% set feature_options = features %}{% set assigned_features = property.features %}{% include "components/publication_features.html" %}
+    <label class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_published" {% if property.is_published %}checked{% endif %}> <span class="form-check-label">Habilitar comercialmente las habitaciones de este inmueble</span></label>
+    <button class="btn btn-primary" type="submit">Guardar publicación</button>
+</form></div></div></div>
+<div class="col-lg-4"><div class="card"><div class="card-body"><h2 class="h5">Estado de publicabilidad</h2>
+{% if not reasons %}<p class="text-success fw-semibold mb-0">Lista para publicar</p>{% else %}<p class="text-danger fw-semibold">No publicable</p><ul class="small mb-0">{% for reason in reasons %}<li>{{ reason_messages.get(reason, reason) }}</li>{% endfor %}</ul>{% endif %}
+</div></div></div></div>
+{% endblock %}
