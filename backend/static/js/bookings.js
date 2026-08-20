@@ -84,17 +84,9 @@ const BookingUI = {
 
     openCreateModal(roomId = null, checkIn = null) {
 
+        this.resetModalState();
+
         this.clearForm();
-
-        this.title.textContent = "Nueva reserva";
-
-        this.form.action = "/bookings/create";
-
-        this.submitButton.textContent = "Guardar";
-
-        this.deleteButton.classList.add("d-none");
-
-        this.setReadOnly(false);
 
         if (roomId !== null) this.roomId.value = roomId;
 
@@ -115,6 +107,8 @@ const BookingUI = {
             }
 
             const booking = await response.json();
+
+            this.resetModalState();
 
             this.bookingId = booking.id;
 
@@ -147,6 +141,8 @@ const BookingUI = {
         this.importedGuestMode = readOnly;
 
         this.guestName.disabled = false;
+
+        this.roomId.disabled = false;
 
         this.guestName.required = !readOnly;
 
@@ -197,6 +193,8 @@ const BookingUI = {
 
     fillForm(booking) {
 
+        this.roomId.value = booking.room_id;
+
         this.guestName.value = booking.guest_name ?? "";
 
         this.checkIn.value = booking.check_in;
@@ -212,6 +210,39 @@ const BookingUI = {
     clearForm() {
 
         this.form.reset();
+
+    },
+
+    resetModalState() {
+
+        this.bookingId = null;
+
+        this.importedGuestMode = false;
+
+        this.externalBlockDeletable = false;
+
+        this.form.action = "/bookings/create";
+
+        this.roomId.disabled = false;
+
+        this.guestName.disabled = false;
+
+        this.guestName.required = true;
+
+        [this.checkIn, this.checkOut, this.price, this.notes]
+            .forEach(field => field.disabled = false);
+
+        this.title.textContent = "Nueva reserva";
+
+        this.submitButton.textContent = "Guardar";
+
+        this.submitButton.classList.remove("d-none");
+
+        this.deleteButton.classList.add("d-none");
+
+        this.deleteButton.textContent = "Eliminar";
+
+        this.importedNotice.classList.add("d-none");
 
     },
 

@@ -1,15 +1,41 @@
 {% extends "layouts/base.html" %}
-
-{% block title %}
-Dashboard
-{% endblock %}
-
+{% block title %}Dashboard{% endblock %}
 {% block content %}
-
-<h2>Dashboard</h2>
-
-<p>Bienvenido a RentalManager.</p>
-
-<p>Éste será el centro de control de la aplicación.</p>
-
+<link rel="stylesheet" href="{{ url_for('static', path='css/dashboard.css') }}">
+<section class="dashboard-page" aria-label="Situación operativa">
+ <header class="dashboard-header"><p class="text-muted mb-0">Situación operativa del {{ dashboard.today | date }}.</p></header>
+ <div class="dashboard-summary" aria-label="Resumen de hoy">
+  {% set occupancy_text = dashboard.summary.occupancy_percentage | string | replace('.', ',') %}
+  <article class="dashboard-kpi dashboard-occupancy">
+   <div class="dashboard-donut" role="img" aria-label="{{ dashboard.summary.occupied_rooms }} habitaciones ocupadas de {{ dashboard.summary.active_rooms }}; {{ dashboard.summary.free_rooms }} libres; ocupación {{ occupancy_text }} %." style="--dashboard-occupancy: {{ dashboard.summary.occupancy_percentage }}%;">
+    <div class="dashboard-donut-center"><strong>{{ dashboard.summary.occupied_rooms }} / {{ dashboard.summary.active_rooms }}</strong><span>{{ occupancy_text }} %</span></div>
+   </div>
+   <div class="dashboard-occupancy-copy"><span class="dashboard-kpi-label">Ocupación</span><p><strong>{{ dashboard.summary.occupied_rooms }}</strong> ocupadas · <strong>{{ dashboard.summary.free_rooms }}</strong> libres</p></div>
+  </article>
+  <article class="dashboard-kpi"><span class="dashboard-kpi-label">Entradas hoy</span><strong>{{ dashboard.summary.arrivals_today }}</strong><small>llegadas previstas</small></article>
+  <article class="dashboard-kpi"><span class="dashboard-kpi-label">Salidas hoy</span><strong>{{ dashboard.summary.departures_today }}</strong><small>salidas previstas</small></article>
+ </div>
+ <div class="dashboard-movements">
+ {% for title, items, empty_text in (('Próximas entradas', dashboard.upcoming_arrivals, 'No hay entradas en los próximos 14 días.'), ('Próximas salidas', dashboard.upcoming_departures, 'No hay salidas en los próximos 14 días.')) %}
+  <section class="dashboard-card" aria-labelledby="movementTitle{{ loop.index }}">
+   <div class="dashboard-card-header"><h3 id="movementTitle{{ loop.index }}">{{ title }}</h3><span>14 días</span></div>
+   {% if items %}<div class="dashboard-list">{% for item in items %}
+    <div class="dashboard-movement-row"><time datetime="{{ item.date }}">{{ item.date | date }}</time><div class="dashboard-movement-main"><a class="rm-object-link" href="/rooms/{{ item.room_id }}">{{ item.room_code }}</a><span>{{ item.property_name }}</span></div><a href="#bookingModal" class="booking-link dashboard-booking-link" data-booking-id="{{ item.booking_id }}">{{ item.guest_name }}</a><span class="dashboard-origin">{% if item.favicon %}<img src="{{ item.favicon }}" alt="" class="dashboard-platform-icon">{% endif %}{{ item.origin_name }}</span></div>
+   {% endfor %}</div>{% else %}<p class="dashboard-empty">{{ empty_text }}</p>{% endif %}
+  </section>
+ {% endfor %}
+ </div>
+ <section class="dashboard-card dashboard-incidents" aria-labelledby="incidentsTitle">
+  <div class="dashboard-card-header"><h3 id="incidentsTitle">Incidencias</h3><span>{{ dashboard.incidents | length }} requieren revisión</span></div>
+  {% if dashboard.incidents %}<div class="dashboard-list">{% for incident in dashboard.incidents %}
+   <div class="dashboard-incident dashboard-incident-{{ incident.severity }}"><span class="dashboard-incident-level">{% if incident.severity == 'critical' %}Crítica{% elif incident.severity == 'attention' %}Atención{% else %}Información{% endif %}</span><div><strong>{{ incident.title }}</strong><p>{{ incident.detail }}</p></div>{% if incident.booking_id %}<a href="#bookingModal" class="booking-link" data-booking-id="{{ incident.booking_id }}">Revisar reserva</a>{% elif incident.target_url %}<a href="{{ incident.target_url }}">Revisar</a>{% endif %}</div>
+  {% endfor %}</div>{% else %}<p class="dashboard-empty">No hay incidencias operativas.</p>{% endif %}
+ </section>
+ <div class="dashboard-secondary-grid">
+  <section class="dashboard-card" aria-labelledby="availabilityTitle"><div class="dashboard-card-header"><h3 id="availabilityTitle">Disponibilidad próxima</h3><span>30 días</span></div>{% if dashboard.upcoming_availability %}<div class="dashboard-list">{% for item in dashboard.upcoming_availability %}<div class="dashboard-availability-row"><div><a class="rm-object-link" href="/rooms/{{ item.room_id }}">{{ item.room_code }}</a><span>{{ item.property_name }}</span></div><p>Disponible desde <strong>{{ item.available_from | date }}</strong>{% if item.available_until %} · próxima entrada {{ item.available_until | date }}{% endif %}</p></div>{% endfor %}</div>{% else %}<p class="dashboard-empty">No se han detectado nuevos huecos en los próximos 30 días.</p>{% endif %}</section>
+  <section class="dashboard-card" aria-labelledby="platformsTitle"><div class="dashboard-card-header"><h3 id="platformsTitle">Plataformas</h3><a href="/properties/">Ver habitaciones</a></div>{% if dashboard.platforms %}<div class="dashboard-platforms">{% for platform in dashboard.platforms %}<div class="dashboard-platform-row{% if platform.review %} dashboard-platform-review{% endif %}">{% if platform.favicon %}<img src="{{ platform.favicon }}" alt="" class="dashboard-platform-icon">{% endif %}<strong>{{ platform.name }}</strong><span>{{ platform.correct }} correctas · {{ platform.review }} revisar</span></div>{% endfor %}</div>{% else %}<p class="dashboard-empty">No hay integraciones configuradas.</p>{% endif %}<p class="dashboard-reliable-update">Última actualización fiable: {% if dashboard.reliable_last_update %}<time datetime="{{ dashboard.reliable_last_update.isoformat() }}">{{ dashboard.reliable_last_update.strftime('%d/%m/%Y %H:%M') }}</time>{% else %}—{% endif %}</p></section>
+ </div>
+</section>
+{% include "components/booking_modal.html" %}
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='js/bookings.js') }}"></script>{% endblock %}

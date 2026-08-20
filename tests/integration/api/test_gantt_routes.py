@@ -23,7 +23,8 @@ def test_page_contains_accessible_gantt_and_dedicated_assets(client, db_session)
     assert 'aria-live="polite"' in response.text
     assert "/static/css/gantt.css" in response.text
     assert "/static/js/gantt.js" in response.text
-    assert "<h2 id=\"ganttTitle\" class=\"mb-1\">Calendario</h2>" in response.text
+    assert 'aria-label="Reservas por habitación"' in response.text
+    assert ">Calendario</h2>" not in response.text
     assert "Calendario de ocupación" not in response.text
     assert 'data-view-months="8"' in response.text
     assert 'data-months="4"' in response.text

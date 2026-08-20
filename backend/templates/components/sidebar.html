@@ -1,28 +1,33 @@
-<nav class="sidebar">
+{% set path = request.url.path %}
+{% set active_section = 'dashboard' if path == '/' else (
+    'gantt' if path.startswith('/gantt') else (
+    'properties' if path.startswith('/properties') or path.startswith('/rooms') else (
+    'settings' if path.startswith('/settings') or path.startswith('/platforms') else none
+    )
+    )
+) %}
+<nav class="sidebar" aria-label="Navegación principal">
 
-    <div class="sidebar-logo">
-        <h2>RentalManager</h2>
-        <small>HSI Rents</small>
-    </div>
+    <ul class="sidebar-menu sidebar-menu-primary">
 
-    <ul class="sidebar-menu">
-
-        <li class="{% if current_page == 'dashboard' %}active{% endif %}">
-            <a href="/">Dashboard</a>
+        <li class="{% if active_section == 'dashboard' %}active{% endif %}">
+            <a href="/"{% if active_section == 'dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
         </li>
 
-        <li class="{% if current_page == 'gantt' %}active{% endif %}">
-            <a href="/gantt/">Gantt</a>
+        <li class="{% if active_section == 'gantt' %}active{% endif %}">
+            <a href="/gantt/"{% if active_section == 'gantt' %} aria-current="page"{% endif %}>Calendario</a>
         </li>
 
-        <li class="{% if current_page == 'properties' %}active{% endif %}">
-            <a href="/properties/">Propiedades</a>
+        <li class="{% if active_section == 'properties' %}active{% endif %}">
+            <a href="/properties/"{% if active_section == 'properties' %} aria-current="page"{% endif %}>Propiedades</a>
         </li>
 
-        <li class="{% if current_page == 'settings' %}active{% endif %}">
-            <a href="/settings/">Configuración</a>
-        </li>
+    </ul>
 
+    <ul class="sidebar-menu sidebar-menu-secondary">
+        <li class="{% if active_section == 'settings' %}active{% endif %}">
+            <a href="/settings/"{% if active_section == 'settings' %} aria-current="page"{% endif %}>Configuración</a>
+        </li>
     </ul>
 
 </nav>

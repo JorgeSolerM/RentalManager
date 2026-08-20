@@ -40,5 +40,6 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(master_calendars.router)
 
     rooms.templates.env.filters["date"] = format_date
+    dashboard.templates.env.filters["date"] = format_date
 
     return app

@@ -7,9 +7,9 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', path='css/gantt.css') }}">
-<section class="gantt-page" aria-labelledby="ganttTitle">
+<section class="gantt-page" aria-label="Reservas por habitación">
  <div class="gantt-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-  <div><h2 id="ganttTitle" class="mb-1">Calendario</h2><p class="text-muted mb-0">Reservas por habitación.</p></div>
+  <p class="text-muted mb-0">Reservas por habitación.</p>
   <div class="gantt-controls d-flex flex-wrap align-items-end gap-2" aria-label="Controles del calendario">
    <button type="button" class="btn btn-outline-secondary" id="ganttPrevious" aria-label="Periodo anterior">‹</button>
    <button type="button" class="btn btn-outline-primary" id="ganttToday">Hoy</button>

@@ -134,6 +134,49 @@ def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
     assert not_found_response.json() == {"detail": "Reserva no encontrada."}
 
 
+def test_manual_guest_only_change_uses_full_contract_and_preserves_other_fields(
+    client, db_session
+):
+    room = create_room(db_session)
+    client.post("/bookings/create", data=booking_data(room.id))
+    booking = db_session.scalar(select(Booking))
+    original = (
+        booking.room_id, booking.check_in, booking.check_out,
+        booking.price, booking.notes,
+    )
+
+    response = client.post(
+        f"/bookings/update/{booking.id}",
+        data=booking_data(room.id, guest_name="Nombre corregido"),
+        follow_redirects=False,
+    )
+
+    db_session.refresh(booking)
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"/rooms/{room.id}?success=booking_updated"
+    )
+    assert booking.guest.full_name == "Nombre corregido"
+    assert (
+        booking.room_id, booking.check_in, booking.check_out,
+        booking.price, booking.notes,
+    ) == original
+
+
+def test_manual_update_contract_still_requires_room_id(client, db_session):
+    room = create_room(db_session)
+    client.post("/bookings/create", data=booking_data(room.id))
+    booking = db_session.scalar(select(Booking))
+    payload = booking_data(room.id, guest_name="No debe aplicarse")
+    payload.pop("room_id")
+
+    response = client.post(f"/bookings/update/{booking.id}", data=payload)
+
+    assert response.status_code == 422
+    db_session.refresh(booking)
+    assert booking.guest.full_name == "Ana Pérez"
+
+
 def test_deleted_manual_booking_disappears_from_workspace_and_gantt(
     client, db_session
 ):
@@ -176,6 +219,30 @@ def test_booking_ui_hides_imported_delete_and_confirms_manual_delete():
     assert "externalBlockDeletable" in source
     assert '"Eliminar bloqueo"' in source
     assert "Esta acción no se puede deshacer" in source
+
+
+def test_booking_ui_populates_room_and_resets_manual_imported_modes():
+    source = open("backend/static/js/bookings.js", encoding="utf-8").read()
+    workspace = open(
+        "backend/templates/pages/room_workspace.html", encoding="utf-8"
+    ).read()
+    gantt = open("backend/templates/pages/gantt.html", encoding="utf-8").read()
+    dashboard = open(
+        "backend/templates/pages/dashboard.html", encoding="utf-8"
+    ).read()
+
+    assert "this.roomId.value = booking.room_id" in source
+    assert source.count("this.resetModalState();") >= 2
+    assert "this.roomId.disabled = false" in source
+    assert 'this.form.action = "/bookings/create"' in source
+    assert "this.importedGuestMode = false" in source
+    assert "field.disabled = false" in source
+    assert "field.disabled = readOnly" in source
+    assert "/bookings/update-imported-guest/" in source
+    assert "/bookings/update/" in source
+    for template in (workspace, gantt, dashboard):
+        assert "components/booking_modal.html" in template
+        assert "js/bookings.js" in template
 
 
 def test_booking_is_visible_when_every_request_uses_an_independent_session(tmp_path):

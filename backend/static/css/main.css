@@ -9,6 +9,7 @@ body {
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 main {
@@ -21,6 +22,54 @@ main {
     min-width: 0;
 }
 
+@media (min-width: 769px) {
+    body {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    body > header {
+        flex: 0 0 auto;
+    }
+
+    .app-shell {
+        width: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .sidebar {
+        position: sticky;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+        flex: 0 0 auto;
+        min-height: 0;
+        max-height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .sidebar > .sidebar-menu-primary {
+        margin-top: 1.75rem;
+    }
+
+    .sidebar > .sidebar-menu-secondary {
+        margin-top: auto;
+        margin-bottom: .75rem;
+    }
+
+    .app-shell > main {
+        width: 0;
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+    }
+}
+
 h2 {
     margin-bottom: 20px;
 }
@@ -28,6 +77,36 @@ h2 {
 /* =====================================================
    NAVEGACIÓN
 ===================================================== */
+
+.sidebar-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.sidebar-menu a {
+    display: block;
+    padding: .65rem .85rem;
+    border-left: 3px solid transparent;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color .15s ease, border-color .15s ease;
+}
+
+.sidebar-menu a:hover {
+    background: rgba(107, 142, 35, .07);
+}
+
+.sidebar-menu a:focus-visible {
+    outline: 2px solid var(--rm-primary);
+    outline-offset: -2px;
+}
+
+.sidebar-menu .active > a {
+    background: rgba(107, 142, 35, .11);
+    border-left-color: var(--rm-primary);
+    font-weight: 700;
+}
 
 .nav-link {
     color: #444;
