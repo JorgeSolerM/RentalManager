@@ -1,0 +1,26 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Fotografías · {{ property.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <a href="/properties/" class="text-decoration-none">← Propiedades</a>
+        <h1 class="mt-2">{{ property.name }}</h1>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% set owner_type = 'property' %}
+        {% set owner_id = property.id %}
+        {% set return_to = '/properties/' ~ property.id ~ '/photos' %}
+        {% include "components/photo_gallery.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/photo_upload.js') }}"></script>
+<script src="{{ url_for('static', path='js/photo_gallery.js') }}"></script>
+{% endblock %}

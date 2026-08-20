@@ -1,0 +1,54 @@
+<section class="rm-photo-section" aria-labelledby="{{ owner_type }}-photos-title">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <div>
+            <h2 id="{{ owner_type }}-photos-title" class="h5 mb-1">Fotografías</h2>
+            <p class="text-muted small mb-0">JPEG, PNG o WebP · máximo 10 MiB por archivo.</p>
+        </div>
+        <form method="post" action="/{{ 'properties' if owner_type == 'property' else 'rooms' }}/{{ owner_id }}/photos/upload"
+            enctype="multipart/form-data" class="rm-photo-upload" data-photo-upload-form>
+            <label class="btn btn-outline-primary btn-sm mb-0" data-photo-select-button>
+                Añadir imágenes
+                <input type="file" name="files" accept="image/jpeg,image/png,image/webp" multiple required hidden data-photo-input>
+            </label>
+            <div class="rm-photo-selection" aria-live="polite" aria-atomic="true" data-photo-selection>
+                <span data-photo-selection-summary>Selecciona una o varias imágenes para añadirlas.</span>
+                <ul class="small mb-0" data-photo-selection-list></ul>
+            </div>
+        </form>
+    </div>
+
+    {% if photo_gallery %}
+    <p class="text-muted small mt-3 mb-2" id="{{ owner_type }}-photo-order-help">
+        Haz clic para ver acciones. Para ordenar, arrastra la fotografía o usa Alt y las flechas.
+        <span class="ms-1" role="status" aria-live="polite" data-photo-order-status></span>
+    </p>
+    <div class="rm-photo-gallery" role="listbox" aria-label="Fotografías" aria-describedby="{{ owner_type }}-photo-order-help"
+        data-photo-gallery data-owner-type="{{ owner_type }}" data-owner-id="{{ owner_id }}">
+        {% for photo in photo_gallery %}
+        <article class="rm-photo-card" role="option" tabindex="0" aria-selected="false" draggable="true"
+            data-photo-card data-photo-id="{{ photo.id }}">
+            <div class="rm-photo-media">
+                <img src="{{ photo.thumbnail_url }}" alt="Fotografía {{ loop.index }}" width="160" height="112" loading="lazy" draggable="false">
+                {% if photo.is_primary %}<span class="badge bg-primary rm-photo-primary-badge">Principal</span>{% endif %}
+            </div>
+            <div class="rm-photo-actions-panel">
+                <div class="rm-photo-actions">
+                    {% if not photo.is_primary %}
+                    <form method="post" action="/{{ owner_type }}-photos/{{ photo.id }}/primary">
+                        <input type="hidden" name="return_to" value="{{ return_to }}">
+                        <button class="btn btn-sm btn-outline-primary" type="submit">Hacer principal</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="/{{ owner_type }}-photos/{{ photo.id }}/delete" onsubmit="return confirm('¿Eliminar esta fotografía?');">
+                        <input type="hidden" name="return_to" value="{{ return_to }}">
+                        <button class="btn btn-sm btn-outline-danger" type="submit" aria-label="Eliminar fotografía" title="Eliminar fotografía">🗑</button>
+                    </form>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted mt-3 mb-0">Todavía no hay fotografías.</p>
+{% endif %}
+</section>

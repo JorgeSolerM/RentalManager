@@ -1,9 +1,10 @@
 import secrets
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, Numeric, String
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
+from backend.models.feature import room_features
 
 
 class Room(Base):
@@ -14,6 +15,12 @@ class Room(Base):
             "uq_rooms_master_calendar_token",
             "master_calendar_token",
             unique=True,
+        ),
+        Index(
+            "uq_rooms_public_slug",
+            "public_slug",
+            unique=True,
+            sqlite_where=text("public_slug IS NOT NULL"),
         ),
     )
 
@@ -55,6 +62,16 @@ class Room(Base):
         nullable=False,
     )
 
+    public_title: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    public_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    public_slug: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    is_published: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="0",
+        nullable=False,
+    )
+
     property: Mapped["Property"] = relationship(
         back_populates="rooms",
     )
@@ -74,4 +91,17 @@ class Room(Base):
         back_populates="room",
         order_by="Booking.check_in",
         passive_deletes="all",
+    )
+
+    features: Mapped[list["Feature"]] = relationship(
+        secondary=room_features,
+        back_populates="rooms",
+        order_by="Feature.display_order, Feature.name",
+    )
+
+    photos: Mapped[list["RoomPhoto"]] = relationship(
+        back_populates="room",
+        order_by="RoomPhoto.position, RoomPhoto.id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

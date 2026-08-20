@@ -23,7 +23,8 @@ AUTOMATIC_SYNC_REVISION = "e5a7c9d1b304"
 HISTORICAL_OVERLAP_REVISION = "f8b2d4e6a405"
 MASTER_CALENDAR_OBSERVATION_REVISION = "c9e1f3a5b607"
 IMPORTED_PRESENCE_REVISION = "d2f4a6b8c901"
-HEAD_REVISION = "e3a5c7d9f102"
+OPERATIONAL_OVERLAP_REVISION = "e3a5c7d9f102"
+HEAD_REVISION = "f6b8d0e2a413"
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
@@ -36,14 +37,18 @@ def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def table_counts(database_path: Path) -> dict[str, int]:
+def table_counts(
+    database_path: Path,
+    table_names: set[str] | None = None,
+) -> dict[str, int]:
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
+        names = table_names or set(Base.metadata.tables)
         return {
             table_name: connection.execute(
                 f'SELECT COUNT(*) FROM "{table_name}"'
             ).fetchone()[0]
-            for table_name in Base.metadata.tables
+            for table_name in names
         }
     finally:
         connection.close()
@@ -269,6 +274,115 @@ def test_operational_intersection_triggers_upgrade_downgrade_upgrade(
         connection.close()
 
 
+@pytest.mark.alembic_audit
+def test_public_listing_foundation_upgrade_downgrade_upgrade(
+    tmp_path, monkeypatch
+):
+    database_path = Path(tmp_path) / "public_listing_foundation.db"
+    config, _database_url = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, OPERATIONAL_OVERLAP_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute(
+            "INSERT INTO properties (id,name,address,city,owner,active) "
+            "VALUES (1,'Piso','Dirección privada','Madrid','Owner',1)"
+        )
+        connection.execute(
+            "INSERT INTO rooms "
+            "(id,property_id,code,display_order,base_price,active,master_calendar_token) "
+            "VALUES (1,1,'R1',1,500,1,'token')"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    connection.execute("PRAGMA foreign_keys=ON")
+    try:
+        assert connection.execute(
+            "SELECT public_title,public_description,public_location,public_slug,is_published "
+            "FROM properties WHERE id=1"
+        ).fetchone() == (None, None, None, None, 0)
+        assert connection.execute(
+            "SELECT public_title,public_description,public_slug,is_published "
+            "FROM rooms WHERE id=1"
+        ).fetchone() == (None, None, None, 0)
+        assert {
+            "features", "property_features", "room_features", "media_assets",
+            "property_photos", "room_photos",
+        } <= {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+
+        connection.execute(
+            "INSERT INTO features "
+            "(id,slug,name,scope,category,display_order,active) "
+            "VALUES (1,'wifi','Wi-Fi','both','conectividad',0,1)"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO features "
+                "(id,slug,name,scope,category,display_order,active) "
+                "VALUES (2,'bad','Bad','invalid','other',0,1)"
+            )
+        connection.execute(
+            "INSERT INTO media_assets "
+            "(id,storage_key,mime_type,width,height,byte_size,checksum_sha256,status,created_at) "
+            "VALUES (1,'asset-1','image/webp',1600,900,1000,'checksum-1','ready','2026-08-20')"
+        )
+        connection.execute(
+            "INSERT INTO media_assets "
+            "(id,storage_key,mime_type,width,height,byte_size,checksum_sha256,status,created_at) "
+            "VALUES (2,'asset-2','image/webp',1600,900,1000,'checksum-2','ready','2026-08-20')"
+        )
+        connection.execute(
+            "INSERT INTO room_photos "
+            "(id,room_id,media_asset_id,position,is_primary) VALUES (1,1,1,0,1)"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO room_photos "
+                "(id,room_id,media_asset_id,position,is_primary) VALUES (2,1,2,1,1)"
+            )
+        connection.rollback()
+
+        connection.execute(
+            "UPDATE properties SET public_slug='property-slug' WHERE id=1"
+        )
+        connection.execute(
+            "UPDATE rooms SET public_slug='room-slug' WHERE id=1"
+        )
+        connection.commit()
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.downgrade(config, OPERATIONAL_OVERLAP_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "is_published" not in {
+            row[1] for row in connection.execute("PRAGMA table_info(rooms)")
+        }
+        assert connection.execute("SELECT COUNT(*) FROM properties").fetchone() == (1,)
+        assert connection.execute("SELECT COUNT(*) FROM rooms").fetchone() == (1,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone() == (HEAD_REVISION,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
 def schema_snapshot(database_path: Path, table_names: tuple[str, ...]) -> dict[str, int]:
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
@@ -378,7 +492,19 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
     source_hash_before = file_hash(source_path)
     database_path = Path(tmp_path) / "historical_copy.db"
     shutil.copy2(source_path, database_path)
-    counts_before = table_counts(database_path)
+    connection = sqlite3.connect(
+        f"file:{database_path.as_posix()}?mode=ro", uri=True
+    )
+    try:
+        existing_tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        } & set(Base.metadata.tables)
+    finally:
+        connection.close()
+    counts_before = table_counts(database_path, existing_tables)
     roots_before = schema_snapshot(database_path, ("properties",))
     copy_hash_before = file_hash(database_path)
     config, database_url = configure_temporary_database(monkeypatch, database_path)
@@ -396,6 +522,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
             HISTORICAL_OVERLAP_REVISION,
             MASTER_CALENDAR_OBSERVATION_REVISION,
             IMPORTED_PRESENCE_REVISION,
+            OPERATIONAL_OVERLAP_REVISION,
             HEAD_REVISION,
         }
     finally:
@@ -404,7 +531,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
     command.upgrade(config, "head")
     command.current(config)
 
-    assert table_counts(database_path) == counts_before
+    assert table_counts(database_path, existing_tables) == counts_before
     assert schema_snapshot(database_path, ("properties",)) == roots_before
     if source_revision == HEAD_REVISION:
         assert file_hash(database_path) == copy_hash_before

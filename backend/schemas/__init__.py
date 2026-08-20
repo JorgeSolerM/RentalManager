@@ -1,5 +1,22 @@
 from datetime import date
 
+from backend.schemas.publication_schema import (
+    FeatureCatalogItem,
+    PublicAvailability,
+    RoomPublicationAssessment,
+    EffectivePhoto,
+)
+from backend.schemas.photo_schema import PhotoGalleryItem, RoomPhotoGallery
+
+__all__ = [
+    "FeatureCatalogItem",
+    "PublicAvailability",
+    "RoomPublicationAssessment",
+    "EffectivePhoto",
+    "PhotoGalleryItem",
+    "RoomPhotoGallery",
+]
+
 from pydantic import BaseModel, ConfigDict
 
 

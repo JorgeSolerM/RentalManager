@@ -24,6 +24,10 @@ const RMPageNotification = {
         room_calendar_automatic_enabled: "Sincronización automática activada.",
         room_calendar_automatic_paused: "Sincronización automática pausada.",
         master_calendar_token_regenerated: "URL del calendario maestro regenerada. Actualiza esta URL en todas las plataformas."
+        ,photos_uploaded: "Fotografías subidas correctamente."
+        ,photo_primary_updated: "Foto principal actualizada."
+        ,photos_reordered: "Orden de fotografías actualizado."
+        ,photo_deleted: "Fotografía eliminada."
     },
 
     errorMessages: {
@@ -75,6 +79,14 @@ const RMPageNotification = {
         room_calendar_sync_database_error: "Se produjo un error de base de datos.",
         room_calendar_sync_unexpected_error: "Se produjo un error inesperado durante la sincronización.",
         room_calendar_automatic_unavailable: "La sincronización automática no está disponible para esta configuración."
+        ,media_file_required: "Selecciona al menos una imagen."
+        ,media_file_too_large: "La imagen supera el máximo de 10 MiB."
+        ,media_too_many_pixels: "La imagen supera el límite de 40 millones de píxeles."
+        ,media_unsupported_format: "Solo se admiten imágenes JPEG, PNG o WebP no animadas."
+        ,media_animated_not_allowed: "No se admiten imágenes animadas."
+        ,media_mime_mismatch: "El contenido de la imagen no coincide con el tipo declarado."
+        ,media_invalid_image: "El archivo no contiene una imagen válida."
+        ,media_duplicate_photo: "Esta fotografía ya está asociada al registro."
     },
 
     show() {

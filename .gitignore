@@ -57,6 +57,7 @@ __pycache__/
 *.bak
 *.swp
 data/runtime/
+data/media/
 
 # ==========================================================
 # Sistema operativo

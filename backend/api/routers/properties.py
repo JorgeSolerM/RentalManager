@@ -7,6 +7,7 @@ from backend.database.session import get_db
 from backend.models.property import Property
 from backend.services.property_service import PropertyService
 from backend.services.room_service import RoomService
+from backend.services.photo_service import PhotoService
 
 router = APIRouter(prefix="/properties")
 
@@ -14,6 +15,7 @@ templates = Jinja2Templates(directory="backend/templates")
 
 property_service = PropertyService()
 room_service = RoomService()
+photo_service = PhotoService()
 
 
 @router.get("/")
@@ -76,6 +78,23 @@ def get_property(
         "notes": property_obj.notes,
         "active": property_obj.active,
     }
+
+
+@router.get("/{property_id}/photos")
+def property_photos(request: Request, property_id: int, db: Session = Depends(get_db)):
+    property_obj = property_service.get_by_id(db, property_id)
+    if property_obj is None:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada.")
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/property_photos.html",
+        context={
+            "request": request,
+            "current_page": "properties",
+            "property": property_obj,
+            "photo_gallery": photo_service.property_gallery(db, property_id),
+        },
+    )
 
 
 @router.post("/create")
