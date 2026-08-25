@@ -6,6 +6,7 @@
         </div>
         <form method="post" action="/{{ 'properties' if owner_type == 'property' else 'rooms' }}/{{ owner_id }}/photos/upload"
             enctype="multipart/form-data" class="rm-photo-upload" data-photo-upload-form>
+            <input type="hidden" name="return_to" value="{{ return_to }}">
             <label class="btn btn-outline-primary btn-sm mb-0" data-photo-select-button>
                 Añadir imágenes
                 <input type="file" name="files" accept="image/jpeg,image/png,image/webp" multiple required hidden data-photo-input>

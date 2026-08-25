@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 import html
 import re
 from urllib.parse import parse_qs, urlsplit
@@ -36,6 +37,7 @@ def public_context(db_session, tmp_path, monkeypatch):
 
     app.dependency_overrides[get_public_db] = override_db
     monkeypatch.setattr("backend.public.service.business_today", lambda: TODAY)
+    monkeypatch.setattr("backend.public.router.business_today", lambda: TODAY)
     with TestClient(app) as client:
         yield client, store
 
@@ -128,6 +130,50 @@ def add_public_room(db, store, *, code="R01", slug="room-one"):
     ])
     db.commit()
     return property_obj, room
+
+
+@pytest.mark.parametrize(
+    ("surface", "expected"),
+    [(Decimal("19.00"), "19 m²"), (Decimal("10.20"), "10 m²"), (Decimal("7.60"), "8 m²")],
+)
+def test_catalog_rounds_surface_and_renders_availability_over_image(
+    public_context, db_session, surface, expected
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    room.square_meters = surface
+    db_session.commit()
+
+    card = client.get("/").text.split('<article class="room-card">', 1)[1]
+
+    assert expected in card
+    assert "room-card-availability" in card
+    assert card.index("room-card-availability") < card.index("room-card-body")
+
+
+def test_catalog_sort_parameter_is_normalized_and_preserved_with_filters(
+    public_context, db_session
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    feature = next(feature for feature in room.features if feature.slug.startswith("desk-"))
+
+    response = client.get(
+        f"/?sort=price_desc&check_in=2026-09-01&check_out=2026-10-01"
+        f"&features={feature.slug}"
+    )
+    assert response.status_code == 200
+    assert '<option value="price_desc" selected>' in response.text
+    assert 'data-catalog-sort' in response.text
+    assert 'onchange=' not in response.text
+    assert 'catalog-filters.js?v=9' in response.text
+    assert 'name="sort" value="price_desc"' in response.text
+    assert 'name="check_in" value="2026-09-01"' in response.text
+    assert f'name="features" value="{feature.slug}"' in response.text
+
+    invalid = client.get("/?sort=unknown")
+    assert invalid.status_code == 200
+    assert '<option value="recommended" selected>' in invalid.text
 
 
 def test_detail_calculates_flatmates_from_eligible_sibling_bed_capacity(
@@ -268,7 +314,7 @@ def test_catalog_exposes_only_rooms_that_are_really_publicable(
     assert response.status_code == 200
     assert room.public_title in response.text
     assert property_obj.public_location in response.text
-    assert len(statements) <= 7
+    assert len(statements) <= 8
     public_sql = "\n".join(statements)
     for private_column in (
         "properties.address", "properties.owner", "properties.notes",
@@ -302,8 +348,9 @@ def test_catalog_and_detail_use_only_ordered_room_public_highlights(
     property_feature = property_obj.features[0]
 
     without_highlights = client.get("/").text
-    assert "Escritorio" not in without_highlights
-    assert "Wi-Fi" not in without_highlights
+    room_card = without_highlights.split('<article class="room-card">', 1)[1]
+    assert "Escritorio" not in room_card
+    assert "Wi-Fi" not in room_card
 
     db_session.add_all([
         RoomPublicHighlight(room_id=room.id, feature_id=property_feature.id, position=0),
@@ -316,6 +363,116 @@ def test_catalog_and_detail_use_only_ordered_room_public_highlights(
     detail = client.get(f"/habitaciones/{room.public_slug}").text
     assert catalog.index("Wi-Fi") < catalog.index("Escritorio")
     assert detail.index("Wi-Fi") < detail.index("Escritorio")
+
+
+@pytest.mark.parametrize(
+    ("booking_start", "booking_end", "visible"),
+    [
+        (date(2026, 8, 1), date(2026, 9, 1), True),
+        (date(2026, 8, 25), date(2026, 9, 2), False),
+        (date(2026, 9, 20), date(2026, 10, 5), False),
+        (date(2026, 9, 5), date(2026, 9, 20), False),
+        (date(2026, 8, 1), date(2026, 11, 1), False),
+    ],
+)
+def test_catalog_date_filter_uses_contractual_half_open_intervals(
+    public_context, db_session, booking_start, booking_end, visible
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    db_session.add(Booking(
+        room_id=room.id,
+        origin="manual",
+        check_in=booking_start,
+        check_out=booking_end,
+    ))
+    db_session.commit()
+
+    response = client.get("/?check_in=2026-09-01&check_out=2026-10-01")
+    assert (room.public_title in response.text) is visible
+    if visible:
+        assert "Disponible para tus fechas" in response.text
+
+
+def test_catalog_date_filter_applies_calendar_month_minimum_and_maximum(
+    public_context, db_session
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    room.minimum_stay_months = 1
+    room.maximum_stay_months = 2
+    db_session.commit()
+
+    assert room.public_title not in client.get(
+        "/?check_in=2026-08-31&check_out=2026-09-29"
+    ).text
+    assert room.public_title in client.get(
+        "/?check_in=2026-08-31&check_out=2026-09-30"
+    ).text
+    assert room.public_title not in client.get(
+        "/?check_in=2026-08-31&check_out=2026-11-01"
+    ).text
+
+    room.minimum_stay_months = 0
+    room.maximum_stay_months = None
+    db_session.commit()
+    assert room.public_title in client.get(
+        "/?check_in=2026-08-31&check_out=2026-09-01"
+    ).text
+
+
+def test_catalog_feature_filters_use_effective_features_with_and_semantics(
+    public_context, db_session
+):
+    client, store = public_context
+    property_obj, room = add_public_room(db_session, store)
+    room_feature = next(feature for feature in room.features if feature.name == "Escritorio")
+    property_feature = property_obj.features[0]
+
+    assert room.public_title in client.get(f"/?features={room_feature.slug}").text
+    assert room.public_title in client.get(f"/?features={property_feature.slug}").text
+    assert room.public_title in client.get(
+        f"/?features={room_feature.slug},{property_feature.slug}"
+    ).text
+
+    property_feature.active = False
+    db_session.commit()
+    response = client.get("/")
+    assert f'value="{property_feature.slug}"' not in response.text
+
+
+def test_catalog_filter_validation_and_query_state_are_rendered(
+    public_context, db_session
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    feature = next(item for item in room.features if item.name == "Escritorio")
+
+    incomplete = client.get("/?check_in=2026-09-01")
+    assert "Indica tanto la fecha de entrada como la de salida" in incomplete.text
+    invalid = client.get("/?check_in=2026-10-01&check_out=2026-09-01")
+    assert "La fecha de salida debe ser posterior" in invalid.text
+    past = client.get("/?check_in=2026-08-20&check_out=2026-09-01")
+    assert "La fecha de entrada no puede estar en el pasado" in past.text
+
+    response = client.get(
+        f"/?check_in=2026-09-01&check_out=2026-10-01&features={feature.slug}"
+    )
+    assert 'value="2026-09-01"' in response.text
+    assert 'value="2026-10-01"' in response.text
+    assert re.search(
+        rf'value="{re.escape(feature.slug)}"[^>]* checked', response.text
+    )
+    assert 'class="feature-picker-toggle"' in response.text
+    assert 'aria-expanded="false"' in response.text
+    assert 'class="feature-picker-panel"' in response.text
+    assert response.text.count('data-date-picker') == 2
+    assert response.text.count('data-date-input') == 2
+    assert response.text.count('inputmode="numeric"') == 2
+    assert 'name="check_in" value="2026-09-01"' in response.text
+    assert 'name="check_out" value="2026-10-01"' in response.text
+    assert 'class="date-picker-panel"' in response.text
+    assert "Buscar habitaciones" in response.text
 
 def test_room_detail_uses_effective_gallery_features_and_derived_availability(
     public_context, db_session
@@ -539,3 +696,52 @@ def test_public_app_has_security_headers_no_schema_and_no_write_routes(
     assert client.get("/openapi.json").status_code == 404
     assert client.post("/").status_code == 405
     assert client.get("/", headers={"host": "untrusted.example"}).status_code == 400
+
+
+def test_public_seo_robots_and_sitemap_only_expose_public_rooms(
+    public_context, db_session, monkeypatch
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    monkeypatch.setenv("PUBLIC_SITE_BASE_URL", "https://www.hsi-rents.com")
+
+    catalog = client.get("/")
+    detail = client.get(f"/habitaciones/{room.public_slug}")
+    robots = client.get("/robots.txt")
+    sitemap = client.get("/sitemap.xml")
+
+    assert "Habitaciones en alquiler en Elche | HSI Rents" in catalog.text
+    assert 'property="og:title"' in catalog.text
+    assert 'property="og:image"' in catalog.text
+    assert f"{room.public_title} | HSI Rents" in detail.text
+    assert 'property="og:description"' in detail.text
+    assert robots.text == (
+        "User-agent: *\nAllow: /\n"
+        "Sitemap: https://www.hsi-rents.com/sitemap.xml\n"
+    )
+    assert sitemap.headers["content-type"].startswith("application/xml")
+    assert "https://www.hsi-rents.com/</loc>" in sitemap.text
+    assert f"/habitaciones/{room.public_slug}</loc>" in sitemap.text
+
+    room.is_published = False
+    db_session.commit()
+    assert f"/habitaciones/{room.public_slug}</loc>" not in client.get(
+        "/sitemap.xml"
+    ).text
+
+
+def test_public_images_declare_responsive_sources_without_private_originals(
+    public_context, db_session
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+
+    catalog = client.get("/").text
+    detail = client.get(f"/habitaciones/{room.public_slug}").text
+
+    assert 'fetchpriority="high"' in catalog
+    assert "(max-width: 1100px) 33vw, 25vw" in catalog
+    assert 'data-src-small="/media/' in detail
+    assert 'data-src-large="/media/' in detail
+    assert "original.webp" not in catalog
+    assert "original.webp" not in detail

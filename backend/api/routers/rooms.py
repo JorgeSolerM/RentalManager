@@ -126,8 +126,6 @@ def room_workspace(
 
     calendar_configurations = room_calendar_service.list_configurations(db, room_id)
     master_calendar_views = master_calendar_service.list_public_views(db, room)
-    photo_gallery = photo_service.room_gallery(db, room_id)
-
     return templates.TemplateResponse(
         request=request,
         name="pages/room_workspace.html",
@@ -140,7 +138,6 @@ def room_workspace(
             "future_bookings": future_bookings,
             "calendar_configurations": calendar_configurations,
             "master_calendar_views": master_calendar_views,
-            "photo_gallery": photo_gallery,
         },
     )
 
@@ -151,6 +148,7 @@ def room_publication(request: Request, room_id: int, db: Session = Depends(get_d
     if room is None: raise HTTPException(404)
     property_obj = property_service.get_by_id(db, room.property_id)
     property_gallery = photo_service.property_gallery(db, property_obj.id)
+    room_gallery = photo_service.room_gallery(db, room_id)
     public_slug_preview = commercial_service.room_slug_preview(db, room)
     return templates.TemplateResponse(request=request, name="pages/room_publication.html", context={
         "request": request, "current_page": "rooms", "room": room,
@@ -159,6 +157,7 @@ def room_publication(request: Request, room_id: int, db: Session = Depends(get_d
         "public_slug_preview": public_slug_preview,
         "inherited_features": property_obj.features,
         "inherited_photo_count": len(property_gallery),
+        "photo_gallery": room_gallery,
         "highlight_options": commercial_service.highlight_options(room),
         "selected_highlight_ids": {highlight.feature_id for highlight in room.public_highlights},
         "copy_source_rooms": commercial_service.copy_source_options(db, room),

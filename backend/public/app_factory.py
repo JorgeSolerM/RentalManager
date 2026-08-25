@@ -36,7 +36,7 @@ def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
             "img-src 'self'; object-src 'none'; base-uri 'self'; "
-            "frame-ancestors 'none'; form-action 'none'"
+            "frame-ancestors 'none'; form-action 'self'"
         )
         return response
 

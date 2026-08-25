@@ -7,7 +7,10 @@ from urllib.parse import urlencode
 from sqlalchemy.orm import Session
 
 from backend.core.business_time import business_today
-from backend.core.public_availability import first_commercial_gap
+from backend.core.public_availability import (
+    first_commercial_gap,
+    stay_within_calendar_month_limits,
+)
 from backend.core.public_phone import whatsapp_url
 from backend.services.publication_service import PUBLIC_SLUG_PATTERN
 from backend.services.publication_service import PublicationService
@@ -15,6 +18,7 @@ from backend.public.repository import PublicRoomRepository
 from backend.public.schemas import (
     PublicAvailabilityDTO,
     PublicFeatureDTO,
+    PublicFilterFeatureDTO,
     PublicFeatureGroupDTO,
     PublicImageDTO,
     PublicHousingRuleDTO,
@@ -44,6 +48,15 @@ CATEGORY_PRESENTATION = {
 
 
 class PublicRoomService:
+    SORT_OPTIONS = {
+        "recommended",
+        "price_asc",
+        "price_desc",
+        "availability",
+        "size_asc",
+        "size_desc",
+    }
+
     def __init__(
         self,
         repository: PublicRoomRepository | None = None,
@@ -55,14 +68,88 @@ class PublicRoomService:
         )
 
     def list_rooms(
-        self, db: Session, *, today: date | None = None
+        self,
+        db: Session,
+        *,
+        today: date | None = None,
+        requested_check_in: date | None = None,
+        requested_check_out: date | None = None,
+        feature_slugs: tuple[str, ...] = (),
+        public_base_url: str | None = None,
+        sort: str = "recommended",
     ) -> tuple[PublicRoomCardDTO, ...]:
         today = today or business_today()
         result = []
-        for room in self.repository.list_candidates(db, today):
-            if self._is_publicable(room):
-                result.append(self._card(room, today))
-        return tuple(result)
+        for room in self.repository.list_candidates(
+            db,
+            today,
+            requested_check_in=requested_check_in,
+            requested_check_out=requested_check_out,
+            feature_slugs=feature_slugs,
+        ):
+            if self._is_publicable(room) and (
+                requested_check_in is None
+                or stay_within_calendar_month_limits(
+                    requested_check_in,
+                    requested_check_out,
+                    room.minimum_stay_months,
+                    room.maximum_stay_months,
+                )
+            ):
+                result.append(self._card(room, today, public_base_url))
+        return tuple(sorted(result, key=self._sort_key(sort, today)))
+
+    @classmethod
+    def normalize_sort(cls, value: str | None) -> str:
+        return value if value in cls.SORT_OPTIONS else "recommended"
+
+    @classmethod
+    def _sort_key(cls, sort: str, today: date):
+        sort = cls.normalize_sort(sort)
+
+        def availability(room: PublicRoomCardDTO):
+            available_from = room.availability.available_from or today
+            status_rank = 0 if room.availability.status == "available_now" else 1
+            return available_from, status_rank
+
+        def surface(room: PublicRoomCardDTO):
+            return (
+                room.square_meters is None,
+                room.square_meters if room.square_meters is not None else Decimal(0),
+            )
+
+        def descending_surface(room: PublicRoomCardDTO):
+            missing, value = surface(room)
+            return missing, -value
+
+        if sort == "price_asc":
+            return lambda room: (room.price_monthly, availability(room), room.slug)
+        if sort == "price_desc":
+            return lambda room: (-room.price_monthly, availability(room), room.slug)
+        if sort == "availability":
+            return lambda room: (availability(room), room.price_monthly, room.slug)
+        if sort == "size_asc":
+            return lambda room: (surface(room), room.price_monthly, room.slug)
+        if sort == "size_desc":
+            return lambda room: (descending_surface(room), room.price_monthly, room.slug)
+        return lambda room: (
+            availability(room),
+            room.price_monthly,
+            surface(room),
+            room.slug,
+        )
+
+    def list_filter_features(
+        self, db: Session
+    ) -> tuple[PublicFilterFeatureDTO, ...]:
+        return tuple(
+            PublicFilterFeatureDTO(
+                slug=feature.slug,
+                name=feature.name,
+                category=feature.category,
+            )
+            for feature in self.repository.list_filter_features(db)
+        )
 
     def get_room(
         self, db: Session, slug: str, *, today: date | None = None,
@@ -72,7 +159,7 @@ class PublicRoomService:
         room = self.repository.get_candidate_by_slug(db, slug, today)
         if room is None or not self._is_publicable(room):
             return None
-        card = self._card(room, today)
+        card = self._card(room, today, public_base_url)
         room_features = self._features(room.features)
         property_features = self._features(room.property.features)
         highlighted_features = card.features
@@ -204,7 +291,9 @@ class PublicRoomService:
             if (capacity := PublicationService.room_capacity(sibling)) is not None
         )
 
-    def _card(self, room, today: date) -> PublicRoomCardDTO:
+    def _card(
+        self, room, today: date, public_base_url: str | None = None
+    ) -> PublicRoomCardDTO:
         primary = self._primary_photo(room)
         return PublicRoomCardDTO(
             slug=room.public_slug,
@@ -215,6 +304,9 @@ class PublicRoomService:
             availability=self._availability(room.bookings, today, room.minimum_stay_months),
             features=self._highlighted_features(room),
             primary_image=self._image(primary, self._photo_source(room, primary)),
+            contact_url=self._manager(
+                room.property.manager, room, public_base_url
+            ).whatsapp_url,
         )
 
     @staticmethod

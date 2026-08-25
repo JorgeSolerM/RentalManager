@@ -49,9 +49,34 @@ def test_admin_upload_gallery_variant_and_room_fallback(client, db_session, tmp_
     assert image.headers["content-type"] == "image/webp"
     assert image.headers["x-content-type-options"] == "nosniff"
 
-    room_page = client.get(f"/rooms/{room.id}?tab=configuracion")
+    room_page = client.get(f"/rooms/{room.id}/publication")
     assert room_page.status_code == 200
     assert "Se utilizará como fallback la foto principal del inmueble" in room_page.text
+
+
+def test_room_upload_returns_to_publication_and_renders_existing_gallery(
+    client, db_session, tmp_path, monkeypatch
+):
+    _, room = records(db_session)
+    store = MediaFileStore(MediaStoragePaths.from_root(tmp_path / "media"))
+    service = PhotoService(store=store, processor=SafeImageProcessor(store))
+    monkeypatch.setattr(photos, "photo_service", service)
+
+    response = client.post(
+        f"/rooms/{room.id}/photos/upload",
+        data={"return_to": f"/rooms/{room.id}/publication"},
+        files=[("files", ("room.jpg", jpeg(), "image/jpeg"))],
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith(
+        f"/rooms/{room.id}/publication?success=photos_uploaded"
+    )
+    page = client.get(f"/rooms/{room.id}/publication")
+    assert page.status_code == 200
+    assert "Principal" in page.text
+    assert 'data-photo-gallery' in page.text
 
 
 def test_invalid_upload_redirects_with_domain_error(client, db_session, tmp_path, monkeypatch):

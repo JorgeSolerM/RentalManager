@@ -11,7 +11,9 @@ from backend.schemas.photo_schema import PhotoOrderRequest
 
 router = APIRouter()
 photo_service = PhotoService()
-SAFE_RETURN_TO = re.compile(r"^/(?:properties/\d+/photos|rooms/\d+)(?:\?tab=configuracion)?$")
+SAFE_RETURN_TO = re.compile(
+    r"^/(?:properties/\d+/photos|rooms/\d+(?:/publication|\?tab=configuracion)?)$"
+)
 
 
 async def _payloads(files: list[UploadFile]) -> list[UploadPayload]:
@@ -43,9 +45,19 @@ async def upload_property_photos(property_id: int, files: list[UploadFile] = Fil
 
 
 @router.post("/rooms/{room_id}/photos/upload")
-async def upload_room_photos(room_id: int, files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+async def upload_room_photos(
+    room_id: int,
+    files: list[UploadFile] = File(...),
+    return_to: str = Form(""),
+    db: Session = Depends(get_db),
+):
     result = photo_service.upload_room(db, room_id, await _payloads(files))
-    return _redirect(f"/rooms/{room_id}?tab=configuracion", result, "photos_uploaded")
+    destination = (
+        _validated_return_to(return_to)
+        if return_to
+        else f"/rooms/{room_id}?tab=configuracion"
+    )
+    return _redirect(destination, result, "photos_uploaded")
 
 
 @router.post("/{owner_type}-photos/{photo_id}/primary")

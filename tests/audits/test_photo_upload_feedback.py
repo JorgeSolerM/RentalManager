@@ -79,6 +79,8 @@ def test_photo_cards_hide_actions_until_selected_and_support_drag_and_keyboard()
 
 def test_both_management_pages_load_shared_upload_behavior():
     property_page = (ROOT / "backend/templates/pages/property_photos.html").read_text(encoding="utf-8")
-    room_page = (ROOT / "backend/templates/pages/room_workspace.html").read_text(encoding="utf-8")
+    room_page = (ROOT / "backend/templates/pages/room_publication.html").read_text(encoding="utf-8")
+    workspace = (ROOT / "backend/templates/pages/room_workspace.html").read_text(encoding="utf-8")
     assert "js/photo_upload.js" in property_page
     assert "js/photo_upload.js" in room_page
+    assert "js/photo_upload.js" not in workspace

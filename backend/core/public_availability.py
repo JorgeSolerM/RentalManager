@@ -11,6 +11,22 @@ def add_calendar_months(value: date, months: int) -> date:
     return date(year, month, day)
 
 
+def stay_within_calendar_month_limits(
+    check_in: date,
+    check_out: date,
+    minimum_months: int,
+    maximum_months: int | None,
+) -> bool:
+    """Validate a requested stay using calendar-month boundaries."""
+    if check_out <= check_in:
+        return False
+    if minimum_months > 0 and check_out < add_calendar_months(check_in, minimum_months):
+        return False
+    if maximum_months is not None and check_out > add_calendar_months(check_in, maximum_months):
+        return False
+    return True
+
+
 def first_commercial_gap(
     intervals: Iterable[tuple[date, date]],
     today: date,

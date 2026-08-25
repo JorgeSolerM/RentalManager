@@ -241,27 +241,6 @@
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            {% set owner_type = 'room' %}
-            {% set owner_id = room.id %}
-            {% set return_to = '/rooms/' ~ room.id ~ '?tab=configuracion' %}
-            {% set photo_gallery_items = photo_gallery.photos %}
-            {% with photo_gallery=photo_gallery_items %}
-                {% include "components/photo_gallery.html" %}
-            {% endwith %}
-            <p class="text-muted small mt-3 mb-0">
-                La ficha pública añadirá también las fotografías comunes del inmueble.
-            </p>
-            {% if photo_gallery.fallback_photo %}
-            <div class="alert alert-light border mt-3 mb-0 d-flex align-items-center gap-3">
-                <img src="{{ photo_gallery.fallback_photo.thumbnail_url }}" alt="Foto principal del inmueble" width="64" height="48" class="rm-photo-fallback-thumb">
-                <span>Se utilizará como fallback la foto principal del inmueble.</span>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
     <div class="card">
 
         <div class="card-header">
@@ -529,7 +508,5 @@
 <script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-operational-1"></script>
 <script src="{{ url_for('static', path='js/master_calendar.js') }}"></script>
 <script src="{{ url_for('static', path='js/room_calendar_actions.js') }}"></script>
-<script src="{{ url_for('static', path='js/photo_upload.js') }}"></script>
-<script src="{{ url_for('static', path='js/photo_gallery.js') }}"></script>
 
 {% endblock %}

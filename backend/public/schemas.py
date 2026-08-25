@@ -13,6 +13,14 @@ class PublicFeatureDTO(BaseModel):
     icon_key: str | None = None
 
 
+class PublicFilterFeatureDTO(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    slug: str
+    name: str
+    category: str
+
+
 class PublicFeatureGroupDTO(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -98,6 +106,7 @@ class PublicRoomCardDTO(BaseModel):
     availability: PublicAvailabilityDTO
     features: tuple[PublicFeatureDTO, ...]
     primary_image: PublicImageDTO
+    contact_url: str | None = None
 
 
 class PublicRoomDetailDTO(PublicRoomCardDTO):

@@ -1,36 +1,122 @@
 {% extends "base.html" %}
-{% block title %}Habitaciones · {{ site_name }}{% endblock %}
-{% block meta_description %}Habitaciones publicadas para alquiler mensual, con precio, características y disponibilidad actualizada.{% endblock %}
-{% block seo %}{% if base_url %}<link rel="canonical" href="{{ base_url }}/">{% endif %}{% endblock %}
+{% block title %}Habitaciones en alquiler en Elche | {{ site_name }}{% endblock %}
+{% block meta_description %}Habitaciones en alquiler mensual en Elche, con fotografías, precio, características y disponibilidad actualizada.{% endblock %}
+{% block seo %}
+{% if page_url %}<link rel="canonical" href="{{ page_url }}">{% endif %}
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta property="og:title" content="Habitaciones en alquiler en Elche | {{ site_name }}">
+<meta property="og:description" content="Habitaciones en alquiler mensual en Elche, con fotografías, precio, características y disponibilidad actualizada.">
+{% if page_url %}<meta property="og:url" content="{{ page_url }}">{% endif %}
+{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+{% endblock %}
 {% block content %}
-<section class="catalog-intro">
-    <p class="eyebrow">Alquiler mensual</p>
-    <h1>Encuentra tu habitación</h1>
-    <p>Consulta espacios disponibles, características y fotografías.</p>
+<section class="catalog-hero{% if hero_image %} has-image{% endif %}">
+    {% if hero_image %}<div class="catalog-hero-image"><img src="{{ hero_image.url_768 }}" srcset="{{ hero_image.srcset }}" sizes="(max-width: 700px) 100vw, 50vw" alt="Habitación luminosa disponible en Elche" width="{{ hero_image.width }}" height="{{ hero_image.height }}" fetchpriority="high"></div>{% endif %}
+    <div class="catalog-hero-inner">
+        <div class="catalog-hero-copy">
+            <p class="eyebrow">Alquiler mensual en Elche</p>
+            <h1>Encuentra tu habitación</h1>
+            <p>Espacios equipados para vivir, estudiar<br class="desktop-line-break"> y trabajar en Elche.</p>
+        </div>
+<form class="catalog-filters" method="get" action="{{ url_for('public_catalog') }}">
+    <input type="hidden" name="sort" value="{{ selected_sort }}">
+    <div class="catalog-filter-dates">
+        <div class="catalog-date-field" data-date-picker data-date-role="check-in">
+            <span class="catalog-filter-label" id="check-in-label">Entrada</span>
+            <input type="hidden" name="check_in" value="{{ check_in }}" data-date-value>
+            <div class="date-input-shell">
+                <input class="date-text-input" id="check-in-display" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="dd/mm/aaaa" aria-labelledby="check-in-label" aria-describedby="check-in-error" data-date-input>
+                <button class="date-picker-toggle" type="button" aria-expanded="false" aria-controls="check-in-calendar" aria-label="Abrir calendario de entrada"></button>
+            </div>
+            <span class="date-picker-error" id="check-in-error" role="alert" hidden></span>
+            <div class="date-picker-panel" id="check-in-calendar" role="dialog" aria-modal="false" aria-label="Seleccionar fecha de entrada" hidden></div>
+        </div>
+        <div class="catalog-date-field" data-date-picker data-date-role="check-out">
+            <span class="catalog-filter-label" id="check-out-label">Salida</span>
+            <input type="hidden" name="check_out" value="{{ check_out }}" data-date-value>
+            <div class="date-input-shell">
+                <input class="date-text-input" id="check-out-display" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="dd/mm/aaaa" aria-labelledby="check-out-label" aria-describedby="check-out-error" data-date-input>
+                <button class="date-picker-toggle" type="button" aria-expanded="false" aria-controls="check-out-calendar" aria-label="Abrir calendario de salida"></button>
+            </div>
+            <span class="date-picker-error" id="check-out-error" role="alert" hidden></span>
+            <div class="date-picker-panel" id="check-out-calendar" role="dialog" aria-modal="false" aria-label="Seleccionar fecha de salida" hidden></div>
+        </div>
+    </div>
+    {% if filter_features %}
+    <div class="catalog-filter-features" data-feature-picker>
+        <span class="catalog-filter-label">Características</span>
+        <button class="feature-picker-toggle" type="button" aria-expanded="false" aria-controls="feature-picker-panel">
+            <span data-feature-summary>{% if selected_features|length == 0 %}Elige características{% elif selected_features|length == 1 %}{% for feature in filter_features %}{% if feature.slug in selected_features %}{{ feature.name }}{% endif %}{% endfor %}{% else %}{{ selected_features|length }} características{% endif %}</span>
+            <span aria-hidden="true">⌄</span>
+        </button>
+        <div class="feature-picker-panel" id="feature-picker-panel" hidden>
+            {% for category, features in filter_features|groupby('category') %}
+            <fieldset class="feature-picker-group">
+                <legend>{{ category }}</legend>
+                {% for feature in features %}<label><input type="checkbox" name="features" value="{{ feature.slug }}" data-feature-name="{{ feature.name }}"{% if feature.slug in selected_features %} checked{% endif %}> <span>{{ feature.name }}</span></label>{% endfor %}
+            </fieldset>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <div class="catalog-filter-actions">
+        <button type="submit">Buscar habitaciones</button>
+        {% if filters_active %}<a href="{{ url_for('public_catalog') }}">Limpiar filtros</a>{% endif %}
+    </div>
+</form>
+    </div>
 </section>
+{% if filter_errors %}<div class="catalog-filter-errors" role="alert">{% for error in filter_errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+<section class="catalog-benefits" id="como-funciona" aria-label="Ventajas">
+    <div><img src="{{ url_for('public_static', path='icons/feature-categories/bed.svg') }}" alt=""><p><strong>Habitaciones cómodas</strong><span>Totalmente equipadas</span></p></div>
+    <div><img src="{{ url_for('public_static', path='icons/map-pin.svg') }}" alt=""><p><strong>Buena ubicación</strong><span>En zonas universitarias</span></p></div>
+    <div><img src="{{ url_for('public_static', path='icons/users.svg') }}" alt=""><p><strong>Gestión cercana</strong><span>Atención personalizada</span></p></div>
+    <div><img src="{{ url_for('public_static', path='icons/feature-categories/conditions.svg') }}" alt=""><p><strong>Alquiler mensual</strong><span>Sin comisiones de agencia</span></p></div>
+</section>
+<div class="catalog-results-toolbar" id="habitaciones">
+    <p class="catalog-result-count" aria-live="polite">{{ rooms|length }} {% if rooms|length == 1 %}habitación disponible{% else %}habitaciones disponibles{% endif %}</p>
+    <form class="catalog-sort" method="get" action="{{ url_for('public_catalog') }}">
+        {% if check_in %}<input type="hidden" name="check_in" value="{{ check_in }}">{% endif %}
+        {% if check_out %}<input type="hidden" name="check_out" value="{{ check_out }}">{% endif %}
+        {% for feature_slug in selected_features %}<input type="hidden" name="features" value="{{ feature_slug }}">{% endfor %}
+        <label for="catalog-sort">Ordenar por</label>
+        <select id="catalog-sort" name="sort" data-catalog-sort>
+            <option value="recommended"{% if selected_sort == 'recommended' %} selected{% endif %}>Recomendadas</option>
+            <option value="price_asc"{% if selected_sort == 'price_asc' %} selected{% endif %}>Precio: menor a mayor</option>
+            <option value="price_desc"{% if selected_sort == 'price_desc' %} selected{% endif %}>Precio: mayor a menor</option>
+            <option value="availability"{% if selected_sort == 'availability' %} selected{% endif %}>Disponibilidad</option>
+            <option value="size_asc"{% if selected_sort == 'size_asc' %} selected{% endif %}>Tamaño: menor a mayor</option>
+            <option value="size_desc"{% if selected_sort == 'size_desc' %} selected{% endif %}>Tamaño: mayor a menor</option>
+        </select>
+        <noscript><button type="submit">Ordenar</button></noscript>
+    </form>
+</div>
 {% if rooms %}
 <section class="room-grid" aria-label="Habitaciones publicadas">
     {% for room in rooms %}
     <article class="room-card">
         <a class="room-card-image" href="{{ url_for('public_room_detail', slug=room.slug) }}">
-            <img src="{{ room.primary_image.url_768 }}" srcset="{{ room.primary_image.srcset }}" sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, 33vw" alt="{{ room.title }}" loading="lazy" width="{{ room.primary_image.width }}" height="{{ room.primary_image.height }}">
+            <img src="{{ room.primary_image.url_768 }}" srcset="{{ room.primary_image.srcset }}" sizes="(max-width: 700px) calc(100vw - 24px), (max-width: 900px) 50vw, (max-width: 1100px) 33vw, 25vw" alt="{{ room.title }}" loading="lazy" width="{{ room.primary_image.width }}" height="{{ room.primary_image.height }}">
+            <span class="room-card-availability availability-{{ room.availability.status }}">
+                {% if date_filter_active %}Disponible para tus fechas{% elif room.availability.status == 'available_now' %}Disponible ahora{% elif room.availability.status == 'available_period' %}Disponible del {{ room.availability.available_from.strftime('%d/%m/%Y') }} al {{ room.availability.available_until.strftime('%d/%m/%Y') }}{% else %}Disponible desde {{ room.availability.available_from.strftime('%d/%m/%Y') }}{% endif %}
+            </span>
         </a>
         <div class="room-card-body">
             <p class="room-location">{{ room.location }}</p>
             <h2><a href="{{ url_for('public_room_detail', slug=room.slug) }}">{{ room.title }}</a></h2>
             <div class="room-facts">
                 <strong>{{ '%.0f'|format(room.price_monthly) }} € <span>/ mes</span></strong>
-                {% if room.square_meters is not none %}<span>{{ room.square_meters }} m²</span>{% endif %}
+                {% if room.square_meters is not none %}<span>{{ room.square_meters|round|int }} m²</span>{% endif %}
             </div>
-            {% if room.features %}<ul class="feature-chips" aria-label="Características principales">{% for feature in room.features %}<li>{{ feature.name }}</li>{% endfor %}</ul>{% endif %}
-            <p class="availability availability-{{ room.availability.status }}">
-                {% if room.availability.status == 'available_now' %}Disponible ahora{% elif room.availability.status == 'available_period' %}Disponible del {{ room.availability.available_from.strftime('%d/%m/%Y') }} al {{ room.availability.available_until.strftime('%d/%m/%Y') }}{% else %}Disponible desde {{ room.availability.available_from.strftime('%d/%m/%Y') }}{% endif %}
-            </p>
+            <div class="room-card-feature-space">{% if room.features %}<ul class="feature-chips" aria-label="Características principales">{% for feature in room.features %}<li>{{ feature.name }}</li>{% endfor %}</ul>{% endif %}</div>
         </div>
     </article>
     {% endfor %}
 </section>
 {% else %}
-<section class="empty-state"><h2>No hay habitaciones publicadas en este momento</h2><p>Vuelve a consultarlo próximamente.</p></section>
+<section class="empty-state">{% if filters_active %}<h2>No hay habitaciones que cumplan estos filtros</h2><p><a href="{{ url_for('public_catalog') }}">Limpiar filtros</a></p>{% else %}<h2>No hay habitaciones publicadas en este momento</h2><p>Vuelve a consultarlo próximamente.</p>{% endif %}</section>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('public_static', path='catalog-filters.js') }}?v=9" defer></script>{% endblock %}

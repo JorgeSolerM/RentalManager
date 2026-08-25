@@ -101,6 +101,12 @@ def test_room_list_is_primary_publication_entry_and_workspace_has_only_secondary
     assert f'href="/rooms/{room.id}/publication"' in workspace.text
     assert "Abrir publicación" in workspace.text
     assert 'name="public_title"' not in workspace.text
+    assert 'data-photo-gallery' not in workspace.text
+
+    publication = client.get(f"/rooms/{room.id}/publication")
+    assert publication.status_code == 200
+    assert 'data-photo-upload-form' in publication.text
+    assert f'value="/rooms/{room.id}/publication"' in publication.text
 
 
 def test_inherited_property_changes_are_visible_without_room_copies(client, db_session):

@@ -1,10 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ room.title }} · {{ site_name }}{% endblock %}
+{% block title %}{{ room.title }} | {{ site_name }}{% endblock %}
 {% block meta_description %}{{ room.meta_description }}{% endblock %}
 {% block seo %}
 {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
 <meta property="og:type" content="website">
-<meta property="og:title" content="{{ room.title }} · {{ site_name }}">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta property="og:title" content="{{ room.title }} | {{ site_name }}">
 <meta property="og:description" content="{{ room.meta_description }}">
 {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
 {% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
@@ -25,7 +27,7 @@
         <div class="gallery-thumbnails" aria-label="Seleccionar fotografía">
             {% for image in room.gallery %}
             {% set is_active = image.url_1600 == room.primary_image.url_1600 %}
-            <button class="gallery-thumbnail{% if is_active %} is-active{% endif %}" type="button" data-gallery-thumbnail data-index="{{ loop.index0 }}" data-src="{{ image.url_1600 }}" data-srcset="{{ image.srcset }}" data-alt="{% if image.source == 'room' %}{{ room.title }} · habitación{% else %}{{ room.title }} · zona común{% endif %}" aria-label="Mostrar imagen {{ loop.index }} de {{ gallery_count }}" aria-current="{% if is_active %}true{% else %}false{% endif %}">
+            <button class="gallery-thumbnail{% if is_active %} is-active{% endif %}" type="button" data-gallery-thumbnail data-index="{{ loop.index0 }}" data-src-small="{{ image.url_768 }}" data-src-large="{{ image.url_1600 }}" data-alt="{% if image.source == 'room' %}{{ room.title }} · habitación{% else %}{{ room.title }} · zona común{% endif %}" aria-label="Mostrar imagen {{ loop.index }} de {{ gallery_count }}" aria-current="{% if is_active %}true{% else %}false{% endif %}">
                 <img src="{{ image.url_320 }}" alt="" loading="lazy" width="{{ image.width }}" height="{{ image.height }}">
             </button>
             {% endfor %}
@@ -35,7 +37,7 @@
         <h1>{{ room.title }}</h1>
         <p class="room-location">{{ room.location }}</p>
         {% if room.square_meters is not none or room.has_private_bathroom or (room.shared_full_bathroom_count is not none and room.shared_full_bathroom_count > 0) or (room.shared_toilet_count is not none and room.shared_toilet_count > 0) %}<ul class="primary-room-facts" aria-label="Datos principales de la habitación">
-            {% if room.square_meters is not none %}<li><img src="{{ url_for('public_static', path='icons/measure.svg') }}" alt="" width="20" height="20"><span>{{ room.square_meters }} m²</span></li>{% endif %}
+            {% if room.square_meters is not none %}<li><img src="{{ url_for('public_static', path='icons/measure.svg') }}" alt="" width="20" height="20"><span>{{ room.square_meters|round|int }} m²</span></li>{% endif %}
             {% if room.has_private_bathroom %}<li><img src="{{ url_for('public_static', path='icons/shared-bathroom.svg') }}" alt="" width="20" height="20"><span>Baño privado</span></li>{% endif %}
             {% if room.shared_full_bathroom_count is not none and room.shared_full_bathroom_count > 0 %}<li><img src="{{ url_for('public_static', path='icons/shared-bathroom.svg') }}" alt="" width="20" height="20"><span>{{ room.shared_full_bathroom_count }} baño{% if room.shared_full_bathroom_count != 1 %}s{% endif %} completo{% if room.shared_full_bathroom_count != 1 %}s{% endif %} compartido{% if room.shared_full_bathroom_count != 1 %}s{% endif %}</span></li>{% endif %}
             {% if room.shared_toilet_count is not none and room.shared_toilet_count > 0 %}<li><img src="{{ url_for('public_static', path='icons/shared-toilet.svg') }}" alt="" width="20" height="20"><span>{{ room.shared_toilet_count }} aseo{% if room.shared_toilet_count != 1 %}s{% endif %} compartido{% if room.shared_toilet_count != 1 %}s{% endif %}</span></li>{% endif %}
@@ -82,4 +84,4 @@
     </div>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('public_static', path='gallery.js') }}?v=public-commercial-7" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('public_static', path='gallery.js') }}?v=public-performance-8" defer></script>{% endblock %}

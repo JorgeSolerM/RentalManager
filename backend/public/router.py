@@ -1,10 +1,13 @@
+from datetime import date
 import re
+from xml.sax.saxutils import escape
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from backend.core.business_time import business_today
 from backend.core.config import get_public_site_base_url, get_public_site_name
 from backend.core.media_storage import PUBLIC_IMAGE_WIDTHS, MediaFileStore
 from backend.models.media_asset import MediaAsset
@@ -17,9 +20,60 @@ templates = Jinja2Templates(directory="backend/public/templates")
 STORAGE_KEY_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 
 
+def _public_base_url(request: Request) -> str:
+    return (get_public_site_base_url() or str(request.base_url)).rstrip("/")
+
+
 @router.api_route("/", methods=["GET", "HEAD"], name="public_catalog")
 def public_catalog(request: Request, db: Session = Depends(get_public_db)):
-    rooms = PublicRoomService().list_rooms(db)
+    today = business_today()
+    raw_check_in = request.query_params.get("check_in", "").strip()
+    raw_check_out = request.query_params.get("check_out", "").strip()
+    selected_sort = PublicRoomService.normalize_sort(
+        request.query_params.get("sort", "recommended").strip()
+    )
+    raw_feature_values = request.query_params.getlist("features")
+    selected_features = tuple(dict.fromkeys(
+        slug.strip()
+        for value in raw_feature_values
+        for slug in value.split(",")
+        if slug.strip()
+    ))
+    errors = []
+    requested_check_in = requested_check_out = None
+    if bool(raw_check_in) != bool(raw_check_out):
+        errors.append("Indica tanto la fecha de entrada como la de salida.")
+    elif raw_check_in and raw_check_out:
+        try:
+            requested_check_in = date.fromisoformat(raw_check_in)
+            requested_check_out = date.fromisoformat(raw_check_out)
+        except ValueError:
+            errors.append("Las fechas indicadas no son válidas.")
+        else:
+            if requested_check_in < today:
+                errors.append("La fecha de entrada no puede estar en el pasado.")
+            elif requested_check_out <= requested_check_in:
+                errors.append("La fecha de salida debe ser posterior a la entrada.")
+
+    service = PublicRoomService()
+    available_features = service.list_filter_features(db)
+    allowed_slugs = {feature.slug for feature in available_features}
+    selected_features = tuple(slug for slug in selected_features if slug in allowed_slugs)
+    has_valid_dates = requested_check_in is not None and not errors
+    base_url = _public_base_url(request)
+    rooms = service.list_rooms(
+        db,
+        today=today,
+        requested_check_in=requested_check_in if has_valid_dates else None,
+        requested_check_out=requested_check_out if has_valid_dates else None,
+        feature_slugs=selected_features,
+        public_base_url=base_url,
+        sort=selected_sort,
+    )
+    hero_image = rooms[0].primary_image if rooms else None
+    contact_room_url = rooms[0].contact_url if rooms else None
+    page_url = f"{base_url}/"
+    og_image = f"{base_url}{hero_image.url_1600}" if hero_image else None
     return templates.TemplateResponse(
         request=request,
         name="catalog.html",
@@ -27,8 +81,49 @@ def public_catalog(request: Request, db: Session = Depends(get_public_db)):
             "request": request,
             "site_name": get_public_site_name(),
             "rooms": rooms,
-            "base_url": get_public_site_base_url(),
+            "base_url": base_url,
+            "filter_features": available_features,
+            "selected_features": set(selected_features),
+            "check_in": raw_check_in,
+            "check_out": raw_check_out,
+            "filter_errors": errors,
+            "filters_active": bool(raw_check_in or raw_check_out or selected_features),
+            "date_filter_active": has_valid_dates,
+            "selected_sort": selected_sort,
+            "hero_image": hero_image,
+            "header_contact_url": contact_room_url,
+            "page_url": page_url,
+            "og_image": og_image,
         },
+    )
+
+
+@router.api_route("/robots.txt", methods=["GET", "HEAD"], name="public_robots")
+def public_robots(request: Request):
+    base_url = _public_base_url(request)
+    return PlainTextResponse(
+        f"User-agent: *\nAllow: /\nSitemap: {base_url}/sitemap.xml\n",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+@router.api_route("/sitemap.xml", methods=["GET", "HEAD"], name="public_sitemap")
+def public_sitemap(request: Request, db: Session = Depends(get_public_db)):
+    base_url = _public_base_url(request)
+    rooms = PublicRoomService().list_rooms(db, public_base_url=base_url)
+    locations = [f"{base_url}/", *(
+        f"{base_url}/habitaciones/{room.slug}" for room in rooms
+    )]
+    entries = "".join(f"<url><loc>{escape(url)}</loc></url>" for url in locations)
+    document = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f"{entries}</urlset>"
+    )
+    return Response(
+        document,
+        media_type="application/xml",
+        headers={"Cache-Control": "public, max-age=300"},
     )
 
 
@@ -38,12 +133,12 @@ def public_catalog(request: Request, db: Session = Depends(get_public_db)):
 def public_room_detail(
     request: Request, slug: str, db: Session = Depends(get_public_db)
 ):
-    base_url = get_public_site_base_url()
+    base_url = _public_base_url(request)
     room = PublicRoomService().get_room(db, slug, public_base_url=base_url)
     if room is None:
         raise HTTPException(status_code=404)
-    canonical = f"{base_url}/habitaciones/{room.slug}" if base_url else None
-    og_image = f"{base_url}{room.primary_image.url_1600}" if base_url else None
+    canonical = f"{base_url}/habitaciones/{room.slug}"
+    og_image = f"{base_url}{room.primary_image.url_1600}"
     return templates.TemplateResponse(
         request=request,
         name="room_detail.html",
@@ -53,6 +148,7 @@ def public_room_detail(
             "room": room,
             "canonical": canonical,
             "og_image": og_image,
+            "header_contact_url": room.manager.whatsapp_url,
         },
     )
 

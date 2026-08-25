@@ -23,13 +23,27 @@ document.addEventListener("DOMContentLoaded", () => {
         (thumbnail) => thumbnail.getAttribute("aria-current") === "true",
     ));
     const imageCache = new Map();
-    const loadGalleryImage = (index) => {
+    const stage = gallery.querySelector(".gallery-stage");
+    const carouselVariant = () => {
+        const renderedWidth = stage?.getBoundingClientRect().width || window.innerWidth;
+        return renderedWidth * Math.min(window.devicePixelRatio || 1, 2) <= 768
+            ? "768"
+            : "1600";
+    };
+    const imageSource = (index, variant) => {
         const normalizedIndex = (index + thumbnails.length) % thumbnails.length;
-        const cached = imageCache.get(normalizedIndex);
+        return variant === "768"
+            ? thumbnails[normalizedIndex].dataset.srcSmall
+            : thumbnails[normalizedIndex].dataset.srcLarge;
+    };
+    const loadGalleryImage = (index, variant = carouselVariant()) => {
+        const normalizedIndex = (index + thumbnails.length) % thumbnails.length;
+        const cacheKey = `${normalizedIndex}:${variant}`;
+        const cached = imageCache.get(cacheKey);
         if (cached) return cached.promise;
-        const source = thumbnails[normalizedIndex];
+        const source = imageSource(normalizedIndex, variant);
         const image = new Image();
-        const entry = { status: "loading", image, url: source.dataset.src };
+        const entry = { status: "loading", image, url: source };
         entry.promise = new Promise((resolve, reject) => {
             image.addEventListener("load", async () => {
                 try {
@@ -45,24 +59,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 entry.status = "error";
                 reject(error);
             }, { once: true });
-            image.src = source.dataset.src;
+            image.src = source;
         });
-        imageCache.set(normalizedIndex, entry);
+        imageCache.set(cacheKey, entry);
         return entry.promise;
     };
     const preloadGallery = async () => {
-        await loadGalleryImage(activeIndex).catch(() => null);
+        const variant = carouselVariant();
+        await loadGalleryImage(activeIndex, variant).catch(() => null);
         await Promise.all([
-            loadGalleryImage(activeIndex + 1).catch(() => null),
-            loadGalleryImage(activeIndex - 1).catch(() => null),
+            loadGalleryImage(activeIndex + 1, variant).catch(() => null),
+            loadGalleryImage(activeIndex - 1, variant).catch(() => null),
         ]);
         const remaining = thumbnails
             .map((_thumbnail, index) => index)
-            .filter((index) => !imageCache.has(index));
+            .filter((index) => !imageCache.has(`${index}:${variant}`));
         const workers = Array.from({ length: Math.min(3, remaining.length) }, async () => {
             while (remaining.length) {
                 const index = remaining.shift();
-                await loadGalleryImage(index).catch(() => null);
+                await loadGalleryImage(index, variant).catch(() => null);
             }
         });
         await Promise.all(workers);
@@ -96,8 +111,8 @@ document.addEventListener("DOMContentLoaded", () => {
             animating = false;
             return;
         }
-        incomingSlide.src = selected.dataset.src;
-        incomingSlide.srcset = selected.dataset.srcset;
+        incomingSlide.removeAttribute("srcset");
+        incomingSlide.src = imageSource(targetIndex, carouselVariant());
         incomingSlide.alt = selected.dataset.alt;
         incomingSlide.setAttribute("aria-hidden", "false");
         incomingSlide.className = `gallery-main-image is-positioning ${direction > 0 ? "is-enter-from-right" : "is-enter-from-left"}`;
@@ -164,12 +179,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!lightboxImage || !lightboxCounter || !lightboxThumbnails.length) return;
         lightboxIndex = (index + lightboxThumbnails.length) % lightboxThumbnails.length;
         try {
-            await loadGalleryImage(lightboxIndex);
+            await loadGalleryImage(lightboxIndex, "1600");
         } catch (_error) {
             return;
         }
         const selected = lightboxThumbnails[lightboxIndex];
-        lightboxImage.src = selected.dataset.src;
+        lightboxImage.src = imageSource(lightboxIndex, "1600");
         lightboxImage.alt = selected.dataset.alt;
         lightboxCounter.textContent = `${lightboxIndex + 1} / ${lightboxThumbnails.length}`;
         lightboxThumbnails.forEach((thumbnail, thumbnailIndex) => {
@@ -188,6 +203,10 @@ document.addEventListener("DOMContentLoaded", () => {
         lightbox.hidden = false;
         document.body.classList.add("lightbox-open");
         lightboxClose?.focus();
+        void Promise.all([
+            loadGalleryImage(activeIndex + 1, "1600").catch(() => null),
+            loadGalleryImage(activeIndex - 1, "1600").catch(() => null),
+        ]);
     };
     const closeLightbox = () => {
         if (!lightbox || lightbox.hidden) return;
