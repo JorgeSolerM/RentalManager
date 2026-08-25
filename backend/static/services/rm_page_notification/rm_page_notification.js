@@ -31,6 +31,10 @@ const RMPageNotification = {
         ,publication_saved: "Publicación guardada."
         ,feature_saved: "Característica guardada."
         ,feature_deleted: "Característica eliminada."
+        ,room_configuration_copied: "Configuración copiada."
+        ,property_rules_saved: "Normas y requisitos guardados."
+        ,requirement_saved: "Requisito guardado."
+        ,requirement_deleted: "Requisito eliminado."
     },
 
     errorMessages: {
@@ -99,6 +103,17 @@ const RMPageNotification = {
         ,feature_inactive: "No se puede añadir una característica inactiva."
         ,feature_wrong_scope: "La característica no corresponde a este tipo de registro."
         ,room_commercial_values_invalid: "El precio y la superficie deben ser números válidos mayores o iguales que cero."
+        ,room_stay_conditions_invalid: "Las condiciones de estancia deben expresarse en meses válidos."
+        ,room_stay_range_invalid: "La estancia máxima no puede ser menor que la mínima."
+        ,room_feature_copy_same_room: "Selecciona una habitación de origen diferente."
+        ,property_rules_invalid: "Los valores de normas no son válidos."
+        ,property_age_invalid: "Las edades deben ser números no negativos."
+        ,property_age_range_invalid: "La edad máxima no puede ser menor que la mínima."
+        ,property_shared_bathroom_counts_invalid: "Los contadores de baños y aseos deben ser enteros mayores o iguales que cero."
+        ,requirement_invalid: "Los datos del requisito no son válidos."
+        ,requirement_slug_exists: "Ese slug de requisito ya existe."
+        ,requirement_inactive: "No se puede asignar un requisito inactivo."
+        ,requirement_in_use: "No se puede eliminar un requisito asignado. Desactívalo."
     },
 
     show() {
@@ -108,7 +123,15 @@ const RMPageNotification = {
         let shown = false;
 
         if (success && this.successMessages[success]) {
-            RMNotification.success(this.successMessages[success]);
+            let message = this.successMessages[success];
+            if (success === "room_configuration_copied") {
+                const source = params.get("source");
+                const omitted = Number(params.get("omitted") || 0);
+                message = omitted > 0
+                    ? `Configuración copiada. ${omitted} elemento${omitted === 1 ? "" : "s"} no aplicable${omitted === 1 ? "" : "s"} fue${omitted === 1 ? "" : "ron"} omitido${omitted === 1 ? "" : "s"}.`
+                    : `Configuración copiada desde ${source || "la habitación seleccionada"}.`;
+            }
+            RMNotification.success(message);
             shown = true;
         }
 
@@ -123,6 +146,8 @@ const RMPageNotification = {
 
         params.delete("success");
         params.delete("error");
+        params.delete("source");
+        params.delete("omitted");
 
         const query = params.toString();
         const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;

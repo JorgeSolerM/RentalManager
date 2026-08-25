@@ -4,6 +4,7 @@ import re
 from sqlalchemy.orm import Session
 
 from backend.core.business_time import business_today
+from backend.core.public_availability import first_commercial_gap
 from backend.models.feature import Feature
 from backend.repositories.publication_repository import PublicationRepository
 from backend.schemas.publication_schema import (
@@ -15,6 +16,7 @@ from backend.schemas.publication_schema import (
 
 
 PUBLIC_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+BED_CAPACITY_BY_SLUG = {"cama-individual": 1, "cama-doble": 2}
 
 
 class PublicationService:
@@ -41,6 +43,17 @@ class PublicationService:
             return False
         price = Decimal(value)
         return price.is_finite() and price > 0
+
+    @staticmethod
+    def room_capacity(room) -> int | None:
+        capacities = [
+            capacity
+            for feature in room.features
+            if feature.active
+            for slug, capacity in BED_CAPACITY_BY_SLUG.items()
+            if feature.slug == slug
+        ]
+        return capacities[0] if len(capacities) == 1 else None
 
     @staticmethod
     def _ready_primary(photos) -> bool:
@@ -125,6 +138,8 @@ class PublicationService:
             reasons.append("property_public_location_required")
         if not self._valid_slug(property_obj.public_slug):
             reasons.append("property_public_slug_required")
+        if property_obj.manager is None or not property_obj.manager.active:
+            reasons.append("property_manager_required")
 
         if not room.active:
             reasons.append("room_inactive")
@@ -138,6 +153,17 @@ class PublicationService:
             reasons.append("room_public_slug_required")
         if not self._price_is_valid(room.base_price):
             reasons.append("room_price_invalid")
+        if self.room_capacity(room) is None:
+            reasons.append("room_bed_capacity_required")
+        if room.minimum_stay_months is None:
+            reasons.append("room_minimum_stay_required")
+        elif room.minimum_stay_months < 0:
+            reasons.append("room_minimum_stay_negative")
+        if room.maximum_stay_months is not None:
+            if room.maximum_stay_months <= 0:
+                reasons.append("room_maximum_stay_invalid")
+            elif room.minimum_stay_months is not None and room.minimum_stay_months > 0 and room.maximum_stay_months < room.minimum_stay_months:
+                reasons.append("room_stay_range_invalid")
 
         primary_photo = self._effective_primary_from_room(room)
         photo_source = primary_photo.source if primary_photo else None
@@ -175,24 +201,11 @@ class PublicationService:
         intervals = self.repository.list_relevant_booking_intervals(
             db, room_id, today
         )
-        merged = []
-        for start, end in intervals:
-            if merged and start <= merged[-1][1]:
-                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-            else:
-                merged.append((start, end))
-
-        current = next(
-            (
-                (start, end)
-                for start, end in merged
-                if start <= today < end
-            ),
-            None,
-        )
-        if current is None:
-            return PublicAvailability(status="available_now")
+        room = self.repository.get_room_candidate(db, room_id)
+        minimum = room.minimum_stay_months if room and room.minimum_stay_months is not None else 0
+        status, available_from, available_until = first_commercial_gap(intervals, today, minimum)
         return PublicAvailability(
-            status="available_from",
-            available_from=current[1],
+            status=status,
+            available_from=available_from,
+            available_until=available_until,
         )

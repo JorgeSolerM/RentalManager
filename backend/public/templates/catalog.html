@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Habitaciones · {{ site_name }}{% endblock %}
+{% block meta_description %}Habitaciones publicadas para alquiler mensual, con precio, características y disponibilidad actualizada.{% endblock %}
+{% block seo %}{% if base_url %}<link rel="canonical" href="{{ base_url }}/">{% endif %}{% endblock %}
+{% block content %}
+<section class="catalog-intro">
+    <p class="eyebrow">Alquiler mensual</p>
+    <h1>Encuentra tu habitación</h1>
+    <p>Consulta espacios disponibles, características y fotografías.</p>
+</section>
+{% if rooms %}
+<section class="room-grid" aria-label="Habitaciones publicadas">
+    {% for room in rooms %}
+    <article class="room-card">
+        <a class="room-card-image" href="{{ url_for('public_room_detail', slug=room.slug) }}">
+            <img src="{{ room.primary_image.url_768 }}" srcset="{{ room.primary_image.srcset }}" sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, 33vw" alt="{{ room.title }}" loading="lazy" width="{{ room.primary_image.width }}" height="{{ room.primary_image.height }}">
+        </a>
+        <div class="room-card-body">
+            <p class="room-location">{{ room.location }}</p>
+            <h2><a href="{{ url_for('public_room_detail', slug=room.slug) }}">{{ room.title }}</a></h2>
+            <div class="room-facts">
+                <strong>{{ '%.0f'|format(room.price_monthly) }} € <span>/ mes</span></strong>
+                {% if room.square_meters is not none %}<span>{{ room.square_meters }} m²</span>{% endif %}
+            </div>
+            {% if room.features %}<ul class="feature-chips" aria-label="Características principales">{% for feature in room.features %}<li>{{ feature.name }}</li>{% endfor %}</ul>{% endif %}
+            <p class="availability availability-{{ room.availability.status }}">
+                {% if room.availability.status == 'available_now' %}Disponible ahora{% elif room.availability.status == 'available_period' %}Disponible del {{ room.availability.available_from.strftime('%d/%m/%Y') }} al {{ room.availability.available_until.strftime('%d/%m/%Y') }}{% else %}Disponible desde {{ room.availability.available_from.strftime('%d/%m/%Y') }}{% endif %}
+            </p>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+<section class="empty-state"><h2>No hay habitaciones publicadas en este momento</h2><p>Vuelve a consultarlo próximamente.</p></section>
+{% endif %}
+{% endblock %}

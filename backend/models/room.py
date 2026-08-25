@@ -1,6 +1,6 @@
 import secrets
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, Numeric, String, Text, text
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
@@ -15,6 +15,24 @@ class Room(Base):
             "uq_rooms_master_calendar_token",
             "master_calendar_token",
             unique=True,
+        ),
+        CheckConstraint(
+            "minimum_stay_months IS NULL OR minimum_stay_months >= 0",
+            name="ck_rooms_minimum_stay_months_nonnegative",
+        ),
+        CheckConstraint(
+            "maximum_stay_months IS NULL OR maximum_stay_months > 0",
+            name="ck_rooms_maximum_stay_months_positive",
+        ),
+        CheckConstraint(
+            "minimum_stay_months IS NULL OR maximum_stay_months IS NULL "
+            "OR minimum_stay_months = 0 OR maximum_stay_months >= minimum_stay_months",
+            name="ck_rooms_stay_months_compatible",
+        ),
+        CheckConstraint(
+            "tenant_gender_preference IS NULL OR "
+            "tenant_gender_preference IN ('any', 'male', 'female')",
+            name="ck_rooms_tenant_gender_preference",
         ),
         Index(
             "uq_rooms_public_slug",
@@ -62,6 +80,12 @@ class Room(Base):
         nullable=False,
     )
 
+    minimum_stay_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    maximum_stay_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tenant_gender_preference: Mapped[str | None] = mapped_column(
+        String(10), nullable=True, default="any"
+    )
+
     public_title: Mapped[str | None] = mapped_column(String(160), nullable=True)
     public_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     public_slug: Mapped[str | None] = mapped_column(String(180), nullable=True)
@@ -102,6 +126,13 @@ class Room(Base):
     photos: Mapped[list["RoomPhoto"]] = relationship(
         back_populates="room",
         order_by="RoomPhoto.position, RoomPhoto.id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    public_highlights: Mapped[list["RoomPublicHighlight"]] = relationship(
+        back_populates="room",
+        order_by="RoomPublicHighlight.position",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )

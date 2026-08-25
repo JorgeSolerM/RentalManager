@@ -52,6 +52,16 @@ class Booking(Base):
         nullable=False,
     )
 
+    expected_arrival_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+    )
+
+    expected_departure_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+    )
+
     price: Mapped[float | None] = mapped_column(
         Numeric(10, 2),
         nullable=True,
@@ -84,6 +94,14 @@ class Booking(Base):
         DateTime,
         nullable=True,
     )
+
+    @property
+    def effective_arrival_date(self) -> date:
+        return self.expected_arrival_date or self.check_in
+
+    @property
+    def effective_departure_date(self) -> date:
+        return self.expected_departure_date or self.check_out
 
     __table_args__ = (
         Index(

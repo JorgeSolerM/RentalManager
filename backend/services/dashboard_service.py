@@ -45,7 +45,9 @@ class DashboardService:
         favicon = platform_favicon(slug, platform.favicon if platform else None)
         return slug, name, favicon
 
-    def _movement(self, booking, movement_date: date) -> DashboardMovement:
+    def _movement(
+        self, booking, movement_date: date, today: date
+    ) -> DashboardMovement:
         slug, name, favicon = self._origin(booking)
         return DashboardMovement(
             booking_id=booking.id,
@@ -54,6 +56,7 @@ class DashboardService:
             room_display_order=booking.room.display_order,
             property_name=booking.room.property.name,
             date=movement_date,
+            days_remaining=max(0, (movement_date - today).days),
             guest_name=(booking.guest.full_name if booking.guest else "Huésped desconocido"),
             origin_name=name,
             origin_slug=slug,
@@ -118,7 +121,7 @@ class DashboardService:
 
         rooms = self.repository.list_active_rooms(db)
         bookings = self.repository.list_operational_bookings(
-            db, today, availability_end
+            db, today, availability_end, movement_end
         )
         calendars = self.repository.list_room_calendars(db)
         overlaps = self.repository.list_operational_overlaps(db, today)
@@ -129,14 +132,14 @@ class DashboardService:
             if booking.check_in <= today < booking.check_out
         }
         arrivals = [
-            self._movement(booking, booking.check_in)
+            self._movement(booking, booking.effective_arrival_date, today)
             for booking in bookings
-            if today <= booking.check_in <= movement_end
+            if today <= booking.effective_arrival_date <= movement_end
         ]
         departures = [
-            self._movement(booking, booking.check_out)
+            self._movement(booking, booking.effective_departure_date, today)
             for booking in bookings
-            if today <= booking.check_out <= movement_end
+            if today <= booking.effective_departure_date <= movement_end
         ]
         movement_key = lambda item: (
             item.date, item.property_name, item.room_display_order,
@@ -224,7 +227,7 @@ class DashboardService:
                 continue
             relevant = (
                 booking.check_in <= today < booking.check_out
-                or today <= booking.check_in <= movement_end
+                or today <= booking.effective_arrival_date <= movement_end
             )
             if not relevant or booking.id in unknown_seen:
                 continue
@@ -234,7 +237,7 @@ class DashboardService:
                 severity="attention", title="Huésped desconocido",
                 detail=(
                     f"{booking.room.code} · entrada "
-                    f"{booking.check_in.strftime('%d/%m/%Y')}"
+                    f"{booking.effective_arrival_date.strftime('%d/%m/%Y')}"
                 ),
                 room_id=booking.room_id, room_code=booking.room.code,
                 booking_id=booking.id,

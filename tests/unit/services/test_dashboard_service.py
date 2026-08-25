@@ -32,8 +32,10 @@ class FakeRepository:
         self.calls.append("rooms")
         return self.rooms
 
-    def list_operational_bookings(self, _db, today, availability_end):
-        self.calls.append(("bookings", today, availability_end))
+    def list_operational_bookings(
+        self, _db, today, availability_end, movement_end
+    ):
+        self.calls.append(("bookings", today, availability_end, movement_end))
         return self.bookings
 
     def list_room_calendars(self, _db):
@@ -57,10 +59,22 @@ def room(room_id, code, property_name="Property", display_order=None):
     )
 
 
-def booking(booking_id, room_obj, check_in, check_out, guest_name="Guest"):
+def booking(
+    booking_id,
+    room_obj,
+    check_in,
+    check_out,
+    guest_name="Guest",
+    expected_arrival_date=None,
+    expected_departure_date=None,
+):
     return ns(
         id=booking_id, room_id=room_obj.id, room=room_obj,
         check_in=check_in, check_out=check_out,
+        expected_arrival_date=expected_arrival_date,
+        expected_departure_date=expected_departure_date,
+        effective_arrival_date=expected_arrival_date or check_in,
+        effective_departure_date=expected_departure_date or check_out,
         guest_id=(booking_id if guest_name is not None else None),
         guest=(ns(full_name=guest_name) if guest_name is not None else None),
         room_calendar_id=None, room_calendar=None, origin="manual",
@@ -154,6 +168,55 @@ def test_movement_window_includes_day_fourteen_excludes_day_fifteen_and_is_stabl
         FakeSyncRunner(), lambda: NOW,
     ).get_dashboard(None, TODAY)
     assert [item.booking_id for item in data.upcoming_arrivals] == [2, 1]
+
+
+def test_movement_days_remaining_use_arrival_and_departure_dates():
+    target = room(1, "R1")
+    bookings = [
+        booking(1, target, TODAY, TODAY + timedelta(days=1)),
+        booking(2, target, TODAY + timedelta(days=1), TODAY + timedelta(days=4)),
+        booking(3, target, TODAY + timedelta(days=3), TODAY + timedelta(days=6)),
+    ]
+    data = DashboardService(
+        FakeRepository([target], bookings, [], []),
+        FakeSyncRunner(), lambda: NOW,
+    ).get_dashboard(None, TODAY)
+
+    assert [item.days_remaining for item in data.upcoming_arrivals] == [0, 1, 3]
+    assert [item.days_remaining for item in data.upcoming_departures] == [1, 4, 6]
+
+
+def test_dashboard_uses_expected_dates_only_for_operational_movements():
+    target = room(1, "R1")
+    moved = booking(
+        1,
+        target,
+        TODAY,
+        TODAY + timedelta(days=10),
+        expected_arrival_date=TODAY + timedelta(days=1),
+        expected_departure_date=TODAY + timedelta(days=3),
+    )
+    fallback = booking(
+        2,
+        target,
+        TODAY + timedelta(days=4),
+        TODAY + timedelta(days=6),
+    )
+    data = DashboardService(
+        FakeRepository([target], [moved, fallback], [], []),
+        FakeSyncRunner(), lambda: NOW,
+    ).get_dashboard(None, TODAY)
+
+    assert [(item.booking_id, item.date, item.days_remaining) for item in data.upcoming_arrivals] == [
+        (1, TODAY + timedelta(days=1), 1),
+        (2, TODAY + timedelta(days=4), 4),
+    ]
+    assert [(item.booking_id, item.date, item.days_remaining) for item in data.upcoming_departures] == [
+        (1, TODAY + timedelta(days=3), 3),
+        (2, TODAY + timedelta(days=6), 6),
+    ]
+    assert data.summary.occupied_rooms == 1
+    assert data.upcoming_availability[0].available_from == TODAY + timedelta(days=10)
 
 
 def test_contiguous_reservations_are_merged_before_reporting_availability():
@@ -307,6 +370,34 @@ def test_repository_backed_dashboard_keeps_four_selects_with_more_rooms(
     finally:
         event.remove(db_session.bind, "before_cursor_execute", record)
     assert len(statements) == 4
+
+
+def test_repository_includes_movement_outside_contractual_query_window(db_session):
+    property_obj = Property(
+        name="Operational Dates", address="A", city="Madrid", owner="O", active=True
+    )
+    room_obj = Room(
+        property=property_obj, code="OP-1", display_order=1,
+        base_price=500, active=True,
+    )
+    booking_obj = Booking(
+        room=room_obj,
+        origin="manual",
+        check_in=TODAY + timedelta(days=40),
+        check_out=TODAY + timedelta(days=50),
+        expected_arrival_date=TODAY + timedelta(days=5),
+    )
+    db_session.add_all([property_obj, room_obj, booking_obj])
+    db_session.commit()
+
+    data = DashboardService(now_factory=lambda: NOW).get_dashboard(
+        db_session, TODAY
+    )
+
+    assert [(item.booking_id, item.date) for item in data.upcoming_arrivals] == [
+        (booking_obj.id, TODAY + timedelta(days=5))
+    ]
+    assert data.summary.occupied_rooms == 0
 
 
 def test_repository_excludes_inactive_rooms_and_historical_overlap_incidents(

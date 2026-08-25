@@ -112,6 +112,12 @@ def test_sync_creates_idempotently_then_updates_existing_booking(db_session):
     )
     first = service_for([first_event]).synchronize(db_session, calendar.id)
     first_sync_at = calendar.last_sync_at
+    persisted = db_session.scalar(
+        select(Booking).where(Booking.external_reference == "UID-1")
+    )
+    persisted.expected_arrival_date = date(2026, 9, 3)
+    persisted.expected_departure_date = date(2026, 9, 4)
+    db_session.commit()
     second = service_for([first_event]).synchronize(db_session, calendar.id)
     moved = service_for([imported(
         "UID-1", date(2026, 9, 2), date(2026, 9, 6), "Moved"
@@ -128,6 +134,8 @@ def test_sync_creates_idempotently_then_updates_existing_booking(db_session):
     assert bookings[0].origin == calendar.platform.slug
     assert bookings[0].guest_id is None and bookings[0].price is None
     assert bookings[0].check_in == date(2026, 9, 2)
+    assert bookings[0].expected_arrival_date == date(2026, 9, 3)
+    assert bookings[0].expected_departure_date == date(2026, 9, 4)
     assert first_sync_at is not None
 
 

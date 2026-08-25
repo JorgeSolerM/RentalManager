@@ -17,6 +17,10 @@ class BookingResponse(BaseModel):
 
     check_out: date
 
+    expected_arrival_date: date | None = None
+
+    expected_departure_date: date | None = None
+
     price: float | None
 
     notes: str | None

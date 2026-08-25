@@ -105,6 +105,14 @@
 
         </p>
 
+        {% if current_booking.expected_arrival_date or current_booking.expected_departure_date %}
+        <p class="small text-muted">
+            {% if current_booking.expected_arrival_date %}Llegada prevista: {{ current_booking.expected_arrival_date | date }}{% endif %}
+            {% if current_booking.expected_arrival_date and current_booking.expected_departure_date %} · {% endif %}
+            {% if current_booking.expected_departure_date %}Salida prevista: {{ current_booking.expected_departure_date | date }}{% endif %}
+        </p>
+        {% endif %}
+
         <hr>
 
         <h5>
@@ -184,6 +192,14 @@
                     {% endif %}
 
                 </a>
+
+                {% if booking.expected_arrival_date or booking.expected_departure_date %}
+                <div class="small text-muted ms-3">
+                    {% if booking.expected_arrival_date %}Llegada prevista: {{ booking.expected_arrival_date | date }}{% endif %}
+                    {% if booking.expected_arrival_date and booking.expected_departure_date %} · {% endif %}
+                    {% if booking.expected_departure_date %}Salida prevista: {{ booking.expected_departure_date | date }}{% endif %}
+                </div>
+                {% endif %}
 
             </li>
 
@@ -510,7 +526,7 @@
 
 {% block scripts %}
 
-<script src="{{ url_for('static', path='js/bookings.js') }}"></script>
+<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-operational-1"></script>
 <script src="{{ url_for('static', path='js/master_calendar.js') }}"></script>
 <script src="{{ url_for('static', path='js/room_calendar_actions.js') }}"></script>
 <script src="{{ url_for('static', path='js/photo_upload.js') }}"></script>

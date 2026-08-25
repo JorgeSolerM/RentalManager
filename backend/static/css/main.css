@@ -2,6 +2,11 @@
    GENERAL
 ===================================================== */
 
+:root {
+    --rm-global-header-height: 3.1875rem;
+    --rm-main-content-padding: 1.5rem;
+}
+
 body {
     background: #f8f9fa;
     font-family: Arial, Helvetica, sans-serif;
@@ -31,6 +36,7 @@ main {
 
     body > header {
         flex: 0 0 auto;
+        min-height: var(--rm-global-header-height);
     }
 
     .app-shell {
@@ -130,6 +136,63 @@ h2 {
 }
 
 /* =====================================================
+   PUBLICACIÓN DE ROOM
+===================================================== */
+
+.room-publication-page {
+    --room-publication-header-height: 5.75rem;
+    --room-publication-column-gap: 1.5rem;
+    min-width: 0;
+}
+
+@media (min-width: 992px) {
+    .room-publication-header {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        height: var(--room-publication-header-height);
+        margin-bottom: 0;
+        background: var(--rm-background);
+    }
+
+    .room-publication-header::before {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: 100%;
+        left: 0;
+        height: var(--rm-main-content-padding);
+        background: var(--rm-background);
+        pointer-events: none;
+    }
+
+    .room-publication-columns {
+        padding-top: var(--room-publication-column-gap);
+    }
+
+    .room-publication-main,
+    .room-publication-aside {
+        min-width: 0;
+    }
+
+    .room-publication-aside {
+        position: sticky;
+        top: calc(var(--room-publication-header-height) + var(--room-publication-column-gap));
+        align-self: flex-start;
+        max-height: calc(
+            100dvh
+            - var(--rm-global-header-height)
+            - (2 * var(--rm-main-content-padding))
+            - var(--room-publication-header-height)
+            - var(--room-publication-column-gap)
+        );
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
+}
+
+/* =====================================================
    TABLAS
 ===================================================== */
 
@@ -201,6 +264,18 @@ h2 {
 .room-platform-icon-review img {
     filter: grayscale(100%);
     opacity: .62;
+}
+
+.room-publication-status {
+    background: #a8afb7;
+    border-radius: 50%;
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+}
+
+.room-publication-status.is-published {
+    background: #2e9b62;
 }
 
 /* =====================================================
@@ -378,6 +453,49 @@ h2 {
     align-items: center;
     gap: .5rem;
     flex-wrap: wrap;
+}
+
+.property-modal-content {
+    width: 720px;
+}
+
+.property-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+}
+
+.property-form-notes {
+    grid-column: 1 / -1;
+}
+
+.property-legacy-address {
+    grid-column: 1 / -1;
+    margin: -2px 0 16px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #f5f6f8;
+    color: #4b5563;
+    font-size: 14px;
+}
+
+.property-legacy-address small {
+    display: block;
+    margin-top: 3px;
+}
+
+@media (max-width: 640px) {
+    .property-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .property-form-notes {
+        grid-column: auto;
+    }
+
+    .property-legacy-address {
+        grid-column: auto;
+    }
 }
 
 .rm-photo-upload {

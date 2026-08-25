@@ -2,12 +2,18 @@
 {% block title %}Publicación · {{ property.name }}{% endblock %}
 {% block content %}
 <div class="page-header"><div><a href="/properties/">← Propiedades</a><h1 class="mt-2">{{ property.name }}</h1></div></div>
+{% set publication_section = 'data' %}{% include "components/property_publication_nav.html" %}
 <div class="row g-4"><div class="col-lg-8"><div class="card"><div class="card-body">
 <h2 class="h5">Publicación</h2>
 <form method="post" action="/properties/{{ property.id }}/publication">
     <div class="mb-3"><label class="form-label">Título público</label><input class="form-control" name="public_title" value="{{ property.public_title or '' }}"></div>
     <div class="mb-3"><label class="form-label">Ubicación pública</label><input class="form-control" name="public_location" value="{{ property.public_location or '' }}"><div class="form-text">Texto visible para clientes. Ejemplo: Zona Universidad Miguel Hernández · Elche. No se publica la dirección interna.</div></div>
     <div class="mb-3"><label class="form-label">Slug estable</label><input class="form-control" name="public_slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value="{{ property.public_slug or '' }}"><div class="form-text">Minúsculas y guiones. Cambiar el título no modifica este valor.</div></div>
+    <div class="mb-3"><label class="form-label">Gestor responsable</label><select class="form-select" name="manager_id"><option value="">Sin asignar</option>{% for manager in managers %}<option value="{{ manager.id }}" {% if property.manager_id == manager.id %}selected{% endif %}>{{ manager.name }}{% if not manager.active %} · inactivo{% endif %}</option>{% endfor %}</select><div class="form-text">Las habitaciones heredan este gestor.</div></div>
+    <fieldset class="mb-3"><legend class="h6">Baños compartidos</legend><div class="row g-3">
+        <div class="col-sm-6"><label class="form-label" for="shared-full-bathroom-count">Baños completos compartidos</label><input class="form-control" id="shared-full-bathroom-count" name="shared_full_bathroom_count" type="number" min="0" step="1" value="{{ property.shared_full_bathroom_count if property.shared_full_bathroom_count is not none else '' }}"></div>
+        <div class="col-sm-6"><label class="form-label" for="shared-toilet-count">Aseos compartidos</label><input class="form-control" id="shared-toilet-count" name="shared_toilet_count" type="number" min="0" step="1" value="{{ property.shared_toilet_count if property.shared_toilet_count is not none else '' }}"></div>
+    </div><div class="form-text">Solo zonas compartidas. Los baños privados se configuran como característica de cada habitación.</div></fieldset>
     {% set feature_options = features %}{% set assigned_features = property.features %}{% include "components/publication_features.html" %}
     <label class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_published" {% if property.is_published %}checked{% endif %}> <span class="form-check-label">Habilitar comercialmente las habitaciones de este inmueble</span></label>
     <button class="btn btn-primary" type="submit">Guardar publicación</button>

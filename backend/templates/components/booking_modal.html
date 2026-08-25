@@ -19,7 +19,7 @@
             <div class="modal-body">
 
                 <div class="alert alert-info d-none" id="bookingImportedNotice" role="status">
-                    Reserva importada: únicamente puede modificarse el huésped.
+                    Reserva importada: únicamente pueden modificarse el huésped y las fechas previstas.
                 </div>
 
                 <div class="mb-3">
@@ -55,6 +55,42 @@
                     </div>
 
                 </div>
+
+                <fieldset class="mt-3 border rounded p-3">
+
+                    <legend class="float-none w-auto px-1 fs-6 mb-2">
+                        Llegada y salida previstas
+                    </legend>
+
+                    <div class="row">
+
+                        <div class="col">
+
+                            <label for="bookingExpectedArrivalDate" class="form-label">
+                                Llegada prevista
+                            </label>
+
+                            <input type="date" class="form-control" id="bookingExpectedArrivalDate" name="expected_arrival_date">
+
+                        </div>
+
+                        <div class="col">
+
+                            <label for="bookingExpectedDepartureDate" class="form-label">
+                                Salida prevista
+                            </label>
+
+                            <input type="date" class="form-control" id="bookingExpectedDepartureDate" name="expected_departure_date">
+
+                        </div>
+
+                    </div>
+
+                    <p class="form-text mb-0 mt-2">
+                        Si se dejan vacías, se utilizarán las fechas de la reserva.
+                    </p>
+
+                </fieldset>
 
                 <div class="mt-3">
 

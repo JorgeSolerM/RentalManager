@@ -21,11 +21,13 @@
 .dashboard-card-header h3 { margin:0; font-size:1rem; }
 .dashboard-card-header span,.dashboard-card-header a { color:var(--bs-secondary-color); font-size:.8rem; }
 .dashboard-list { display:flex; flex-direction:column; }
-.dashboard-movement-row { display:grid; grid-template-columns:6rem minmax(8rem,1fr) minmax(9rem,1.3fr) minmax(8rem,auto); align-items:center; gap:.75rem; padding:.7rem 1rem; border-bottom:1px solid var(--bs-border-color-translucent); }
+.dashboard-movement-row { display:grid; grid-template-columns:4.75rem minmax(8rem,1fr) minmax(9rem,1.3fr) minmax(8rem,auto); align-items:center; gap:.75rem; padding:.7rem 1rem; border-bottom:1px solid var(--bs-border-color-translucent); }
 .dashboard-movement-row:last-child,.dashboard-incident:last-child,.dashboard-availability-row:last-child { border-bottom:0; }
-.dashboard-movement-row time { font-weight:600; font-variant-numeric:tabular-nums; }
+.dashboard-days-remaining { font-weight:700; white-space:nowrap; }
 .dashboard-movement-main { display:flex; flex-direction:column; min-width:0; }
 .dashboard-movement-main span,.dashboard-availability-row span { color:var(--bs-secondary-color); font-size:.76rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dashboard-booking-main { display:flex; flex-direction:column; min-width:0; }
+.dashboard-booking-main time { color:var(--bs-secondary-color); font-size:.76rem; font-variant-numeric:tabular-nums; }
 .dashboard-booking-link { color:inherit; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dashboard-origin { display:flex; align-items:center; gap:.35rem; color:var(--bs-secondary-color); font-size:.8rem; white-space:nowrap; }
 .dashboard-platform-icon { width:16px; height:16px; max-width:16px; max-height:16px; object-fit:contain; display:block; flex:0 0 16px; }
@@ -40,6 +42,6 @@
 .dashboard-availability-row > div { display:flex; flex-direction:column; min-width:0; }.dashboard-availability-row p { margin:0; text-align:right; font-size:.85rem; }
 .dashboard-platforms { display:flex; flex-direction:column; }.dashboard-platform-row { display:grid; grid-template-columns:16px minmax(0,1fr) auto; align-items:center; gap:.6rem; padding:.75rem 1rem; border-bottom:1px solid var(--bs-border-color-translucent); }.dashboard-platform-row:last-child { border-bottom:0; }.dashboard-platform-row span { color:var(--bs-secondary-color); font-size:.82rem; }.dashboard-platform-review img { filter:grayscale(1); opacity:.62; }
 .dashboard-reliable-update { margin:0; padding:.65rem 1rem; border-top:1px solid var(--bs-border-color-translucent); color:var(--bs-secondary-color); font-size:.78rem; }
-@media (max-width:1100px) { .dashboard-movement-row { grid-template-columns:5.5rem minmax(7rem,1fr) minmax(8rem,1fr); } .dashboard-origin { grid-column:2/4; } }
+@media (max-width:1100px) { .dashboard-movement-row { grid-template-columns:4.75rem minmax(7rem,1fr) minmax(8rem,1fr); } .dashboard-origin { grid-column:2/4; } }
 @media (max-width:850px) { .dashboard-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .dashboard-occupancy { grid-column:1/-1; } .dashboard-movements,.dashboard-secondary-grid { grid-template-columns:1fr; } }
-@media (max-width:576px) { .dashboard-header { align-items:flex-start; flex-direction:column; } .dashboard-summary { grid-template-columns:1fr; gap:.65rem; } .dashboard-occupancy { grid-column:auto; } .dashboard-kpi { padding:.8rem; } .dashboard-movement-row { grid-template-columns:5.5rem minmax(0,1fr); } .dashboard-booking-link,.dashboard-origin { grid-column:2; } .dashboard-incident { grid-template-columns:1fr; gap:.35rem; } .dashboard-availability-row { align-items:flex-start; flex-direction:column; }.dashboard-availability-row p { text-align:left; }.dashboard-platform-row { grid-template-columns:16px minmax(0,1fr); }.dashboard-platform-row span { grid-column:2; } }
+@media (max-width:576px) { .dashboard-header { align-items:flex-start; flex-direction:column; } .dashboard-summary { grid-template-columns:1fr; gap:.65rem; } .dashboard-occupancy { grid-column:auto; } .dashboard-kpi { padding:.8rem; } .dashboard-movement-row { grid-template-columns:4.75rem minmax(0,1fr); } .dashboard-booking-main,.dashboard-origin { grid-column:2; } .dashboard-incident { grid-template-columns:1fr; gap:.35rem; } .dashboard-availability-row { align-items:flex-start; flex-direction:column; }.dashboard-availability-row p { text-align:left; }.dashboard-platform-row { grid-template-columns:16px minmax(0,1fr); }.dashboard-platform-row span { grid-column:2; } }

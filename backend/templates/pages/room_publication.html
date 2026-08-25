@@ -1,9 +1,10 @@
 {% extends "layouts/base.html" %}
 {% block title %}Publicación · {{ room.code }}{% endblock %}
 {% block content %}
-<div class="page-header"><div><a href="/rooms/property/{{ property.id }}">← Habitaciones de {{ property.name }}</a><h1 class="mt-2">{{ room.code }}</h1></div></div>
-<div class="row g-4">
-<div class="col-lg-8"><div class="card"><div class="card-body">
+<div class="room-publication-page">
+<div class="page-header room-publication-header"><div><a href="/rooms/property/{{ property.id }}">← Habitaciones de {{ property.name }}</a><h1 class="mt-2">{{ room.code }}</h1></div></div>
+<div class="row g-4 room-publication-columns">
+<div class="col-lg-8 room-publication-main"><div class="card"><div class="card-body">
     <h2 class="h5">Publicación</h2>
     <form method="post" action="/rooms/{{ room.id }}/publication">
         <div class="mb-3"><label class="form-label">Título público</label><input class="form-control" name="public_title" value="{{ room.public_title or '' }}"></div>
@@ -12,15 +13,22 @@
             <div class="col-md-6"><label class="form-label">Precio mensual</label><div class="input-group"><input class="form-control" type="number" name="base_price" step="0.01" min="0" value="{{ room.base_price if room.base_price is not none else '' }}"><span class="input-group-text">€</span></div></div>
             <div class="col-md-6"><label class="form-label">Superficie</label><div class="input-group"><input class="form-control" type="number" name="square_meters" step="0.01" min="0" value="{{ room.square_meters if room.square_meters is not none else '' }}"><span class="input-group-text">m²</span></div></div>
         </div>
+        <div class="mb-3"><label class="form-label" for="tenant-gender-preference">Preferencia de inquilino</label><select class="form-select" id="tenant-gender-preference" name="tenant_gender_preference"><option value="any" {% if (room.tenant_gender_preference or 'any') == 'any' %}selected{% endif %}>Indiferente</option><option value="male" {% if room.tenant_gender_preference == 'male' %}selected{% endif %}>Chico</option><option value="female" {% if room.tenant_gender_preference == 'female' %}selected{% endif %}>Chica</option></select></div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6"><label class="form-label">Estancia mínima</label><div class="input-group"><input class="form-control" type="number" name="minimum_stay_months" min="0" step="1" value="{{ room.minimum_stay_months if room.minimum_stay_months is not none else '' }}"><span class="input-group-text">meses</span></div><div class="form-text">0 = Sin estancia mínima</div></div>
+            <div class="col-md-6"><label class="form-label">Estancia máxima</label><div class="input-group"><input class="form-control" type="number" name="maximum_stay_months" min="1" step="1" value="{{ room.maximum_stay_months if room.maximum_stay_months is not none else '' }}"><span class="input-group-text">meses</span></div><div class="form-text">Vacío = Sin límite</div></div>
+        </div>
         {% set feature_options = features %}{% set assigned_features = room.features %}{% include "components/publication_features.html" %}
+        <fieldset class="mb-3"><legend class="h6">Características destacadas</legend><p class="form-text">Selecciona hasta cuatro características efectivas para el resumen lateral.</p><div class="row g-3"><div class="col-md-6"><div class="small fw-semibold mb-2">De la habitación</div>{% for feature in highlight_options %}{% if feature in room.features %}<label class="form-check"><input class="form-check-input" type="checkbox" name="highlight_feature_ids" value="{{ feature.id }}" {% if feature.id in selected_highlight_ids %}checked{% endif %}><span class="form-check-label">{{ feature.name }}</span></label>{% endif %}{% endfor %}</div><div class="col-md-6"><div class="small fw-semibold mb-2">Del inmueble</div>{% for feature in highlight_options %}{% if feature in property.features and feature not in room.features %}<label class="form-check"><input class="form-check-input" type="checkbox" name="highlight_feature_ids" value="{{ feature.id }}" {% if feature.id in selected_highlight_ids %}checked{% endif %}><span class="form-check-label">{{ feature.name }}</span></label>{% endif %}{% endfor %}</div></div></fieldset>
         <div class="mb-3"><span class="form-label d-block">URL pública</span>
             {% if room.public_slug or public_slug_preview %}<code>/habitaciones/{{ room.public_slug or public_slug_preview }}</code>{% else %}<p class="text-warning mb-1">Configura primero el slug público del inmueble.</p><a href="/properties/{{ property.id }}/publication">Editar inmueble</a>{% endif %}
         </div>
         <label class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_published" {% if room.is_published %}checked{% endif %}> <span class="form-check-label">Publicada</span></label>
         <button class="btn btn-primary" type="submit">Guardar publicación</button>
     </form>
+    {% if copy_source_rooms %}<details class="mt-4"><summary class="fw-semibold">Copiar configuración desde otra habitación</summary><form class="mt-3" method="post" action="/rooms/{{ room.id }}/publication/copy-configuration" data-copy-room-configuration data-destination-code="{{ room.code }}"><label class="form-label" for="copy-source-room">Habitación origen</label><select class="form-select mb-2" id="copy-source-room" name="source_room_id" required><option value="">Selecciona una habitación</option>{% for source in copy_source_rooms %}<option value="{{ source.id }}">{{ source.code }} — {{ source.property.name }}</option>{% endfor %}</select><p class="form-text">Se copiarán título, descripción, características propias, destacados compatibles, condiciones de estancia y preferencia de inquilino. No se modificará el gestor ni ningún otro dato.</p><button class="btn btn-outline-primary btn-sm" type="submit">Copiar configuración</button></form></details>{% endif %}
 </div></div></div>
-<div class="col-lg-4">
+<div class="col-lg-4 room-publication-aside">
     <div class="card mb-4"><div class="card-body">
         <h2 class="h5">Datos heredados del inmueble</h2>
         <dl class="small mb-3">
@@ -28,6 +36,7 @@
             <dt>Ubicación</dt><dd>{{ property.public_location or 'Sin ubicación pública' }}</dd>
             <dt>Fotografías comunes</dt><dd>{{ inherited_photo_count }}</dd>
             <dt>Características comunes</dt><dd>{% if inherited_features %}{{ inherited_features|map(attribute='name')|join(', ') }}{% else %}Ninguna{% endif %}</dd>
+            <dt>Gestor heredado</dt><dd>{% if property.manager %}{{ property.manager.name }}{% else %}Sin gestor asignado{% endif %}</dd>
         </dl>
         <a class="btn btn-sm btn-outline-primary" href="/properties/{{ property.id }}/publication">Editar inmueble</a>
     </div></div>
@@ -35,4 +44,6 @@
         {% if assessment.is_publicable %}<p class="text-success fw-semibold mb-0">Lista para publicar</p>{% else %}<p class="text-danger fw-semibold">No publicable</p><ul class="small mb-0">{% for reason in assessment.reasons %}<li>{{ reason_messages.get(reason, reason) }}</li>{% endfor %}</ul>{% endif %}
     </div></div>
 </div></div>
+</div>
 {% endblock %}
+{% block scripts %}<script src="/static/js/room_publication.js" defer></script>{% endblock %}

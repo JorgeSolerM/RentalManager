@@ -9,6 +9,8 @@ from backend.services.property_service import PropertyService
 from backend.services.room_service import RoomService
 from backend.services.photo_service import PhotoService
 from backend.services.commercial_publication_service import CommercialPublicationService, REASON_MESSAGES
+from backend.services.manager_service import ManagerService
+from backend.services.property_rules_service import PropertyRulesService
 
 router = APIRouter(prefix="/properties")
 
@@ -18,6 +20,8 @@ property_service = PropertyService()
 room_service = RoomService()
 photo_service = PhotoService()
 commercial_service = CommercialPublicationService()
+manager_service = ManagerService()
+property_rules_service = PropertyRulesService()
 
 
 @router.get("/")
@@ -79,6 +83,10 @@ def get_property(
         "owner": property_obj.owner,
         "notes": property_obj.notes,
         "active": property_obj.active,
+        "street": property_obj.street,
+        "street_number": property_obj.street_number,
+        "floor": property_obj.floor,
+        "door": property_obj.door,
     }
 
 
@@ -107,22 +115,74 @@ def property_publication(request: Request, property_id: int, db: Session = Depen
     return templates.TemplateResponse(request=request, name="pages/property_publication.html", context={
         "request": request, "current_page": "properties", "property": obj,
         "features": commercial_service.feature_options(db, obj), "reasons": reasons,
+        "managers": manager_service.active_options(db, obj.manager_id),
         "reason_messages": REASON_MESSAGES,
     })
 
 
 @router.post("/{property_id}/publication")
-def save_property_publication(property_id: int, public_title: str = Form(""), public_location: str = Form(""), public_slug: str = Form(""), is_published: bool = Form(False), feature_ids: list[int] = Form([]), db: Session = Depends(get_db)):
-    result = commercial_service.update_property(db, property_id, title=public_title, location=public_location, slug=public_slug, is_published=is_published, feature_ids=feature_ids)
+def save_property_publication(property_id: int, public_title: str = Form(""), public_location: str = Form(""), public_slug: str = Form(""), shared_full_bathroom_count: str = Form(""), shared_toilet_count: str = Form(""), is_published: bool = Form(False), feature_ids: list[int] = Form([]), manager_id: int | None = Form(None), db: Session = Depends(get_db)):
+    result = commercial_service.update_property(db, property_id, title=public_title, location=public_location, slug=public_slug, shared_full_bathroom_count=shared_full_bathroom_count, shared_toilet_count=shared_toilet_count, is_published=is_published, feature_ids=feature_ids, manager_id=manager_id)
     key = "success=publication_saved" if result.success else f"error={result.message}"
     return RedirectResponse(f"/properties/{property_id}/publication?{key}", status_code=303)
+
+
+@router.get("/{property_id}/publication/rules")
+def property_publication_rules(
+    request: Request, property_id: int, db: Session = Depends(get_db)
+):
+    obj = property_rules_service.get(db, property_id)
+    if obj is None:
+        raise HTTPException(404)
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/property_publication_rules.html",
+        context={
+            "request": request,
+            "current_page": "properties",
+            "property": obj,
+            "requirements": property_rules_service.requirement_options(db, obj),
+            "selected_requirement_ids": {item.id for item in obj.requirements},
+            "publication_section": "rules",
+        },
+    )
+
+
+@router.post("/{property_id}/publication/rules")
+def save_property_publication_rules(
+    property_id: int,
+    smoking_allowed: str = Form("unknown"),
+    pets_allowed: str = Form("unknown"),
+    musical_instruments_allowed: str = Form("unknown"),
+    minimum_tenant_age: str = Form(""),
+    maximum_tenant_age: str = Form(""),
+    requirement_ids: list[int] = Form([]),
+    db: Session = Depends(get_db),
+):
+    result = property_rules_service.update(
+        db,
+        property_id,
+        smoking_allowed=smoking_allowed,
+        pets_allowed=pets_allowed,
+        musical_instruments_allowed=musical_instruments_allowed,
+        minimum_tenant_age=minimum_tenant_age,
+        maximum_tenant_age=maximum_tenant_age,
+        requirement_ids=requirement_ids,
+    )
+    key = "success=property_rules_saved" if result.success else f"error={result.message}"
+    return RedirectResponse(
+        f"/properties/{property_id}/publication/rules?{key}", status_code=303
+    )
 
 
 @router.post("/create")
 def create_property(
     name: str = Form(...),
     alias: str = Form(""),
-    address: str = Form(...),
+    street: str = Form(...),
+    street_number: str = Form(""),
+    floor: str = Form(""),
+    door: str = Form(""),
     city: str = Form(...),
     owner: str = Form(...),
     notes: str = Form(""),
@@ -132,7 +192,11 @@ def create_property(
     property_obj = Property(
         name=name,
         alias=alias or None,
-        address=address,
+        address="",
+        street=street,
+        street_number=street_number or None,
+        floor=floor or None,
+        door=door or None,
         city=city,
         owner=owner,
         notes=notes or None,
@@ -183,7 +247,10 @@ def update_property(
     property_id: int,
     name: str = Form(...),
     alias: str = Form(""),
-    address: str = Form(...),
+    street: str = Form(...),
+    street_number: str = Form(""),
+    floor: str = Form(""),
+    door: str = Form(""),
     city: str = Form(...),
     owner: str = Form(...),
     notes: str = Form(""),
@@ -191,7 +258,8 @@ def update_property(
 ):
 
     result = property_service.update_property(
-        db, property_id, name, alias or None, address, city, owner, notes or None
+        db, property_id, name, alias or None, street, street_number or None,
+        floor or None, door or None, city, owner, notes or None
     )
 
     if not result.success and result.message == "not_found":

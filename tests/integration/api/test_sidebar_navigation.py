@@ -5,9 +5,17 @@ from backend.models.room import Room
 
 
 def active_href(html: str) -> str:
-    match = re.search(r'<a href="([^"]+)" aria-current="page">', html)
+    navigation = re.search(
+        r'<nav[^>]+aria-label="Navegación principal"[^>]*>(.*?)</nav>',
+        html,
+        re.DOTALL,
+    )
+    assert navigation is not None
+    match = re.search(
+        r'<a href="([^"]+)" aria-current="page">', navigation.group(1)
+    )
     assert match is not None
-    assert html.count('aria-current="page"') == 1
+    assert navigation.group(1).count('aria-current="page"') == 1
     return match.group(1)
 
 

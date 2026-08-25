@@ -159,6 +159,9 @@ def room_publication(request: Request, room_id: int, db: Session = Depends(get_d
         "public_slug_preview": public_slug_preview,
         "inherited_features": property_obj.features,
         "inherited_photo_count": len(property_gallery),
+        "highlight_options": commercial_service.highlight_options(room),
+        "selected_highlight_ids": {highlight.feature_id for highlight in room.public_highlights},
+        "copy_source_rooms": commercial_service.copy_source_options(db, room),
         "assessment": commercial_service.publication.assess_room(
             db, room_id, public_slug_candidate=public_slug_preview
         ),
@@ -167,10 +170,30 @@ def room_publication(request: Request, room_id: int, db: Session = Depends(get_d
 
 
 @router.post("/{room_id}/publication")
-def save_room_publication(room_id: int, public_title: str = Form(""), public_description: str = Form(""), base_price: str = Form(""), square_meters: str = Form(""), is_published: bool = Form(False), feature_ids: list[int] = Form([]), db: Session = Depends(get_db)):
-    result = commercial_service.update_room(db, room_id, title=public_title, description=public_description, base_price=base_price, square_meters=square_meters, is_published=is_published, feature_ids=feature_ids)
+def save_room_publication(room_id: int, public_title: str = Form(""), public_description: str = Form(""), base_price: str = Form(""), square_meters: str = Form(""), minimum_stay_months: str = Form(""), maximum_stay_months: str = Form(""), tenant_gender_preference: str = Form("any"), is_published: bool = Form(False), feature_ids: list[int] = Form([]), highlight_feature_ids: list[int] = Form([]), db: Session = Depends(get_db)):
+    result = commercial_service.update_room(db, room_id, title=public_title, description=public_description, base_price=base_price, square_meters=square_meters, minimum_stay_months=minimum_stay_months, maximum_stay_months=maximum_stay_months, tenant_gender_preference=tenant_gender_preference, is_published=is_published, feature_ids=feature_ids, highlight_feature_ids=highlight_feature_ids)
     key = "success=publication_saved" if result.success else f"error={result.message}"
     return RedirectResponse(f"/rooms/{room_id}/publication?{key}", status_code=303)
+
+
+@router.post("/{room_id}/publication/copy-configuration")
+def copy_room_publication_configuration(
+    room_id: int,
+    source_room_id: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    result = commercial_service.copy_room_configuration(db, room_id, source_room_id)
+    if not result.success:
+        return RedirectResponse(
+            f"/rooms/{room_id}/publication?error={result.message}", status_code=303
+        )
+    data = result.data
+    omitted = data["inactive_features_omitted"] + data["highlights_omitted"]
+    return RedirectResponse(
+        f"/rooms/{room_id}/publication?success=room_configuration_copied"
+        f"&source={data['source_code']}&omitted={omitted}",
+        status_code=303,
+    )
 
 
 @router.post("/create")

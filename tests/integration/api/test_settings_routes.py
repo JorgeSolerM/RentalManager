@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from backend.models.platform import Platform
 from backend.core.config import APP_VERSION
+from backend.models.rental_requirement import RentalRequirement
 
 
 def platform_data(**overrides) -> dict:
@@ -16,7 +17,7 @@ def platform_data(**overrides) -> dict:
 
 
 def test_settings_contains_system_information_and_global_footer_is_removed(client):
-    response = client.get("/settings/")
+    response = client.get("/settings/system")
     assert response.status_code == 200
     assert "Información del sistema" in response.text
     assert f">{APP_VERSION}<" in response.text
@@ -100,3 +101,26 @@ def test_platform_update_delete_and_duplicate_error_use_overridden_temporary_dat
         "/settings/platforms?success=platform_deleted"
     )
     assert db_session.get(Platform, platform.id) is None
+
+
+def test_requirement_catalog_create_and_list(
+    client, db_session
+):
+    create_response = client.post(
+        "/settings/requirements/create",
+        data={
+            "public_name": "Documento de identidad",
+            "slug": "identity-document",
+            "public_description": "Documento vigente.",
+            "display_order": "10",
+            "active": "true",
+        },
+        follow_redirects=False,
+    )
+    requirement = db_session.scalar(select(RentalRequirement))
+    page = client.get("/settings/requirements")
+
+    assert create_response.status_code == 303
+    assert requirement is not None
+    assert "Documento de identidad" in page.text
+    assert "Requisitos" in page.text

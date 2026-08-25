@@ -28,7 +28,7 @@ def seed_export_data(db_session):
     db_session.flush()
     bookings = [
         Booking(room_id=room.id, room_calendar_id=housing_calendar.id, origin="housinganywhere", external_reference="HA-SECRET", check_in=date(2026, 5, 8), check_out=date(2026, 8, 31), price=900, notes="Housing private notes"),
-        Booking(room_id=room.id, room_calendar_id=flatio_calendar.id, origin="flatio", external_reference="FL-SECRET", check_in=date(2026, 10, 1), check_out=date(2027, 2, 28), price=800, notes="Flatio private notes"),
+        Booking(room_id=room.id, room_calendar_id=flatio_calendar.id, origin="flatio", external_reference="FL-SECRET", check_in=date(2026, 10, 1), check_out=date(2027, 2, 28), expected_arrival_date=date(2026, 10, 4), expected_departure_date=date(2027, 2, 25), price=800, notes="Flatio private notes"),
         Booking(room_id=room.id, origin="manual", check_in=date(2028, 2, 1), check_out=date(2028, 2, 29), price=700, notes="Manual private notes"),
     ]
     db_session.add_all(bookings)

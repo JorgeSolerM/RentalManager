@@ -77,22 +77,24 @@ def test_page_notification_registry_covers_existing_redirect_contracts():
     )
 
 
-def test_imported_booking_ui_only_enables_guest_editing():
+def test_imported_booking_ui_only_enables_local_fields():
     source = (STATIC_ROOT / "js/bookings.js").read_text(encoding="utf-8")
     modal = Path("backend/templates/components/booking_modal.html").read_text(
         encoding="utf-8"
     )
 
-    assert "/bookings/update-imported-guest/" in source
+    assert "/bookings/update-imported-local/" in source
     assert 'this.guestName.disabled = false' in source
     assert '[this.checkIn, this.checkOut, this.price, this.notes]' in source
     assert 'this.guestName.required = !readOnly' in source
-    assert '"Guardar huésped"' in source
+    assert '"Guardar datos locales"' in source
     assert "externalBlockDeletable" in source
     assert '"Eliminar bloqueo"' in source
     assert 'this.form.action = `/bookings/delete/${this.bookingId}`' in source
     assert "bookingImportedNotice" in modal
-    assert "únicamente puede modificarse el huésped" in modal
+    assert "únicamente pueden modificarse el huésped y las fechas previstas" in modal
+    assert 'name="expected_arrival_date"' in modal
+    assert 'name="expected_departure_date"' in modal
 
 
 def test_room_calendar_actions_show_progress_and_prevent_duplicate_submits():

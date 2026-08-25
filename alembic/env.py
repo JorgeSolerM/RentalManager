@@ -5,20 +5,21 @@ from sqlalchemy import pool
 
 from alembic import context
 from backend.database.base import Base
-import backend.models
-
-from backend.database.base import Base
-from backend.database.session import DATABASE_URL
+from backend.database.alembic_target import (
+    resolve_alembic_database_url,
+    validate_alembic_target,
+)
 import backend.models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option(
-    "sqlalchemy.url",
-    DATABASE_URL,
-)
+database_url = resolve_alembic_database_url()
+resolved_database_path = validate_alembic_target(database_url)
+config.set_main_option("sqlalchemy.url", database_url)
+if resolved_database_path is not None:
+    print(f"Alembic target: {resolved_database_path}")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

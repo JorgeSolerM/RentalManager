@@ -27,7 +27,7 @@
             <th>Código</th>
             <th>Precio base</th>
             <th>m²</th>
-            <th>Estado</th>
+            <th>Publicada</th>
             <th class="room-platforms-column">Plataformas</th>
             <th>Acciones</th>
 
@@ -57,11 +57,10 @@
 
             <td>
 
-                {% if room.active %}
-                🟢
-                {% else %}
-                ⚪
-                {% endif %}
+                <span class="room-publication-status{% if room.is_published %} is-published{% endif %}"
+                    role="img"
+                    title="{% if room.is_published %}Publicada{% else %}No publicada{% endif %}"
+                    aria-label="{% if room.is_published %}Publicada{% else %}No publicada{% endif %}"></span>
 
             </td>
 

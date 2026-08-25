@@ -1,0 +1,5 @@
+<nav class="nav nav-pills mb-4" aria-label="Secciones de publicación del inmueble">
+    <a class="nav-link{% if publication_section == 'data' %} active{% endif %}" href="/properties/{{ property.id }}/publication"{% if publication_section == 'data' %} aria-current="page"{% endif %}>Datos públicos</a>
+    <a class="nav-link{% if publication_section == 'rules' %} active{% endif %}" href="/properties/{{ property.id }}/publication/rules"{% if publication_section == 'rules' %} aria-current="page"{% endif %}>Normas y requisitos</a>
+    <a class="nav-link{% if publication_section == 'photos' %} active{% endif %}" href="/properties/{{ property.id }}/photos"{% if publication_section == 'photos' %} aria-current="page"{% endif %}>Fotografías</a>
+</nav>

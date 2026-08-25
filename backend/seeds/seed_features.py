@@ -19,6 +19,7 @@ FEATURES = (
     ("bano-privado", "Baño privado", "room", "Privado", 130),
     ("balcon", "Balcón", "room", "Privado", 140),
     ("ventana-exterior", "Ventana exterior", "room", "Dormitorio", 150),
+    ("suministros-incluidos", "Suministros incluidos", "property", "Condiciones", 160),
 )
 
 

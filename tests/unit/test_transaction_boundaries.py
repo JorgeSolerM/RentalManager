@@ -20,7 +20,8 @@ from backend.services.room_service import RoomService
 
 def make_property(name="Piso Uno"):
     return Property(
-        name=name, address="Calle Uno", city="Elche", owner="HSI", active=True
+        name=name, address="Calle Uno", street="Calle Uno", city="Elche",
+        owner="HSI", active=True
     )
 
 
@@ -147,8 +148,9 @@ def test_failed_entity_update_restores_previous_values(
         entity = db_session.get(Property, room.property_id)
         monkeypatch.setattr(service.repository, "update", MagicMock(side_effect=RuntimeError))
         call = lambda: service.update_property(
-            db_session, entity.id, "Cambiada", None, entity.address,
-            entity.city, entity.owner, entity.notes,
+            db_session, entity.id, "Cambiada", None, entity.street,
+            entity.street_number, entity.floor, entity.door, entity.city,
+            entity.owner, entity.notes,
         )
         expected = lambda: db_session.get(Property, entity.id).name == "Piso Uno"
     elif service_kind == "room":

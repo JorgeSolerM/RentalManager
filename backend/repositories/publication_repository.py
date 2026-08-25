@@ -7,6 +7,7 @@ from backend.models.property import Property
 from backend.models.property_photo import PropertyPhoto
 from backend.models.room import Room
 from backend.models.room_photo import RoomPhoto
+from backend.models.room_public_highlight import RoomPublicHighlight
 
 
 class PublicationRepository:
@@ -17,6 +18,10 @@ class PublicationRepository:
                 joinedload(Room.property)
                 .selectinload(Property.photos)
                 .joinedload(PropertyPhoto.asset),
+                joinedload(Room.property).joinedload(Property.manager),
+                joinedload(Room.property).selectinload(Property.features),
+                selectinload(Room.features),
+                selectinload(Room.public_highlights).joinedload(RoomPublicHighlight.feature),
                 selectinload(Room.photos).joinedload(RoomPhoto.asset),
             )
             .where(Room.id == room_id)

@@ -24,6 +24,7 @@ class FeatureCatalogItem(BaseModel):
 class PublicAvailability(BaseModel):
     status: str
     available_from: date | None = None
+    available_until: date | None = None
 
 
 class EffectivePhoto(BaseModel):

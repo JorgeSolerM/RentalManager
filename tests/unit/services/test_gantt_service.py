@@ -29,7 +29,7 @@ def seed_gantt(db):
     db.add(calendar); db.flush()
     bookings = [
         Booking(room_id=rooms[2].id, guest_id=guest.id, origin="manual", check_in=date(2026, 7, 20), check_out=date(2026, 8, 1), price=900, notes="secret"),
-        Booking(room_id=rooms[2].id, room_calendar_id=calendar.id, origin="future-channel", external_reference="secret-uid", check_in=date(2026, 8, 1), check_out=date(2026, 9, 1)),
+        Booking(room_id=rooms[2].id, room_calendar_id=calendar.id, origin="future-channel", external_reference="secret-uid", check_in=date(2026, 8, 1), check_out=date(2026, 9, 1), expected_arrival_date=date(2026, 8, 4), expected_departure_date=date(2026, 8, 28)),
         Booking(room_id=rooms[2].id, origin="manual", check_in=date(2026, 6, 1), check_out=date(2026, 6, 15)),
     ]
     db.add_all(bookings); db.commit()
@@ -45,6 +45,8 @@ def test_groups_orders_filters_and_intersects_half_open_window(db_session, monke
     visible = data.properties[0].rooms[0].bookings
     assert [item.id for item in visible] == [bookings[0].id, bookings[1].id]
     assert visible[0].check_out == visible[1].check_in
+    assert visible[1].check_in == date(2026, 8, 1)
+    assert visible[1].check_out == date(2026, 9, 1)
     assert [item.lane for item in visible] == [0, 0]
     assert visible[0].editable is True and visible[1].editable is False
     assert data.properties[0].rooms[0].sync.severity == "paused"

@@ -1,5 +1,6 @@
 from backend.models.feature import Feature
 from backend.models.media_asset import MediaAsset
+from backend.models.manager import Manager
 from backend.models.property import Property
 from backend.models.property_photo import PropertyPhoto
 from backend.models.room import Room
@@ -8,10 +9,13 @@ from backend.services.commercial_publication_service import CommercialPublicatio
 
 
 def records(db):
-    prop = Property(name="Internal", address="Private", city="Elche", owner="Owner", active=True)
+    manager = Manager(name="Gestor", active=True)
+    db.add(manager); db.flush()
+    prop = Property(name="Internal", address="Private", city="Elche", owner="Owner", active=True, manager_id=manager.id)
     db.add(prop); db.flush()
-    room = Room(property_id=prop.id, code="R1", display_order=1, base_price=600, square_meters=12, active=True)
-    db.add(room); db.commit(); return prop, room
+    room = Room(property_id=prop.id, code="R1", display_order=1, base_price=600, square_meters=12, active=True, minimum_stay_months=1)
+    bed = Feature(slug="cama-individual", name="Cama individual", scope="room", category="Dormitorio", display_order=0, active=True)
+    db.add_all([room, bed]); room.features.append(bed); db.commit(); return prop, room
 
 
 def asset(db, number=1):
@@ -26,7 +30,7 @@ def test_saves_property_public_fields_and_features_without_internal_backfill(db_
     result = CommercialPublicationService().update_property(
         db_session, prop.id, title="Piso universitario",
         location="Zona UMH · Elche", slug="piso-universitario", is_published=True,
-        feature_ids=[feature.id],
+        feature_ids=[feature.id], manager_id=prop.manager_id,
     )
     db_session.refresh(prop)
     assert result.success
@@ -53,7 +57,11 @@ def test_valid_room_can_publish_with_property_gate_and_effective_photo(db_sessio
     prop.public_title = "Piso"; prop.public_location = "Centro"; prop.public_slug = "piso"; prop.is_published = True
     photo_asset = asset(db_session)
     db_session.add(PropertyPhoto(property_id=prop.id, media_asset_id=photo_asset.id, position=0, is_primary=True)); db_session.commit()
-    result = CommercialPublicationService().update_room(db_session, room.id, title="Habitación", description="Descripción", base_price="600", square_meters="12", is_published=True, feature_ids=[])
+    result = CommercialPublicationService().update_room(
+        db_session, room.id, title="Habitación", description="Descripción",
+        base_price="600", square_meters="12", is_published=True,
+        feature_ids=[room.features[0].id], minimum_stay_months="1",
+    )
     assert result.success and result.data.is_published
 
 

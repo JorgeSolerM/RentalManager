@@ -3,6 +3,7 @@ from datetime import date
 from backend.models.booking import Booking
 from backend.models.feature import Feature
 from backend.models.media_asset import MediaAsset
+from backend.models.manager import Manager
 from backend.models.property import Property
 from backend.models.property_photo import PropertyPhoto
 from backend.models.room import Room
@@ -14,12 +15,16 @@ TODAY = date(2026, 8, 20)
 
 
 def create_property_and_room(db_session):
+    manager = Manager(name="Gestor", active=True)
+    db_session.add(manager)
+    db_session.flush()
     property_obj = Property(
         name="Internal name",
         address="Private address",
         city="Madrid",
         owner="Owner",
         active=True,
+        manager_id=manager.id,
     )
     db_session.add(property_obj)
     db_session.flush()
@@ -29,10 +34,39 @@ def create_property_and_room(db_session):
         display_order=1,
         base_price=650,
         active=True,
+        minimum_stay_months=1,
     )
     db_session.add(room)
+    bed = Feature(
+        slug="cama-individual", name="Cama individual", scope="room",
+        category="Dormitorio", display_order=0, active=True,
+    )
+    db_session.add(bed)
+    room.features.append(bed)
     db_session.commit()
     return property_obj, room
+
+
+def test_publication_requires_exactly_one_bed_capacity_feature(db_session):
+    _, room = create_property_and_room(db_session)
+    service = PublicationService()
+    room.features.clear()
+    db_session.commit()
+    assert "room_bed_capacity_required" in service.assess_room(
+        db_session, room.id
+    ).reasons
+
+    individual = db_session.query(Feature).filter_by(slug="cama-individual").one()
+    double = Feature(
+        slug="cama-doble", name="Cama doble", scope="room",
+        category="Dormitorio", display_order=0, active=True,
+    )
+    room.features.extend([individual, double])
+    db_session.add(double)
+    db_session.commit()
+    assert "room_bed_capacity_required" in service.assess_room(
+        db_session, room.id
+    ).reasons
 
 
 def ready_asset(number: int) -> MediaAsset:
@@ -227,13 +261,36 @@ def test_public_availability_consolidates_contiguous_and_overlapping_intervals(
 
     assert result.status == "available_from"
     assert result.available_from == date(2026, 8, 28)
-    assert set(result.model_dump()) == {"status", "available_from"}
+    assert set(result.model_dump()) == {
+        "status", "available_from", "available_until"
+    }
+
+
+def test_expected_dates_do_not_change_public_availability(db_session):
+    _property_obj, room = create_property_and_room(db_session)
+    db_session.add(Booking(
+        room_id=room.id,
+        origin="manual",
+        check_in=date(2026, 8, 18),
+        check_out=date(2026, 8, 28),
+        expected_arrival_date=date(2026, 8, 21),
+        expected_departure_date=date(2026, 8, 22),
+    ))
+    db_session.commit()
+
+    result = PublicationService().get_public_availability(
+        db_session, room.id, today=TODAY
+    )
+
+    assert result.status == "available_from"
+    assert result.available_from == date(2026, 8, 28)
 
 
 def test_public_availability_treats_checkout_today_and_future_booking_as_free_now(
     db_session,
 ):
     _property_obj, room = create_property_and_room(db_session)
+    room.minimum_stay_months = 0
     db_session.add_all([
         Booking(
             room_id=room.id, origin="manual",
@@ -250,8 +307,9 @@ def test_public_availability_treats_checkout_today_and_future_booking_as_free_no
         db_session, room.id, today=TODAY
     )
 
-    assert result.status == "available_now"
-    assert result.available_from is None
+    assert result.status == "available_period"
+    assert result.available_from == TODAY
+    assert result.available_until == date(2026, 8, 31)
 
 
 def add_photo(db, owner, asset, position, primary=False):

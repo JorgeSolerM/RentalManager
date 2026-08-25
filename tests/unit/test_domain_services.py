@@ -23,12 +23,33 @@ def property_obj(name: str, **overrides) -> Property:
     values = {
         "name": name,
         "address": "Calle Universidad 1",
+        "street": "Calle Universidad",
+        "street_number": "1",
         "city": "Elche",
         "owner": "HSI Rents",
         "active": True,
     }
     values.update(overrides)
     return Property(**values)
+
+
+def test_booking_effective_operational_dates_fall_back_independently():
+    booking = Booking(
+        room_id=1,
+        origin="manual",
+        check_in=date(2026, 9, 1),
+        check_out=date(2027, 6, 30),
+    )
+
+    assert booking.effective_arrival_date == booking.check_in
+    assert booking.effective_departure_date == booking.check_out
+
+    booking.expected_arrival_date = date(2026, 9, 4)
+    assert booking.effective_arrival_date == date(2026, 9, 4)
+    assert booking.effective_departure_date == booking.check_out
+
+    booking.expected_departure_date = date(2027, 6, 28)
+    assert booking.effective_departure_date == date(2027, 6, 28)
 
 
 def create_property(db_session, name: str = "Piso Universidad") -> Property:
@@ -72,8 +93,9 @@ def test_property_service_and_repository_cover_lookup_order_update_and_toggle(
     assert duplicate.message == "name_exists"
 
     assert service.update_property(
-        db_session, alfa.id, alfa.name, alfa.alias, alfa.address,
-        "Alicante", alfa.owner, alfa.notes,
+        db_session, alfa.id, alfa.name, alfa.alias, alfa.street,
+        alfa.street_number, alfa.floor, alfa.door, "Alicante",
+        alfa.owner, alfa.notes,
     ).success is True
     assert service.get_by_id(db_session, alfa.id).city == "Alicante"
     assert service.toggle_property(db_session, alfa.id).data.active is False

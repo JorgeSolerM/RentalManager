@@ -37,3 +37,6 @@ class MediaAsset(Base):
     room_photos: Mapped[list["RoomPhoto"]] = relationship(
         back_populates="asset", passive_deletes=True
     )
+    managers: Mapped[list["Manager"]] = relationship(
+        back_populates="photo", passive_deletes=True
+    )

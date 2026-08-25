@@ -19,6 +19,7 @@ class DashboardMovement(BaseModel):
     room_display_order: int
     property_name: str
     date: date
+    days_remaining: int
     guest_name: str
     origin_name: str
     origin_slug: str

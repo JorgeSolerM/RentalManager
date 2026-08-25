@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ room.title }} · {{ site_name }}{% endblock %}
+{% block meta_description %}{{ room.meta_description }}{% endblock %}
+{% block seo %}
+{% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ room.title }} · {{ site_name }}">
+<meta property="og:description" content="{{ room.meta_description }}">
+{% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('public_catalog') }}">← Todas las habitaciones</a>
+{% set gallery_count = room.gallery|length %}
+<div class="detail-layout">
+    <section class="detail-gallery" aria-label="Galería de {{ room.title }}" data-gallery data-count="{{ gallery_count }}" tabindex="0">
+        <div class="gallery-stage">
+            <img class="gallery-main-image is-current" data-gallery-slide src="{{ room.primary_image.url_1600 }}" srcset="{{ room.primary_image.srcset }}" sizes="(max-width: 760px) 100vw, 72vw" alt="{{ room.title }}" width="{{ room.primary_image.width }}" height="{{ room.primary_image.height }}" fetchpriority="high">
+            <img class="gallery-main-image" data-gallery-slide alt="" aria-hidden="true">
+            <button class="gallery-open" type="button" data-gallery-open aria-label="Abrir galería a pantalla completa"></button>
+            {% if room.map_url %}<a class="gallery-map-link" href="{{ room.map_url }}" target="_blank" rel="noopener noreferrer"><img src="{{ url_for('public_static', path='icons/map-pin.svg') }}" alt="" width="18" height="18">Ver en el mapa</a>{% endif %}
+            <button class="gallery-arrow gallery-arrow-previous" type="button" data-gallery-previous aria-label="Imagen anterior">‹</button>
+            <button class="gallery-arrow gallery-arrow-next" type="button" data-gallery-next aria-label="Imagen siguiente">›</button>
+        </div>
+        <div class="gallery-thumbnails" aria-label="Seleccionar fotografía">
+            {% for image in room.gallery %}
+            {% set is_active = image.url_1600 == room.primary_image.url_1600 %}
+            <button class="gallery-thumbnail{% if is_active %} is-active{% endif %}" type="button" data-gallery-thumbnail data-index="{{ loop.index0 }}" data-src="{{ image.url_1600 }}" data-srcset="{{ image.srcset }}" data-alt="{% if image.source == 'room' %}{{ room.title }} · habitación{% else %}{{ room.title }} · zona común{% endif %}" aria-label="Mostrar imagen {{ loop.index }} de {{ gallery_count }}" aria-current="{% if is_active %}true{% else %}false{% endif %}">
+                <img src="{{ image.url_320 }}" alt="" loading="lazy" width="{{ image.width }}" height="{{ image.height }}">
+            </button>
+            {% endfor %}
+        </div>
+    </section>
+    <section class="detail-summary">
+        <h1>{{ room.title }}</h1>
+        <p class="room-location">{{ room.location }}</p>
+        {% if room.square_meters is not none or room.has_private_bathroom or (room.shared_full_bathroom_count is not none and room.shared_full_bathroom_count > 0) or (room.shared_toilet_count is not none and room.shared_toilet_count > 0) %}<ul class="primary-room-facts" aria-label="Datos principales de la habitación">
+            {% if room.square_meters is not none %}<li><img src="{{ url_for('public_static', path='icons/measure.svg') }}" alt="" width="20" height="20"><span>{{ room.square_meters }} m²</span></li>{% endif %}
+            {% if room.has_private_bathroom %}<li><img src="{{ url_for('public_static', path='icons/shared-bathroom.svg') }}" alt="" width="20" height="20"><span>Baño privado</span></li>{% endif %}
+            {% if room.shared_full_bathroom_count is not none and room.shared_full_bathroom_count > 0 %}<li><img src="{{ url_for('public_static', path='icons/shared-bathroom.svg') }}" alt="" width="20" height="20"><span>{{ room.shared_full_bathroom_count }} baño{% if room.shared_full_bathroom_count != 1 %}s{% endif %} completo{% if room.shared_full_bathroom_count != 1 %}s{% endif %} compartido{% if room.shared_full_bathroom_count != 1 %}s{% endif %}</span></li>{% endif %}
+            {% if room.shared_toilet_count is not none and room.shared_toilet_count > 0 %}<li><img src="{{ url_for('public_static', path='icons/shared-toilet.svg') }}" alt="" width="20" height="20"><span>{{ room.shared_toilet_count }} aseo{% if room.shared_toilet_count != 1 %}s{% endif %} compartido{% if room.shared_toilet_count != 1 %}s{% endif %}</span></li>{% endif %}
+        </ul>{% endif %}
+    </section>
+    <aside class="detail-sidebar" aria-label="Información comercial">
+        <div class="detail-sidebar-card">
+            <div class="manager-summary">{% if room.manager.photo %}<img src="{{ room.manager.photo.url_320 }}" alt="" width="64" height="64">{% else %}<span class="manager-avatar" aria-hidden="true">{{ room.manager.initials }}</span>{% endif %}<div><small>Gestor</small><strong>{{ room.manager.name }}</strong></div></div>
+            <p class="sidebar-price"><strong>{{ '%.0f'|format(room.price_monthly) }} €</strong> <span>/ mes</span></p>
+            <p class="availability availability-{{ room.availability.status }}">{% if room.availability.status == 'available_now' %}Disponible ahora{% elif room.availability.status == 'available_period' %}Disponible del {{ room.availability.available_from.strftime('%d/%m/%Y') }} al {{ room.availability.available_until.strftime('%d/%m/%Y') }}{% else %}Disponible desde {{ room.availability.available_from.strftime('%d/%m/%Y') }}{% endif %}</p>
+            <p class="sidebar-location">{{ room.location }}</p>
+            <dl class="stay-conditions"><div><dt>Estancia mínima</dt><dd>{% if room.minimum_stay_months == 0 %}Sin estancia mínima{% elif room.minimum_stay_months == 1 %}1 mes{% else %}{{ room.minimum_stay_months }} meses{% endif %}</dd></div><div><dt>Estancia máxima</dt><dd>{% if room.maximum_stay_months is none %}Sin límite{% elif room.maximum_stay_months == 1 %}1 mes{% else %}{{ room.maximum_stay_months }} meses{% endif %}</dd></div></dl>
+            <div class="room-household-facts"><div class="living-info-row"><span class="living-info-icon living-info-icon-gender living-info-icon-gender-{{ room.tenant_gender_preference }}" aria-hidden="true"></span><span class="living-info-value">{% if room.tenant_gender_preference == 'male' %}Solo chicos{% elif room.tenant_gender_preference == 'female' %}Solo chicas{% else %}Mixto{% endif %}</span></div><div class="living-info-row"><span class="living-info-icon living-info-icon-people" aria-hidden="true"></span><span class="living-info-value">{% if room.flatmates_count == 0 %}Sin compañeros de piso{% elif room.flatmates_count == 1 %}1 compañero de piso{% else %}{{ room.flatmates_count }} compañeros de piso{% endif %}</span></div></div>
+            {% if room.highlighted_features %}<div class="highlight-summary"><h2>Características destacadas</h2><ul>{% for feature in room.highlighted_features %}<li>{{ feature.name }}</li>{% endfor %}</ul></div>{% endif %}
+            {% if room.manager.whatsapp_url %}<a class="whatsapp-contact" href="{{ room.manager.whatsapp_url }}" target="_blank" rel="noopener noreferrer"><img src="{{ url_for('public_static', path='icons/whatsapp.svg') }}" alt="" width="20" height="20">Contactar por WhatsApp</a>{% endif %}
+        </div>
+    </aside>
+    <div class="detail-content">
+        <section class="detail-copy">
+            <h2>La habitación</h2>
+            <p>{{ room.description }}</p>
+        </section>
+        {% if room.feature_groups %}<section class="features-section"><h2>Características</h2><div class="feature-groups">{% for group in room.feature_groups %}<section class="feature-category"><h3><img src="{{ group.icon_url }}" alt="" width="24" height="24">{{ group.category }}</h3><ul>{% for feature in group.features %}<li>{{ feature.name }}</li>{% endfor %}</ul></section>{% endfor %}</div></section>{% endif %}
+        {% if room.housing_rules or room.tenant_age or room.requirements %}<div class="public-conditions{% if not (room.housing_rules or room.tenant_age) or not room.requirements %} public-conditions-single{% endif %}">
+            {% if room.housing_rules or room.tenant_age %}<section class="public-condition-section"><h2>Normas y condiciones</h2><ul class="housing-rules">{% for rule in room.housing_rules %}<li><img src="{{ url_for('public_static', path='icons/' ~ ('rule-allowed.svg' if rule.allowed else 'rule-not-allowed.svg')) }}" alt="" width="20" height="20"><span>{{ rule.label }}</span></li>{% endfor %}{% if room.tenant_age %}<li class="tenant-age"><img src="{{ url_for('public_static', path='icons/age.svg') }}" alt="" width="20" height="20"><span>{% if room.tenant_age.minimum is not none and room.tenant_age.maximum is not none %}Edad admitida: de {{ room.tenant_age.minimum }} a {{ room.tenant_age.maximum }} años{% elif room.tenant_age.minimum is not none %}Edad mínima: {{ room.tenant_age.minimum }} años{% else %}Edad máxima: {{ room.tenant_age.maximum }} años{% endif %}</span></li>{% endif %}</ul></section>{% endif %}
+            {% if room.requirements %}<section class="public-condition-section"><h2>Requisitos</h2><ul class="public-requirements">{% for requirement in room.requirements %}<li><strong>{{ requirement.name }}</strong>{% if requirement.description %}<span>{{ requirement.description }}</span>{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+        </div>{% endif %}
+    </div>
+</div>
+<div class="gallery-lightbox" data-gallery-lightbox role="dialog" aria-modal="true" aria-label="Galería de {{ room.title }}" hidden>
+    <button class="lightbox-close" type="button" data-lightbox-close aria-label="Cerrar galería">×</button>
+    <div class="lightbox-stage">
+        <button class="lightbox-arrow lightbox-arrow-previous" type="button" data-lightbox-previous aria-label="Imagen anterior">‹</button>
+        <img class="lightbox-image" data-lightbox-image alt="">
+        <button class="lightbox-arrow lightbox-arrow-next" type="button" data-lightbox-next aria-label="Imagen siguiente">›</button>
+    </div>
+    <p class="lightbox-counter" data-lightbox-counter aria-live="polite"></p>
+    <div class="lightbox-thumbnails" data-lightbox-thumbnails aria-label="Seleccionar fotografía">
+        {% for image in room.gallery %}
+        <button class="lightbox-thumbnail" type="button" data-lightbox-thumbnail data-index="{{ loop.index0 }}" data-src="{{ image.url_1600 }}" data-alt="{% if image.source == 'room' %}{{ room.title }} · habitación{% else %}{{ room.title }} · zona común{% endif %}" aria-label="Mostrar imagen {{ loop.index }} de {{ gallery_count }}">
+            <img src="{{ image.url_320 }}" alt="" loading="lazy" width="{{ image.width }}" height="{{ image.height }}">
+        </button>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('public_static', path='gallery.js') }}?v=public-commercial-7" defer></script>{% endblock %}

@@ -2,6 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from backend.models.media_asset import MediaAsset
+from backend.models.manager import Manager
 from backend.models.property import Property
 from backend.models.property_photo import PropertyPhoto
 from backend.models.room import Room
@@ -52,7 +53,8 @@ class PhotoRepository:
     def asset_reference_count(self, db: Session, asset_id: int) -> int:
         properties = db.scalar(select(func.count(PropertyPhoto.id)).where(PropertyPhoto.media_asset_id == asset_id)) or 0
         rooms = db.scalar(select(func.count(RoomPhoto.id)).where(RoomPhoto.media_asset_id == asset_id)) or 0
-        return properties + rooms
+        managers = db.scalar(select(func.count(Manager.id)).where(Manager.media_asset_id == asset_id)) or 0
+        return properties + rooms + managers
 
     @staticmethod
     def add(db: Session, instance) -> None:

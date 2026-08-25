@@ -1,0 +1,3 @@
+<nav class="nav nav-pills mb-4" aria-label="Secciones de configuración">
+{% for key,label,path in [('general','General','/settings/'),('platforms','Plataformas','/settings/platforms'),('features','Características','/settings/features'),('requirements','Requisitos','/settings/requirements'),('managers','Gestores','/settings/managers'),('system','Sistema','/settings/system')] %}<a class="nav-link{% if settings_section == key %} active{% endif %}" href="{{ path }}" {% if settings_section == key %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>

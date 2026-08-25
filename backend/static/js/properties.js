@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+let propertyEditPending = false;
+
 
 function openCreatePropertyModal() {
 
@@ -45,6 +47,12 @@ function clearPropertyForm() {
         .getElementById("property-form")
         .reset();
 
+    document
+        .getElementById("property-legacy-address")
+        .classList.add("hidden");
+
+    document.getElementById("property-legacy-address-value").textContent = "";
+
 }
 
 
@@ -56,8 +64,16 @@ function fillPropertyForm(property) {
     document.getElementById("alias").value =
         property.alias ?? "";
 
-    document.getElementById("address").value =
-        property.address ?? "";
+    document.getElementById("street").value = property.street ?? "";
+    document.getElementById("street_number").value = property.street_number ?? "";
+    document.getElementById("floor").value = property.floor ?? "";
+    document.getElementById("door").value = property.door ?? "";
+
+    const legacyAddress = document.getElementById("property-legacy-address");
+    const legacyAddressValue = document.getElementById("property-legacy-address-value");
+    const showLegacyAddress = !property.street && Boolean(property.address);
+    legacyAddress.classList.toggle("hidden", !showLegacyAddress);
+    legacyAddressValue.textContent = showLegacyAddress ? property.address : "";
 
     document.getElementById("city").value =
         property.city ?? "";
@@ -72,6 +88,12 @@ function fillPropertyForm(property) {
 
 
 async function editProperty(propertyId) {
+
+    if (propertyEditPending) {
+        return;
+    }
+
+    propertyEditPending = true;
 
     try {
 
@@ -126,6 +148,12 @@ async function editProperty(propertyId) {
         RMNotification.error(
             "Error de comunicación con el servidor."
         );
+
+    }
+
+    finally {
+
+        propertyEditPending = false;
 
     }
 

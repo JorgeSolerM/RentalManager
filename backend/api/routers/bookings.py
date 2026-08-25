@@ -57,6 +57,10 @@ def get_booking(
 
         check_out=booking.check_out,
 
+        expected_arrival_date=booking.expected_arrival_date,
+
+        expected_departure_date=booking.expected_departure_date,
+
         price=booking.price,
 
         notes=booking.notes,
@@ -82,12 +86,24 @@ def create_booking(
     price: float | None = Form(None),
 
     notes: str | None = Form(None),
+
+    expected_arrival_date: date | None = Form(None),
+
+    expected_departure_date: date | None = Form(None),
     db: Session = Depends(get_db),
 
 ):
 
     result = booking_service.create_manual_booking(
-        db, room_id, guest_name, check_in, check_out, price, notes
+        db,
+        room_id,
+        guest_name,
+        check_in,
+        check_out,
+        price,
+        notes,
+        expected_arrival_date,
+        expected_departure_date,
     )
 
     if not result.success:
@@ -118,12 +134,24 @@ def update_booking(
     price: float | None = Form(None),
 
     notes: str | None = Form(None),
+
+    expected_arrival_date: date | None = Form(None),
+
+    expected_departure_date: date | None = Form(None),
     db: Session = Depends(get_db),
 
 ):
 
     result = booking_service.update_manual_booking(
-        db, booking_id, guest_name, check_in, check_out, price, notes
+        db,
+        booking_id,
+        guest_name,
+        check_in,
+        check_out,
+        price,
+        notes,
+        expected_arrival_date,
+        expected_departure_date,
     )
 
     if not result.success and result.message == "not_found":
@@ -203,5 +231,37 @@ def update_imported_guest(
 
     return RedirectResponse(
         url=f"/rooms/{room_id}?success=booking_guest_updated",
+        status_code=303,
+    )
+
+
+@router.post("/update-imported-local/{booking_id}")
+def update_imported_local_details(
+    booking_id: int,
+    guest_name: str = Form(""),
+    expected_arrival_date: date | None = Form(None),
+    expected_departure_date: date | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    result = booking_service.update_imported_local_details(
+        db,
+        booking_id,
+        guest_name,
+        expected_arrival_date,
+        expected_departure_date,
+    )
+
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Reserva no encontrada.")
+
+    room_id = result.data.room_id
+    if not result.success:
+        return RedirectResponse(
+            url=f"/rooms/{room_id}?error={result.message}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/rooms/{room_id}?success=booking_local_details_updated",
         status_code=303,
     )

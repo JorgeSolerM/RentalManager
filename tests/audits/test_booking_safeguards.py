@@ -22,9 +22,8 @@ from backend.services.ical_sync_service import IcalSyncService
 
 def migrated_database(tmp_path, monkeypatch, name="safeguards.db"):
     path = Path(tmp_path) / name
-    monkeypatch.setattr(
-        database_session, "DATABASE_URL", f"sqlite:///{path.as_posix()}"
-    )
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{path.as_posix()}")
+    monkeypatch.setenv("ALEMBIC_REQUIRE_TEMPORARY_DATABASE", "1")
     command.upgrade(Config("alembic.ini"), "head")
     return path
 
@@ -279,9 +278,8 @@ def test_downgrade_refuses_existing_historical_overlaps(
 @pytest.mark.alembic_audit
 def test_safeguard_migration_stops_on_historical_overlap(tmp_path, monkeypatch):
     path = Path(tmp_path) / "unsafe_history.db"
-    monkeypatch.setattr(
-        database_session, "DATABASE_URL", f"sqlite:///{path.as_posix()}"
-    )
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{path.as_posix()}")
+    monkeypatch.setenv("ALEMBIC_REQUIRE_TEMPORARY_DATABASE", "1")
     config = Config("alembic.ini")
     command.upgrade(config, "4a3e7bc2d901")
     connection = sqlite_connection(path)

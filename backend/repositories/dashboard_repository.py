@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased, joinedload
 
 from backend.models.booking import Booking
@@ -20,8 +20,20 @@ class DashboardRepository:
         ).unique())
 
     def list_operational_bookings(
-        self, db: Session, today: date, availability_end: date
+        self,
+        db: Session,
+        today: date,
+        availability_end: date,
+        movement_end: date,
     ) -> list[Booking]:
+        effective_arrival = func.coalesce(
+            Booking.expected_arrival_date,
+            Booking.check_in,
+        )
+        effective_departure = func.coalesce(
+            Booking.expected_departure_date,
+            Booking.check_out,
+        )
         return list(db.scalars(
             select(Booking)
             .join(Booking.room)
@@ -34,8 +46,14 @@ class DashboardRepository:
             )
             .where(
                 Room.active.is_(True),
-                Booking.check_in <= availability_end,
-                Booking.check_out >= today,
+                or_(
+                    and_(
+                        Booking.check_in <= availability_end,
+                        Booking.check_out >= today,
+                    ),
+                    effective_arrival.between(today, movement_end),
+                    effective_departure.between(today, movement_end),
+                ),
             )
             .order_by(Booking.check_in, Booking.check_out, Booking.id)
         ).unique())

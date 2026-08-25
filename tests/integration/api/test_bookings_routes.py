@@ -85,11 +85,13 @@ def test_booking_create_list_and_get_use_overridden_temporary_database(
         "origin": "manual",
         "check_in": "2026-09-10",
         "check_out": "2026-09-15",
-            "price": 450.5,
-            "notes": "Reserva de prueba",
-            "editable": True,
-            "external_block_deletable": False,
-        }
+        "expected_arrival_date": None,
+        "expected_departure_date": None,
+        "price": 450.5,
+        "notes": "Reserva de prueba",
+        "editable": True,
+        "external_block_deletable": False,
+    }
 
 
 def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
@@ -108,12 +110,16 @@ def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
             check_out="2026-10-03",
             price="300",
             notes="Actualizada",
+            expected_arrival_date="2026-09-29",
+            expected_departure_date="2026-10-02",
         ),
         follow_redirects=False,
     )
     db_session.refresh(booking)
     assert booking.guest.full_name == "Luis García"
     assert booking.check_in == date(2026, 10, 1)
+    assert booking.expected_arrival_date == date(2026, 9, 29)
+    assert booking.expected_departure_date == date(2026, 10, 2)
 
     delete_response = client.post(
         f"/bookings/delete/{booking.id}",
@@ -238,7 +244,9 @@ def test_booking_ui_populates_room_and_resets_manual_imported_modes():
     assert "this.importedGuestMode = false" in source
     assert "field.disabled = false" in source
     assert "field.disabled = readOnly" in source
-    assert "/bookings/update-imported-guest/" in source
+    assert "/bookings/update-imported-local/" in source
+    assert "booking.expected_arrival_date" in source
+    assert "booking.expected_departure_date" in source
     assert "/bookings/update/" in source
     for template in (workspace, gantt, dashboard):
         assert "components/booking_modal.html" in template
@@ -468,6 +476,75 @@ def test_imported_guest_endpoint_rejects_manual_booking(client, db_session):
     )
     db_session.refresh(booking)
     assert booking.guest.full_name == "Manual"
+
+
+def test_imported_local_details_update_only_guest_and_expected_dates(
+    client, db_session
+):
+    room = create_room(db_session)
+    platform = Platform(name="Flatio local", slug="flatio-local", active=True)
+    db_session.add(platform)
+    db_session.flush()
+    calendar = RoomCalendar(
+        room_id=room.id, platform_id=platform.id, active=True
+    )
+    db_session.add(calendar)
+    db_session.flush()
+    booking = Booking(
+        room_id=room.id,
+        room_calendar_id=calendar.id,
+        origin=platform.slug,
+        external_reference="LOCAL-DATES",
+        check_in=date(2026, 9, 1),
+        check_out=date(2027, 6, 30),
+        price=725,
+    )
+    db_session.add(booking)
+    db_session.commit()
+    contractual = (
+        booking.room_id,
+        booking.room_calendar_id,
+        booking.origin,
+        booking.external_reference,
+        booking.check_in,
+        booking.check_out,
+        booking.price,
+    )
+
+    response = client.post(
+        f"/bookings/update-imported-local/{booking.id}",
+        data={
+            "guest_name": "Inquilino local",
+            "expected_arrival_date": "2026-09-04",
+            "expected_departure_date": "2027-06-28",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    db_session.refresh(booking)
+    assert booking.guest.full_name == "Inquilino local"
+    assert booking.expected_arrival_date == date(2026, 9, 4)
+    assert booking.expected_departure_date == date(2027, 6, 28)
+    assert (
+        booking.room_id,
+        booking.room_calendar_id,
+        booking.origin,
+        booking.external_reference,
+        booking.check_in,
+        booking.check_out,
+        booking.price,
+    ) == contractual
+
+    cleared = client.post(
+        f"/bookings/update-imported-local/{booking.id}",
+        data={"guest_name": "Inquilino local"},
+        follow_redirects=False,
+    )
+    assert cleared.status_code == 303
+    db_session.refresh(booking)
+    assert booking.expected_arrival_date is None
+    assert booking.expected_departure_date is None
 
 
 def test_disappeared_housing_block_can_be_deleted_then_replaced_by_manual(

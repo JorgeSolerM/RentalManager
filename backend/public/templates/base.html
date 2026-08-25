@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Habitaciones disponibles para alquiler mensual.{% endblock %}">
+    {% block seo %}{% endblock %}
+    <link rel="stylesheet" href="{{ url_for('public_static', path='public.css') }}?v=public-catalog-grid-8">
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-shell">
+            <a class="site-brand" href="{{ url_for('public_catalog') }}">{{ site_name }}</a>
+        </div>
+    </header>
+    <main class="site-shell site-main">
+        {% block content %}{% endblock %}
+    </main>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

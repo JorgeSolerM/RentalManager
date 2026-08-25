@@ -41,3 +41,6 @@ class Feature(Base):
     rooms: Mapped[list["Room"]] = relationship(
         secondary=room_features, back_populates="features"
     )
+    room_public_highlights: Mapped[list["RoomPublicHighlight"]] = relationship(
+        back_populates="feature", passive_deletes=True
+    )

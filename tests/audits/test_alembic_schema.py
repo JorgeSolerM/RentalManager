@@ -25,12 +25,191 @@ MASTER_CALENDAR_OBSERVATION_REVISION = "c9e1f3a5b607"
 IMPORTED_PRESENCE_REVISION = "d2f4a6b8c901"
 OPERATIONAL_OVERLAP_REVISION = "e3a5c7d9f102"
 PUBLICATION_FOUNDATION_REVISION = "f6b8d0e2a413"
-HEAD_REVISION = "a8c1e4f6b209"
+OPTIONAL_ROOM_PRICE_REVISION = "a8c1e4f6b209"
+SHARED_BATHROOM_REVISION = "c6e8a0b2d437"
+HEAD_REVISION = "d7f9b1c3e548"
+
+
+@pytest.mark.alembic_audit
+def test_booking_operational_dates_upgrade_downgrade_upgrade(
+    tmp_path, monkeypatch
+):
+    database_path = Path(tmp_path) / "booking_operational_dates.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, SHARED_BATHROOM_REVISION)
+
+    connection = sqlite3.connect(database_path)
+    try:
+        before = {
+            row[1] for row in connection.execute("PRAGMA table_info(bookings)")
+        }
+        assert "expected_arrival_date" not in before
+        assert "expected_departure_date" not in before
+    finally:
+        connection.close()
+
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        upgraded = {
+            row[1]: row for row in connection.execute("PRAGMA table_info(bookings)")
+        }
+        assert upgraded["expected_arrival_date"][3] == 0
+        assert upgraded["expected_departure_date"][3] == 0
+    finally:
+        connection.close()
+
+    command.downgrade(config, SHARED_BATHROOM_REVISION)
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(bookings)")
+        }
+        assert {"expected_arrival_date", "expected_departure_date"} <= columns
+        assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_property_rules_requirements_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "property_rules_requirements.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "f9b1d3e5a640")
+    connection = sqlite3.connect(database_path)
+    connection.execute(
+        "INSERT INTO properties "
+        "(id,name,address,city,owner,active,is_published) "
+        "VALUES (1,'P','A','C','O',1,0)"
+    )
+    connection.commit()
+    connection.close()
+
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        values = connection.execute(
+            "SELECT smoking_allowed,pets_allowed,"
+            "musical_instruments_allowed,minimum_tenant_age,maximum_tenant_age "
+            "FROM properties WHERE id=1"
+        ).fetchone()
+        assert values == (None, None, None, None, None)
+        assert "couples_allowed" not in {
+            row[1] for row in connection.execute("PRAGMA table_info(properties)")
+        }
+        assert connection.execute(
+            "SELECT shared_full_bathroom_count,shared_toilet_count "
+            "FROM properties WHERE id=1"
+        ).fetchone() == (None, None)
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "UPDATE properties SET shared_toilet_count=-1 WHERE id=1"
+            )
+        connection.rollback()
+        assert connection.execute(
+            "SELECT COUNT(*) FROM rental_requirements"
+        ).fetchone() == (5,)
+        assert connection.execute(
+            "SELECT COUNT(*) FROM property_requirements"
+        ).fetchone() == (0,)
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "UPDATE properties SET minimum_tenant_age=50, "
+                "maximum_tenant_age=40 WHERE id=1"
+            )
+        connection.rollback()
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.downgrade(config, "f9b1d3e5a640")
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM rental_requirements"
+        ).fetchone() == (5,)
+        assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
+    finally:
+        connection.close()
+
+
+@pytest.mark.alembic_audit
+def test_manager_phone_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "manager_phone.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "c4e6a8b0d214")
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        columns = {row[1]: row for row in connection.execute("PRAGMA table_info(managers)")}
+        assert "phone" in columns and columns["phone"][3] == 0
+        connection.execute("INSERT INTO managers (name,phone,active) VALUES (?,?,1)", ("Gestor", "+34 600 123 123"))
+        assert connection.execute("SELECT phone FROM managers").fetchone()[0] == "+34 600 123 123"
+    finally:
+        connection.close()
+    command.downgrade(config, "c4e6a8b0d214")
+    command.upgrade(config, "head")
+
+
+@pytest.mark.alembic_audit
+def test_room_stay_months_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "room_stay_months.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "b1d3f5a7c902")
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.execute("INSERT INTO properties (id,name,address,city,owner,active,is_published) VALUES (1,'P','A','C','O',1,0)")
+        base = "INSERT INTO rooms (id,property_id,code,display_order,active,master_calendar_token,is_published,minimum_stay_months,maximum_stay_months) VALUES (?,?,?,?,?,?,0,?,?)"
+        connection.execute(base, (1, 1, "R1", 1, 1, "t1", 0, None))
+        connection.execute(base, (2, 1, "R2", 2, 1, "t2", 0, 3))
+        for values in ((3, 1, "R3", 3, 1, "t3", -1, None), (4, 1, "R4", 4, 1, "t4", 0, 0), (5, 1, "R5", 5, 1, "t5", 3, 2)):
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(base, values)
+            connection.rollback()
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+    command.downgrade(config, "b1d3f5a7c902")
+    command.upgrade(config, "head")
+
+
+@pytest.mark.alembic_audit
+def test_managers_and_room_highlights_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "managers_highlights.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "a8c1e4f6b209")
+    connection = sqlite3.connect(database_path)
+    connection.execute("PRAGMA foreign_keys=ON")
+    connection.execute("INSERT INTO properties (id,name,address,city,owner,active,is_published) VALUES (1,'P','A','C','O',1,0)")
+    connection.execute("INSERT INTO rooms (id,property_id,code,display_order,active,master_calendar_token,is_published) VALUES (1,1,'R1',1,1,'token',0)")
+    connection.commit(); connection.close()
+    command.upgrade(config, "head")
+    connection = sqlite3.connect(database_path)
+    connection.execute("PRAGMA foreign_keys=ON")
+    try:
+        connection.execute("INSERT INTO managers (id,name,active) VALUES (1,'Gestor',1)")
+        connection.execute("UPDATE properties SET manager_id=1 WHERE id=1")
+        feature_id = connection.execute("SELECT id FROM features WHERE slug='suministros-incluidos'").fetchone()[0]
+        connection.execute("INSERT INTO room_public_highlights (room_id,feature_id,position) VALUES (1,?,0)", (feature_id,))
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute("INSERT INTO room_public_highlights (room_id,feature_id,position) VALUES (1,999,4)")
+        connection.rollback()
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+    command.downgrade(config, "a8c1e4f6b209")
+    command.upgrade(config, "head")
 
 
 def configure_temporary_database(monkeypatch, database_path: Path) -> tuple[Config, str]:
     database_url = f"sqlite:///{database_path.as_posix()}"
     monkeypatch.setattr(database_session, "DATABASE_URL", database_url)
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("ALEMBIC_REQUIRE_TEMPORARY_DATABASE", "1")
     return Config("alembic.ini"), database_url
 
 
@@ -321,14 +500,14 @@ def test_public_listing_foundation_upgrade_downgrade_upgrade(
 
         connection.execute(
             "INSERT INTO features "
-            "(id,slug,name,scope,category,display_order,active) "
-            "VALUES (1,'wifi','Wi-Fi','both','conectividad',0,1)"
+            "(slug,name,scope,category,display_order,active) "
+            "VALUES ('wifi','Wi-Fi','both','conectividad',0,1)"
         )
         with pytest.raises(sqlite3.IntegrityError):
             connection.execute(
                 "INSERT INTO features "
-                "(id,slug,name,scope,category,display_order,active) "
-                "VALUES (2,'bad','Bad','invalid','other',0,1)"
+                "(slug,name,scope,category,display_order,active) "
+                "VALUES ('bad','Bad','invalid','other',0,1)"
             )
         connection.execute(
             "INSERT INTO media_assets "
@@ -525,6 +704,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
                 IMPORTED_PRESENCE_REVISION,
                 OPERATIONAL_OVERLAP_REVISION,
                 PUBLICATION_FOUNDATION_REVISION,
+                SHARED_BATHROOM_REVISION,
                 HEAD_REVISION,
         }
     finally:
@@ -874,7 +1054,7 @@ def test_optional_room_price_downgrade_is_blocked_when_null_prices_exist(tmp_pat
 
     connection = sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
     try:
-        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (HEAD_REVISION,)
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (OPTIONAL_ROOM_PRICE_REVISION,)
         assert connection.execute("SELECT base_price FROM rooms WHERE id=1").fetchone() == (None,)
     finally:
         connection.close()

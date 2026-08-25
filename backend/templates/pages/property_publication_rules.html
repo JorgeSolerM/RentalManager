@@ -1,0 +1,20 @@
+{% extends "layouts/base.html" %}
+{% block title %}Normas y requisitos · {{ property.name }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><a href="/properties/">← Propiedades</a><h1 class="mt-2">{{ property.name }}</h1></div></div>
+{% include "components/property_publication_nav.html" %}
+<form method="post" action="/properties/{{ property.id }}/publication/rules">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <section class="card mb-4"><div class="card-body"><h2 class="h5">Normas y preferencias</h2><div class="row g-3">
+                {% for field,label,value in [('smoking_allowed','Se permite fumar',property.smoking_allowed),('pets_allowed','Se permiten mascotas',property.pets_allowed),('musical_instruments_allowed','Se permiten instrumentos musicales',property.musical_instruments_allowed)] %}
+                <div class="col-md-6"><label class="form-label" for="{{ field }}">{{ label }}</label><select class="form-select" id="{{ field }}" name="{{ field }}"><option value="unknown"{% if value is none %} selected{% endif %}>No informado</option><option value="yes"{% if value is sameas true %} selected{% endif %}>Sí</option><option value="no"{% if value is sameas false %} selected{% endif %}>No</option></select></div>
+                {% endfor %}
+            </div></div></section>
+            <section class="card"><div class="card-body"><h2 class="h5">Edad admitida</h2><div class="row g-3"><div class="col-md-6"><label class="form-label" for="minimum_tenant_age">Edad mínima</label><input class="form-control" id="minimum_tenant_age" name="minimum_tenant_age" type="number" min="0" value="{{ property.minimum_tenant_age if property.minimum_tenant_age is not none else '' }}"></div><div class="col-md-6"><label class="form-label" for="maximum_tenant_age">Edad máxima</label><input class="form-control" id="maximum_tenant_age" name="maximum_tenant_age" type="number" min="0" value="{{ property.maximum_tenant_age if property.maximum_tenant_age is not none else '' }}"></div></div></div></section>
+        </div>
+        <div class="col-lg-5"><section class="card"><div class="card-body"><h2 class="h5">Requisitos</h2><p class="form-text">Selecciona la documentación aplicable a todas las habitaciones del inmueble.</p>{% for requirement in requirements %}<label class="form-check mb-2"><input class="form-check-input" type="checkbox" name="requirement_ids" value="{{ requirement.id }}"{% if requirement.id in selected_requirement_ids %} checked{% endif %}{% if not requirement.active and requirement.id not in selected_requirement_ids %} disabled{% endif %}><span class="form-check-label">{{ requirement.public_name }}{% if not requirement.active %} <span class="text-muted">· inactivo</span>{% endif %}</span>{% if requirement.public_description %}<span class="form-text d-block">{{ requirement.public_description }}</span>{% endif %}</label>{% else %}<p class="text-muted">No hay requisitos configurados.</p>{% endfor %}</div></section></div>
+    </div>
+    <button class="btn btn-primary mt-4" type="submit">Guardar normas y requisitos</button>
+</form>
+{% endblock %}

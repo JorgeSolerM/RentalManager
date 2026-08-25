@@ -32,6 +32,10 @@ const BookingUI = {
 
         this.checkOut = document.getElementById("bookingCheckOut");
 
+        this.expectedArrivalDate = document.getElementById("bookingExpectedArrivalDate");
+
+        this.expectedDepartureDate = document.getElementById("bookingExpectedDepartureDate");
+
         this.price = document.getElementById("bookingPrice");
 
         this.notes = document.getElementById("bookingNotes");
@@ -117,7 +121,7 @@ const BookingUI = {
             const imported = readOnly || booking.editable === false;
 
             this.form.action = imported
-                ? `/bookings/update-imported-guest/${booking.id}`
+                ? `/bookings/update-imported-local/${booking.id}`
                 : `/bookings/update/${booking.id}`;
 
             this.setReadOnly(imported, booking.external_block_deletable === true);
@@ -168,7 +172,7 @@ const BookingUI = {
             ? "Detalle de reserva importada"
             : (this.form.action === "/bookings/create" ? "Nueva reserva" : "Editar reserva");
 
-        this.submitButton.textContent = readOnly ? "Guardar huésped" :
+        this.submitButton.textContent = readOnly ? "Guardar datos locales" :
             (this.form.action === "/bookings/create" ? "Guardar" : "Guardar cambios");
 
     },
@@ -201,6 +205,10 @@ const BookingUI = {
 
         this.checkOut.value = booking.check_out;
 
+        this.expectedArrivalDate.value = booking.expected_arrival_date ?? "";
+
+        this.expectedDepartureDate.value = booking.expected_departure_date ?? "";
+
         this.price.value = booking.price ?? "";
 
         this.notes.value = booking.notes ?? "";
@@ -230,6 +238,9 @@ const BookingUI = {
         this.guestName.required = true;
 
         [this.checkIn, this.checkOut, this.price, this.notes]
+            .forEach(field => field.disabled = false);
+
+        [this.expectedArrivalDate, this.expectedDepartureDate]
             .forEach(field => field.disabled = false);
 
         this.title.textContent = "Nueva reserva";

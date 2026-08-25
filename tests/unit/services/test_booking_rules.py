@@ -70,6 +70,33 @@ def test_overlap_shapes_are_rejected_cleanly(db_session, check_in, check_out):
     assert len(db_session.scalars(select(Booking)).all()) == 1
 
 
+def test_expected_dates_do_not_change_contractual_overlap_rules(db_session):
+    room = make_room(db_session)
+    service = BookingService()
+    existing = create_manual(
+        db_session,
+        service,
+        room.id,
+        date(2026, 9, 10),
+        date(2026, 9, 20),
+    )
+    existing.expected_arrival_date = date(2026, 10, 1)
+    existing.expected_departure_date = date(2026, 10, 2)
+    db_session.commit()
+
+    result = service.create_manual_booking(
+        db_session,
+        room.id,
+        "Contractual overlap",
+        date(2026, 9, 12),
+        date(2026, 9, 15),
+        100,
+        None,
+    )
+
+    assert result.message == "booking_overlap"
+
+
 def test_contiguous_bookings_are_valid_on_both_boundaries(db_session):
     room = make_room(db_session)
     service = BookingService()

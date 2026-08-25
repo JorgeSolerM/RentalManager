@@ -96,6 +96,8 @@ class BookingService:
         check_out: date,
         price: float | None,
         notes: str | None,
+        expected_arrival_date: date | None = None,
+        expected_departure_date: date | None = None,
     ) -> None:
         booking.guest_id = guest.id
         booking.room_calendar_id = None
@@ -104,6 +106,8 @@ class BookingService:
         booking.check_out = check_out
         booking.price = price
         booking.notes = notes
+        booking.expected_arrival_date = expected_arrival_date
+        booking.expected_departure_date = expected_departure_date
 
     def get_booking(self, db: Session, booking_id: int) -> Booking | None:
         return self.booking_repository.get_by_id(db, booking_id)
@@ -160,6 +164,8 @@ class BookingService:
         check_out: date,
         price: float | None,
         notes: str | None,
+        expected_arrival_date: date | None = None,
+        expected_departure_date: date | None = None,
     ) -> OperationResult[Booking]:
         try:
             stripped_guest_name = guest_name.strip()
@@ -176,7 +182,14 @@ class BookingService:
             guest = self._get_or_create_guest(db, stripped_guest_name)
             booking = Booking(room_id=room_id)
             self.populate_booking(
-                booking, guest, check_in, check_out, price, notes
+                booking,
+                guest,
+                check_in,
+                check_out,
+                price,
+                notes,
+                expected_arrival_date,
+                expected_departure_date,
             )
             self.booking_repository.create(db, booking)
             db.commit()
@@ -230,6 +243,8 @@ class BookingService:
         check_out: date,
         price: float | None,
         notes: str | None,
+        expected_arrival_date: date | None = None,
+        expected_departure_date: date | None = None,
     ) -> OperationResult[Booking]:
         try:
             booking = self.booking_repository.get_by_id(db, booking_id)
@@ -253,7 +268,14 @@ class BookingService:
 
             guest = self._get_or_create_guest(db, stripped_guest_name)
             self.populate_booking(
-                booking, guest, check_in, check_out, price, notes
+                booking,
+                guest,
+                check_in,
+                check_out,
+                price,
+                notes,
+                expected_arrival_date,
+                expected_departure_date,
             )
             self.booking_repository.update(db, booking)
             db.commit()
@@ -286,6 +308,37 @@ class BookingService:
                 booking.guest_id = guest.id
             else:
                 booking.guest_id = None
+
+            self.booking_repository.update(db, booking)
+            db.commit()
+            return OperationResult(success=True, data=booking)
+        except Exception:
+            db.rollback()
+            raise
+
+    def update_imported_local_details(
+        self,
+        db: Session,
+        booking_id: int,
+        guest_name: str,
+        expected_arrival_date: date | None,
+        expected_departure_date: date | None,
+    ) -> OperationResult[Booking]:
+        try:
+            booking = self.booking_repository.get_by_id(db, booking_id)
+            if booking is None:
+                return self._rejected(db, "not_found")
+            if not self.is_imported_booking(booking):
+                return self._rejected(db, "booking_not_imported", booking)
+
+            normalized_guest_name = " ".join(guest_name.split())
+            if normalized_guest_name:
+                guest = self._get_or_create_guest(db, normalized_guest_name)
+                booking.guest_id = guest.id
+            else:
+                booking.guest_id = None
+            booking.expected_arrival_date = expected_arrival_date
+            booking.expected_departure_date = expected_departure_date
 
             self.booking_repository.update(db, booking)
             db.commit()

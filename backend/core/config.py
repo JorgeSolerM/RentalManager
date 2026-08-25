@@ -34,3 +34,10 @@ def get_public_site_base_url() -> str | None:
 
 def get_public_site_name() -> str:
     return os.getenv("PUBLIC_SITE_NAME", "").strip() or DEFAULT_PUBLIC_SITE_NAME
+
+
+def get_public_site_allowed_hosts() -> list[str]:
+    value = os.getenv("PUBLIC_SITE_ALLOWED_HOSTS", "").strip()
+    if not value:
+        return ["127.0.0.1", "localhost", "testserver"]
+    return [host.strip() for host in value.split(",") if host.strip()]
