@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Política de cookies | {{ site_name }}{% endblock %}
+{% block meta_description %}Información sobre cookies y tecnologías de almacenamiento utilizadas en la web de {{ site_name }}.{% endblock %}
+{% block seo %}
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta property="og:title" content="Política de cookies | {{ site_name }}">
+<meta property="og:description" content="Información sobre cookies y tecnologías de almacenamiento utilizadas en la web de {{ site_name }}.">
+<meta property="og:url" content="{{ canonical }}">
+{% endblock %}
+{% block content %}
+<article class="legal-page legal-document">
+    <p class="eyebrow">Información legal</p>
+    <h1>Política de cookies</h1>
+    <p class="legal-updated">Última actualización: 27 de agosto de 2026</p>
+
+    <section class="legal-section">
+        <h2>1. Situación actual</h2>
+        <p>HSI Rents no instala actualmente cookies propias ni utiliza <em>localStorage</em>, <em>sessionStorage</em>, IndexedDB u otras tecnologías equivalentes para identificar o seguir a las personas visitantes.</p>
+        <p>La web no incorpora herramientas de analítica, publicidad, píxeles de seguimiento, iframes ni scripts de terceros. Por ello, no se muestra un banner de consentimiento para cookies no necesarias.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>2. Cookies técnicas de seguridad</h2>
+        <p>El sitio utiliza Cloudflare para entregar y proteger el tráfico. Cloudflare podría establecer excepcionalmente cookies estrictamente necesarias para funciones de seguridad, gestión del tráfico o superación de desafíos frente a accesos maliciosos. Estas cookies, cuando sean necesarias para prestar el servicio solicitado, no se utilizan por HSI Rents con fines publicitarios o de elaboración de perfiles.</p>
+        <p>En las comprobaciones técnicas realizadas al publicar esta política no se observó el envío de cookies en la navegación ordinaria.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>3. Enlaces a servicios externos</h2>
+        <p>Los botones de WhatsApp y Google Maps son enlaces, no contenidos integrados. Estos proveedores no reciben una petición desde la página por el mero hecho de visitarla. Si la persona pulsa un enlace, abandona HSI Rents y el servicio externo puede utilizar cookies u otras tecnologías conforme a su propia política.</p>
+        <p>Los enlaces de teléfono y correo electrónico se entregan al sistema o aplicación elegida por la persona usuaria y no instalan cookies en este sitio.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>4. Cambios futuros</h2>
+        <p>Si en el futuro se incorporan analítica, publicidad u otras tecnologías no necesarias, esta política se actualizará y se implantará el mecanismo de información y consentimiento exigible antes de activarlas.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>5. Contacto</h2>
+        <p>Puede plantear cualquier duda sobre esta política escribiendo a <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>.</p>
+    </section>
+</article>
+{% endblock %}

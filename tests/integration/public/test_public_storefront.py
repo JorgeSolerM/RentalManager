@@ -761,6 +761,95 @@ def test_public_production_hosts_and_canonical_urls(
     assert "Sitemap: https://hsi-rents.com/sitemap.xml" in robots.text
 
 
+def test_public_contact_page_navigation_actions_seo_and_sitemap(
+    public_context, db_session, monkeypatch
+):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    monkeypatch.setenv("PUBLIC_SITE_BASE_URL", "https://hsi-rents.com")
+    monkeypatch.setenv("PUBLIC_CONTACT_NAME", "Jorge Soler")
+    monkeypatch.setenv("PUBLIC_CONTACT_EMAIL", "jorgesoler@hsi-rents.com")
+    monkeypatch.setenv("PUBLIC_CONTACT_PHONE", "+34 647 427 935")
+    monkeypatch.setenv("PUBLIC_WHATSAPP_NUMBER", "+34 647 427 935")
+
+    catalog = client.get("/")
+    detail = client.get(f"/habitaciones/{room.public_slug}")
+    contact = client.get("/contacto")
+    sitemap = client.get("/sitemap.xml")
+
+    assert contact.status_code == 200
+    assert catalog.text.count('href="http://testserver/contacto"') >= 1
+    assert detail.text.count('href="http://testserver/contacto"') >= 1
+    assert "Jorge Soler" in contact.text
+    assert 'href="tel:+34647427935"' in contact.text
+    assert 'href="mailto:jorgesoler@hsi-rents.com"' in contact.text
+    whatsapp_match = re.search(r'href="(https://wa\.me/34647427935\?[^\"]+)"', contact.text)
+    assert whatsapp_match is not None
+    whatsapp_message = parse_qs(
+        urlsplit(html.unescape(whatsapp_match.group(1))).query
+    )["text"][0]
+    assert "HSI Rents" in whatsapp_message
+    assert "Contacto | HSI Rents" in contact.text
+    assert '<link rel="canonical" href="https://hsi-rents.com/contacto">' in contact.text
+    assert '<meta property="og:url" content="https://hsi-rents.com/contacto">' in contact.text
+    assert "https://hsi-rents.com/contacto</loc>" in sitemap.text
+    for response in (catalog, detail, contact, sitemap):
+        assert "@gmail.com" not in response.text.lower()
+
+
+def test_public_header_footer_and_pending_legal_pages(public_context, db_session):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    responses = [
+        client.get("/"),
+        client.get(f"/habitaciones/{room.public_slug}"),
+        client.get("/contacto"),
+    ]
+
+    for response in responses:
+        assert response.status_code == 200
+        assert "Cómo funciona" not in response.text
+        assert 'class="site-footer"' in response.text
+        assert 'href="http://testserver/aviso-legal"' in response.text
+        assert 'href="http://testserver/privacidad"' in response.text
+        assert 'href="http://testserver/cookies"' in response.text
+        assert "© 2026 HSI Rents" in response.text
+
+    legal_pages = {
+        "/aviso-legal": ("Aviso legal", "Identificación del titular"),
+        "/privacidad": ("Política de privacidad", "Responsable del tratamiento"),
+        "/cookies": ("Política de cookies", "Situación actual"),
+    }
+    rendered_legal_pages = {}
+    for path, (title, expected_section) in legal_pages.items():
+        response = client.get(path)
+        rendered_legal_pages[path] = response.text
+        assert response.status_code == 200
+        assert response.text.count("<h1") == 1
+        assert f"{title} | HSI Rents" in response.text
+        assert f'<link rel="canonical" href="http://testserver{path}">' in response.text
+        assert '<meta name="robots" content="noindex' not in response.text
+        assert expected_section in response.text
+        assert "Contenido pendiente de completar" not in response.text
+
+    notice = rendered_legal_pages["/aviso-legal"]
+    privacy = rendered_legal_pages["/privacidad"]
+    cookies = rendered_legal_pages["/cookies"]
+    assert "Jorge Soler Martínez" in notice
+    assert "74233334Y" in notice
+    assert "74233334Y" not in privacy and "74233334Y" not in cookies
+    assert "C/ Antonio Brotons Pastor, 31, bajo, 03205 Elche (Alicante)" in notice
+    assert "C/ Antonio Brotons Pastor, 31, bajo, 03205 Elche (Alicante)" in privacy
+    assert "@gmail.com" not in "".join(rendered_legal_pages.values()).lower()
+    assert "banner de consentimiento" in cookies
+
+    sitemap = client.get("/sitemap.xml").text
+    assert "/contacto</loc>" in sitemap
+    assert "/aviso-legal</loc>" not in sitemap
+    assert "/privacidad</loc>" not in sitemap
+    assert "/cookies</loc>" not in sitemap
+
+
 def test_public_seo_robots_and_sitemap_only_expose_public_rooms(
     public_context, db_session, monkeypatch
 ):

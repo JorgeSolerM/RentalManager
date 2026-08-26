@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Aviso legal | {{ site_name }}{% endblock %}
+{% block meta_description %}Aviso legal e información del titular de {{ site_name }}, web de habitaciones en alquiler en Elche.{% endblock %}
+{% block seo %}
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta property="og:title" content="Aviso legal | {{ site_name }}">
+<meta property="og:description" content="Aviso legal e información del titular de {{ site_name }}, web de habitaciones en alquiler en Elche.">
+<meta property="og:url" content="{{ canonical }}">
+{% endblock %}
+{% block content %}
+<article class="legal-page legal-document">
+    <p class="eyebrow">Información legal</p>
+    <h1>Aviso legal</h1>
+    <p class="legal-updated">Última actualización: 27 de agosto de 2026</p>
+
+    <section class="legal-section">
+        <h2>1. Identificación del titular</h2>
+        <dl class="legal-identity">
+            <div><dt>Titular</dt><dd>{{ legal.holder_name }}</dd></div>
+            <div><dt>NIF</dt><dd>{{ legal.nif }}</dd></div>
+            <div><dt>Domicilio</dt><dd>{{ legal.address }}</dd></div>
+            <div><dt>Correo electrónico</dt><dd><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></dd></div>
+            <div><dt>Teléfono</dt><dd>{{ contact.phone }}</dd></div>
+            <div><dt>Sitio web</dt><dd><a href="https://hsi-rents.com">https://hsi-rents.com</a></dd></div>
+        </dl>
+        <p>{{ legal.holder_name }} es una persona física que desarrolla actividades de gestión y comercialización de alquileres de inmuebles y habitaciones propios y de terceros bajo la marca {{ site_name }}.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>2. Objeto del sitio web</h2>
+        <p>Este sitio ofrece información pública sobre habitaciones disponibles, sus características, precios orientativos, fotografías, condiciones y disponibilidad. La web funciona como escaparate informativo y canal de contacto: no permite formalizar reservas, efectuar pagos ni celebrar contratos en línea.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>3. Condiciones de uso</h2>
+        <p>La persona usuaria se compromete a utilizar el sitio de forma lícita, diligente y respetuosa, sin dañar su funcionamiento, intentar acceder a zonas restringidas ni emplear sus contenidos con fines fraudulentos o contrarios a derechos de terceros.</p>
+        <p>La información publicada se procura mantener actualizada, pero la disponibilidad y las condiciones concretas deberán confirmarse directamente antes de adoptar una decisión o formalizar cualquier relación contractual.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>4. Propiedad intelectual e industrial</h2>
+        <p>Los textos, fotografías, diseño, elementos gráficos y demás contenidos propios del sitio están protegidos por la normativa aplicable. Cuando existan contenidos de terceros, se utilizan con la correspondiente autorización o título legítimo. No se permite su reproducción, distribución, transformación o explotación fuera de los límites legales sin autorización del titular de los derechos.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>5. Disponibilidad y responsabilidad</h2>
+        <p>Se adoptan medidas razonables para mantener el sitio accesible y seguro. No obstante, pueden producirse interrupciones, errores técnicos o cambios en la información. El titular responderá en los términos exigidos por la normativa aplicable, sin que este aviso limite derechos que legalmente correspondan a las personas consumidoras o usuarias.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>6. Enlaces externos</h2>
+        <p>El sitio contiene enlaces a servicios externos, como WhatsApp y Google Maps. Al seguirlos, la persona usuaria abandona HSI Rents y queda sujeta a las condiciones y políticas del proveedor correspondiente. Los enlaces se facilitan para ofrecer contacto o información de ubicación y no implican control sobre esos servicios.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>7. Legislación aplicable</h2>
+        <p>Este sitio se rige por la legislación española. Cualquier controversia se resolverá ante los órganos judiciales competentes conforme a las normas legales aplicables, respetando en todo caso los fueros imperativos de consumidores y usuarios cuando correspondan.</p>
+    </section>
+</article>
+{% endblock %}

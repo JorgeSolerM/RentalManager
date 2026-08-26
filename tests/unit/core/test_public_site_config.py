@@ -3,6 +3,8 @@ from pathlib import Path
 import pytest
 
 from backend.core.config import (
+    get_public_contact_config,
+    get_public_legal_config,
     get_public_site_allowed_hosts,
     get_public_site_base_url,
     get_public_site_name,
@@ -50,6 +52,56 @@ def test_public_site_allowed_hosts_include_canonical_alias_and_local(monkeypatch
         "hsi-rents.com",
         "www.hsi-rents.com",
     ]
+
+
+def test_public_contact_configuration_has_safe_public_defaults_and_overrides(monkeypatch):
+    for key in (
+        "PUBLIC_CONTACT_NAME",
+        "PUBLIC_CONTACT_EMAIL",
+        "PUBLIC_CONTACT_PHONE",
+        "PUBLIC_WHATSAPP_NUMBER",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    contact = get_public_contact_config()
+    assert contact.name == "Jorge Soler"
+    assert contact.email == "jorgesoler@hsi-rents.com"
+    assert contact.phone == "+34 647 427 935"
+    assert contact.whatsapp_number == "+34 647 427 935"
+
+    monkeypatch.setenv("PUBLIC_CONTACT_NAME", "Nombre público")
+    monkeypatch.setenv("PUBLIC_CONTACT_EMAIL", "contacto@example.com")
+    monkeypatch.setenv("PUBLIC_CONTACT_PHONE", "+34 611 111 111")
+    monkeypatch.setenv("PUBLIC_WHATSAPP_NUMBER", "+34 622 222 222")
+    overridden = get_public_contact_config()
+    assert overridden.name == "Nombre público"
+    assert overridden.email == "contacto@example.com"
+    assert overridden.phone == "+34 611 111 111"
+    assert overridden.whatsapp_number == "+34 622 222 222"
+
+
+def test_public_legal_identity_is_centralized_and_overridable(monkeypatch):
+    for key in (
+        "PUBLIC_LEGAL_HOLDER_NAME",
+        "PUBLIC_LEGAL_NIF",
+        "PUBLIC_LEGAL_ADDRESS",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    legal = get_public_legal_config()
+    assert legal.holder_name == "Jorge Soler Martínez"
+    assert legal.nif == "74233334Y"
+    assert legal.address == (
+        "C/ Antonio Brotons Pastor, 31, bajo, 03205 Elche (Alicante)"
+    )
+
+    monkeypatch.setenv("PUBLIC_LEGAL_HOLDER_NAME", "Titular de prueba")
+    monkeypatch.setenv("PUBLIC_LEGAL_NIF", "00000000T")
+    monkeypatch.setenv("PUBLIC_LEGAL_ADDRESS", "Domicilio de prueba")
+    overridden = get_public_legal_config()
+    assert overridden.holder_name == "Titular de prueba"
+    assert overridden.nif == "00000000T"
+    assert overridden.address == "Domicilio de prueba"
 
 
 @pytest.mark.parametrize(

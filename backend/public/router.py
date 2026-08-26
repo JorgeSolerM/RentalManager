@@ -8,8 +8,14 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from backend.core.business_time import business_today
-from backend.core.config import get_public_site_base_url, get_public_site_name
+from backend.core.config import (
+    get_public_contact_config,
+    get_public_legal_config,
+    get_public_site_base_url,
+    get_public_site_name,
+)
 from backend.core.media_storage import PUBLIC_IMAGE_WIDTHS, MediaFileStore
+from backend.core.public_phone import phone_link_values, whatsapp_url
 from backend.models.media_asset import MediaAsset
 from backend.public.database import get_public_db
 from backend.public.service import PublicRoomService
@@ -32,6 +38,7 @@ def public_catalog(request: Request, db: Session = Depends(get_public_db)):
     selected_sort = PublicRoomService.normalize_sort(
         request.query_params.get("sort", "recommended").strip()
     )
+
     raw_feature_values = request.query_params.getlist("features")
     selected_features = tuple(dict.fromkeys(
         slug.strip()
@@ -98,6 +105,83 @@ def public_catalog(request: Request, db: Session = Depends(get_public_db)):
     )
 
 
+@router.api_route("/contacto", methods=["GET", "HEAD"], name="public_contact")
+def public_contact(request: Request):
+    base_url = _public_base_url(request)
+    contact = get_public_contact_config()
+    phone_values = phone_link_values(contact.phone)
+    contact_whatsapp_url = whatsapp_url(
+        contact.whatsapp_number,
+        "Hola, me gustaría recibir información sobre las habitaciones de HSI Rents.",
+    )
+    canonical = f"{base_url}/contacto"
+    return templates.TemplateResponse(
+        request=request,
+        name="contact.html",
+        context={
+            "request": request,
+            "site_name": get_public_site_name(),
+            "contact": contact,
+            "tel_url": phone_values[1] if phone_values else None,
+            "whatsapp_url": contact_whatsapp_url,
+            "header_contact_url": contact_whatsapp_url,
+            "canonical": canonical,
+        },
+    )
+
+
+def _render_legal_page(
+    request: Request, *, template_name: str, template_title: str, page_path: str
+):
+    canonical = f"{_public_base_url(request)}/{page_path}"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "request": request,
+            "site_name": get_public_site_name(),
+            "template_title": template_title,
+            "canonical": canonical,
+            "contact": get_public_contact_config(),
+            "legal": get_public_legal_config(),
+        },
+    )
+
+
+@router.api_route(
+    "/aviso-legal", methods=["GET", "HEAD"], name="public_legal_notice"
+)
+def public_legal_notice(request: Request):
+    return _render_legal_page(
+        request,
+        template_name="legal_notice.html",
+        template_title="Aviso legal",
+        page_path="aviso-legal",
+    )
+
+
+@router.api_route(
+    "/privacidad", methods=["GET", "HEAD"], name="public_privacy"
+)
+def public_privacy(request: Request):
+    return _render_legal_page(
+        request,
+        template_name="privacy.html",
+        template_title="Política de privacidad",
+        page_path="privacidad",
+    )
+
+
+@router.api_route("/cookies", methods=["GET", "HEAD"], name="public_cookies")
+def public_cookies(request: Request):
+    return _render_legal_page(
+        request,
+        template_name="cookies.html",
+        template_title="Política de cookies",
+        page_path="cookies",
+    )
+
+
 @router.api_route("/robots.txt", methods=["GET", "HEAD"], name="public_robots")
 def public_robots(request: Request):
     base_url = _public_base_url(request)
@@ -111,7 +195,7 @@ def public_robots(request: Request):
 def public_sitemap(request: Request, db: Session = Depends(get_public_db)):
     base_url = _public_base_url(request)
     rooms = PublicRoomService().list_rooms(db, public_base_url=base_url)
-    locations = [f"{base_url}/", *(
+    locations = [f"{base_url}/", f"{base_url}/contacto", *(
         f"{base_url}/habitaciones/{room.slug}" for room in rooms
     )]
     entries = "".join(f"<url><loc>{escape(url)}</loc></url>" for url in locations)

@@ -17,8 +17,7 @@
             </a>
             <nav class="site-nav" aria-label="Navegación principal">
                 <a href="{{ url_for('public_catalog') }}#habitaciones">Todas las habitaciones</a>
-                <a href="{{ url_for('public_catalog') }}#como-funciona">Cómo funciona</a>
-                <a href="{{ header_contact_url or (url_for('public_catalog') ~ '#habitaciones') }}">Contacto</a>
+                <a href="{{ url_for('public_contact') }}">Contacto</a>
                 <a class="site-nav-whatsapp" href="{{ header_contact_url or (url_for('public_catalog') ~ '#habitaciones') }}" aria-label="Contacto por WhatsApp"><img src="{{ url_for('public_static', path='icons/whatsapp.svg') }}" alt="" width="22" height="22"></a>
             </nav>
         </div>
@@ -26,6 +25,21 @@
     <main class="site-shell site-main">
         {% block content %}{% endblock %}
     </main>
+    <footer class="site-footer">
+        <div class="site-shell site-footer-inner">
+            <div class="site-footer-brand">
+                <strong>{{ site_name }}</strong>
+                <span>Habitaciones en Elche</span>
+            </div>
+            <nav class="site-footer-nav" aria-label="Información legal y contacto">
+                <a href="{{ url_for('public_legal_notice') }}">Aviso legal</a>
+                <a href="{{ url_for('public_privacy') }}">Política de privacidad</a>
+                <a href="{{ url_for('public_cookies') }}">Política de cookies</a>
+                <a href="{{ url_for('public_contact') }}">Contacto</a>
+            </nav>
+            <p class="site-footer-copyright">© 2026 {{ site_name }}</p>
+        </div>
+    </footer>
     {% block scripts %}{% endblock %}
 </body>
 </html>

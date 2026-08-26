@@ -1,11 +1,21 @@
 import os
 import re
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 
 APP_VERSION = "1.0.0"
 DEFAULT_PUBLIC_SITE_NAME = "HSI Rents"
 DEFAULT_PUBLIC_SITE_ALLOWED_HOSTS = ("127.0.0.1", "localhost", "testserver")
+DEFAULT_PUBLIC_CONTACT_NAME = "Jorge Soler"
+DEFAULT_PUBLIC_CONTACT_EMAIL = "jorgesoler@hsi-rents.com"
+DEFAULT_PUBLIC_CONTACT_PHONE = "+34 647 427 935"
+DEFAULT_PUBLIC_WHATSAPP_NUMBER = "+34 647 427 935"
+DEFAULT_PUBLIC_LEGAL_HOLDER_NAME = "Jorge Soler Martínez"
+DEFAULT_PUBLIC_LEGAL_NIF = "74233334Y"
+DEFAULT_PUBLIC_LEGAL_ADDRESS = (
+    "C/ Antonio Brotons Pastor, 31, bajo, 03205 Elche (Alicante)"
+)
 PUBLIC_HOST_PATTERN = re.compile(
     r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$"
 )
@@ -39,6 +49,46 @@ def get_public_site_base_url() -> str | None:
 
 def get_public_site_name() -> str:
     return os.getenv("PUBLIC_SITE_NAME", "").strip() or DEFAULT_PUBLIC_SITE_NAME
+
+
+@dataclass(frozen=True)
+class PublicContactConfig:
+    name: str
+    email: str
+    phone: str
+    whatsapp_number: str
+
+
+@dataclass(frozen=True)
+class PublicLegalConfig:
+    holder_name: str
+    nif: str
+    address: str
+
+
+def get_public_contact_config() -> PublicContactConfig:
+    """Return deliberately public contact details with environment overrides."""
+    return PublicContactConfig(
+        name=os.getenv("PUBLIC_CONTACT_NAME", "").strip()
+        or DEFAULT_PUBLIC_CONTACT_NAME,
+        email=os.getenv("PUBLIC_CONTACT_EMAIL", "").strip()
+        or DEFAULT_PUBLIC_CONTACT_EMAIL,
+        phone=os.getenv("PUBLIC_CONTACT_PHONE", "").strip()
+        or DEFAULT_PUBLIC_CONTACT_PHONE,
+        whatsapp_number=os.getenv("PUBLIC_WHATSAPP_NUMBER", "").strip()
+        or DEFAULT_PUBLIC_WHATSAPP_NUMBER,
+    )
+
+
+def get_public_legal_config() -> PublicLegalConfig:
+    """Return the public legal identity without scattering it across templates."""
+    return PublicLegalConfig(
+        holder_name=os.getenv("PUBLIC_LEGAL_HOLDER_NAME", "").strip()
+        or DEFAULT_PUBLIC_LEGAL_HOLDER_NAME,
+        nif=os.getenv("PUBLIC_LEGAL_NIF", "").strip() or DEFAULT_PUBLIC_LEGAL_NIF,
+        address=os.getenv("PUBLIC_LEGAL_ADDRESS", "").strip()
+        or DEFAULT_PUBLIC_LEGAL_ADDRESS,
+    )
 
 
 def get_public_site_allowed_hosts() -> list[str]:

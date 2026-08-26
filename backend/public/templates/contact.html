@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Contacto | {{ site_name }}{% endblock %}
+{% block meta_description %}Contacta directamente con HSI Rents para resolver dudas sobre habitaciones, disponibilidad y alquiler mensual en Elche.{% endblock %}
+{% block seo %}
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta property="og:title" content="Contacto | {{ site_name }}">
+<meta property="og:description" content="Contacta directamente con HSI Rents para resolver dudas sobre habitaciones, disponibilidad y alquiler mensual en Elche.">
+<meta property="og:url" content="{{ canonical }}">
+{% endblock %}
+{% block content %}
+<section class="contact-page" aria-labelledby="contact-title">
+    <div class="contact-copy">
+        <p class="eyebrow">Contacto</p>
+        <h1 id="contact-title">¿Tienes alguna duda?</h1>
+        <p class="contact-intro">Si quieres más información sobre una habitación, su disponibilidad o las condiciones del alquiler, contacta conmigo directamente.</p>
+        <div class="contact-identity">
+            <strong>{{ contact.name }}</strong>
+            <span>{{ site_name }}</span>
+        </div>
+        <div class="contact-actions">
+            {% if whatsapp_url %}<a class="contact-action contact-action-primary" href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer"><img src="{{ url_for('public_static', path='icons/whatsapp.svg') }}" alt="" width="20" height="20">WhatsApp</a>{% endif %}
+            {% if tel_url %}<a class="contact-action contact-action-secondary" href="{{ tel_url }}">Llamar</a>{% endif %}
+        </div>
+        <address class="contact-details">
+            {% if tel_url %}<a href="{{ tel_url }}">{{ contact.phone }}</a>{% endif %}
+            <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+        </address>
+    </div>
+</section>
+{% endblock %}

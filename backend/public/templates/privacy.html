@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Política de privacidad | {{ site_name }}{% endblock %}
+{% block meta_description %}Información sobre el tratamiento de datos personales y los derechos de privacidad en {{ site_name }}.{% endblock %}
+{% block seo %}
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta property="og:title" content="Política de privacidad | {{ site_name }}">
+<meta property="og:description" content="Información sobre el tratamiento de datos personales y los derechos de privacidad en {{ site_name }}.">
+<meta property="og:url" content="{{ canonical }}">
+{% endblock %}
+{% block content %}
+<article class="legal-page legal-document">
+    <p class="eyebrow">Información legal</p>
+    <h1>Política de privacidad</h1>
+    <p class="legal-updated">Última actualización: 27 de agosto de 2026</p>
+
+    <section class="legal-section">
+        <h2>1. Responsable del tratamiento</h2>
+        <p><strong>{{ legal.holder_name }}</strong>, con domicilio en {{ legal.address }}, es responsable de los tratamientos descritos en esta política. Puede contactar mediante <a href="mailto:{{ contact.email }}">{{ contact.email }}</a> o en el teléfono {{ contact.phone }}. No se ha designado delegado de protección de datos.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>2. Datos tratados y procedencia</h2>
+        <p>La web no incorpora formularios, cuentas de usuario, pagos ni un sistema de reservas, y no guarda en su base de datos información identificativa de quienes la visitan.</p>
+        <p>Si una persona contacta por teléfono, correo electrónico o WhatsApp, se tratarán los datos que facilite voluntariamente, como nombre, datos de contacto, contenido de la consulta e información necesaria para atender su interés en una habitación o gestionar posteriores actuaciones precontractuales o contractuales.</p>
+        <p>Durante la navegación se procesan datos técnicos necesarios para entregar y proteger el sitio, principalmente dirección IP, fecha y hora, recurso solicitado, estado de la respuesta e información técnica transmitida por el navegador. Estos datos proceden del dispositivo y la conexión de la persona visitante.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>3. Finalidades y bases jurídicas</h2>
+        <ul>
+            <li><strong>Atender consultas y proporcionar información</strong> sobre habitaciones, disponibilidad y condiciones. La base es la solicitud de la persona interesada y, cuando corresponda, la aplicación de medidas precontractuales.</li>
+            <li><strong>Gestionar solicitudes y relaciones de alquiler</strong>, incluidas gestiones precontractuales y contractuales. La base es la ejecución de medidas solicitadas y, en su caso, del contrato.</li>
+            <li><strong>Cumplir obligaciones legales</strong> administrativas, fiscales, contables o de atención de derechos cuando resulten aplicables.</li>
+            <li><strong>Garantizar el funcionamiento y la seguridad</strong> del sitio, prevenir abusos y diagnosticar errores. La base es el interés legítimo en mantener un servicio seguro y disponible.</li>
+        </ul>
+        <p>No se realizan decisiones automatizadas, perfiles comerciales ni campañas publicitarias desde la web. Los datos no se venden ni se ceden con fines comerciales.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>4. Destinatarios y proveedores</h2>
+        <p>Los datos solo se comunicarán cuando sea necesario para prestar el servicio, atender una obligación legal o gestionar una solicitud. Pueden intervenir los siguientes proveedores:</p>
+        <ul>
+            <li><strong>Cloudflare</strong>, que actúa como red de entrega, protección, túnel de acceso y enrutamiento del correo, y procesa datos técnicos como direcciones IP y metadatos de tráfico.</li>
+            <li><strong>Google</strong>, en relación con la recepción o gestión de correo mediante Gmail. El enlace a Google Maps solo transmite información a Google cuando la persona decide abrirlo.</li>
+            <li><strong>SMTP2GO (Sand Dune Mail Ltd)</strong>, cuando se utiliza como proveedor para el envío de comunicaciones por correo electrónico.</li>
+            <li><strong>WhatsApp/Meta</strong>, únicamente cuando la persona pulsa el enlace o utiliza WhatsApp para contactar. En ese momento se aplican también las condiciones y política de privacidad de WhatsApp.</li>
+        </ul>
+        <p>La pulsación de enlaces externos supone abandonar este sitio. Google, Meta y otros proveedores tratan entonces datos —como IP, dispositivo, cuenta o contenido aportado— bajo sus propias responsabilidades y políticas. HSI Rents tratará, por su parte, el mensaje o consulta que reciba.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>5. Transferencias internacionales</h2>
+        <p>Algunos proveedores tecnológicos pueden tratar datos fuera del Espacio Económico Europeo, especialmente en Estados Unidos o en infraestructuras distribuidas internacionalmente. Dichos tratamientos deben ampararse en los mecanismos reconocidos por el RGPD que correspondan en cada caso, como decisiones de adecuación, el Marco de Privacidad de Datos UE-EE. UU. o cláusulas contractuales tipo. Las transferencias concretas dependen del servicio y de la configuración contractual vigente de cada proveedor.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>6. Conservación</h2>
+        <p>Las consultas y comunicaciones se conservarán durante el tiempo necesario para atenderlas y gestionar la relación solicitada. Si de ellas se deriva una relación precontractual o contractual, podrán mantenerse mientras dicha relación esté vigente y, después, durante los plazos necesarios para atender obligaciones legales o posibles responsabilidades.</p>
+        <p>La aplicación pública no incorpora un archivo propio de visitantes. Uvicorn genera registros técnicos de acceso en la salida del proceso, sin que se haya configurado en RentalManager un archivo, rotación o plazo específico de conservación. Cloudflare y los proveedores de comunicaciones aplican sus propios periodos y criterios de conservación conforme al servicio contratado y sus políticas.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>7. Derechos</h2>
+        <p>Puede solicitar el acceso, rectificación, supresión, oposición, limitación y portabilidad de sus datos cuando proceda, así como retirar un consentimiento sin afectar a la licitud previa. Para ejercerlos, escriba a <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>, identificando el derecho solicitado y aportando la información necesaria para comprobar su identidad.</p>
+        <p>También puede presentar una reclamación ante la <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer">Agencia Española de Protección de Datos</a>, especialmente si considera que no se han atendido adecuadamente sus derechos.</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>8. Actualizaciones</h2>
+        <p>Esta política podrá actualizarse cuando cambien los tratamientos, proveedores o requisitos legales. La versión vigente estará siempre disponible en esta página.</p>
+    </section>
+</article>
+{% endblock %}
