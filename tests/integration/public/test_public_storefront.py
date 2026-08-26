@@ -713,6 +713,54 @@ def test_public_app_has_security_headers_no_schema_and_no_write_routes(
     assert client.get("/", headers={"host": "untrusted.example"}).status_code == 400
 
 
+def test_public_production_hosts_and_canonical_urls(
+    db_session, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("PUBLIC_SITE_BASE_URL", "https://hsi-rents.com")
+    monkeypatch.setenv(
+        "PUBLIC_SITE_ALLOWED_HOSTS", "hsi-rents.com,www.hsi-rents.com"
+    )
+    store = MediaFileStore(MediaStoragePaths.from_root(tmp_path / "media"))
+    app = create_public_app(media_store=store)
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_public_db] = override_db
+    _, room = add_public_room(db_session, store)
+
+    with TestClient(app, base_url="https://hsi-rents.com") as client:
+        for host in (
+            "hsi-rents.com",
+            "www.hsi-rents.com",
+            "127.0.0.1",
+            "localhost",
+        ):
+            assert client.get("/", headers={"host": host}).status_code == 200
+        assert client.get(
+            "/", headers={"host": "arbitrary.example"}
+        ).status_code == 400
+
+        catalog = client.get("/")
+        local_catalog = client.get(
+            "/",
+            headers={"host": "localhost", "x-forwarded-proto": "http"},
+        )
+        detail = client.get(f"/habitaciones/{room.public_slug}")
+        sitemap = client.get("/sitemap.xml")
+        robots = client.get("/robots.txt")
+
+    assert '<link rel="canonical" href="https://hsi-rents.com/">' in catalog.text
+    assert '<meta property="og:url" content="https://hsi-rents.com/">' in catalog.text
+    assert '<link rel="canonical" href="https://hsi-rents.com/">' in local_catalog.text
+    room_url = f"https://hsi-rents.com/habitaciones/{room.public_slug}"
+    assert f'<link rel="canonical" href="{room_url}">' in detail.text
+    assert f'<meta property="og:url" content="{room_url}">' in detail.text
+    assert "https://hsi-rents.com/</loc>" in sitemap.text
+    assert f"{room_url}</loc>" in sitemap.text
+    assert "Sitemap: https://hsi-rents.com/sitemap.xml" in robots.text
+
+
 def test_public_seo_robots_and_sitemap_only_expose_public_rooms(
     public_context, db_session, monkeypatch
 ):

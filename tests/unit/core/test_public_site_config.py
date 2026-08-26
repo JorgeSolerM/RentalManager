@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from backend.core.config import get_public_site_base_url, get_public_site_name
+import pytest
+
+from backend.core.config import (
+    get_public_site_allowed_hosts,
+    get_public_site_base_url,
+    get_public_site_name,
+)
 from backend.core.media_storage import (
     ALLOWED_IMAGE_MIME_TYPES,
     MAX_IMAGE_UPLOAD_BYTES,
@@ -12,6 +18,7 @@ from backend.core.media_storage import (
 
 def test_public_site_configuration_is_explicit_and_safe(monkeypatch):
     monkeypatch.delenv("PUBLIC_SITE_BASE_URL", raising=False)
+    monkeypatch.delenv("PUBLIC_SITE_ALLOWED_HOSTS", raising=False)
     monkeypatch.delenv("PUBLIC_SITE_NAME", raising=False)
     assert get_public_site_base_url() is None
     assert get_public_site_name() == "HSI Rents"
@@ -28,6 +35,34 @@ def test_public_site_configuration_is_explicit_and_safe(monkeypatch):
     ):
         monkeypatch.setenv("PUBLIC_SITE_BASE_URL", unsafe)
         assert get_public_site_base_url() is None
+
+
+def test_public_site_allowed_hosts_include_canonical_alias_and_local(monkeypatch):
+    monkeypatch.setenv("PUBLIC_SITE_BASE_URL", "https://hsi-rents.com")
+    monkeypatch.setenv(
+        "PUBLIC_SITE_ALLOWED_HOSTS", "hsi-rents.com,www.hsi-rents.com"
+    )
+
+    assert get_public_site_allowed_hosts() == [
+        "127.0.0.1",
+        "localhost",
+        "testserver",
+        "hsi-rents.com",
+        "www.hsi-rents.com",
+    ]
+
+
+@pytest.mark.parametrize(
+    "unsafe", ("*", "*.hsi-rents.com", "https://hsi-rents.com", "host:8001")
+)
+def test_public_site_allowed_hosts_reject_wildcards_and_non_hosts(
+    monkeypatch, unsafe
+):
+    monkeypatch.delenv("PUBLIC_SITE_BASE_URL", raising=False)
+    monkeypatch.setenv("PUBLIC_SITE_ALLOWED_HOSTS", unsafe)
+
+    with pytest.raises(ValueError, match="explicit hostnames"):
+        get_public_site_allowed_hosts()
 
 
 def test_media_storage_configuration_creates_only_expected_directories(tmp_path):
