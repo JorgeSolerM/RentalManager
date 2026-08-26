@@ -28,6 +28,59 @@ def test_dashboard_is_operational_and_reuses_booking_modal(client):
     assert "0 habitaciones ocupadas de 0; 0 libres; ocupación 0,0 %." in response.text
 
 
+def test_dashboard_excludes_archived_room_and_its_future_booking(
+    client, db_session
+):
+    property_obj = Property(
+        name="Archived dashboard", address="A", city="Madrid", owner="O",
+        active=True,
+    )
+    db_session.add(property_obj)
+    db_session.flush()
+    room = Room(
+        property_id=property_obj.id, code="ARCHIVED-DASH", display_order=1,
+        base_price=500, active=False,
+    )
+    db_session.add(room)
+    db_session.flush()
+    db_session.add(Booking(
+        room_id=room.id, origin="manual",
+        check_in=date.today() + timedelta(days=1),
+        check_out=date.today() + timedelta(days=10),
+    ))
+    db_session.commit()
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "ARCHIVED-DASH" not in response.text
+    assert "0 habitaciones ocupadas de 0; 0 libres; ocupación 0,0 %." in response.text
+
+
+def test_preparation_room_is_excluded_until_put_into_operation(
+    client, db_session
+):
+    property_obj = Property(
+        name="Preparation dashboard", address="A", city="Madrid", owner="O",
+        active=True,
+    )
+    room = Room(
+        property=property_obj, code="PREPARATION", display_order=1,
+        base_price=None, active=True, is_published=False,
+        operational_since=None,
+    )
+    db_session.add_all([property_obj, room])
+    db_session.commit()
+
+    preparation = client.get("/")
+    room.operational_since = date.today()
+    db_session.commit()
+    operational = client.get("/")
+
+    assert "0 habitaciones ocupadas de 0; 0 libres; ocupación 0,0 %." in preparation.text
+    assert "0 habitaciones ocupadas de 1; 1 libres; ocupación 0,0 %." in operational.text
+
+
 def test_dashboard_formats_single_reliable_platform_update(client, db_session):
     synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
     property_obj = Property(

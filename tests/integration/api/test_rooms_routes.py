@@ -60,6 +60,32 @@ def test_create_room_uses_overridden_temporary_database(client, db_session):
     assert persisted_room.property_id == property_obj.id
     assert persisted_room.base_price is None
     assert persisted_room.square_meters is None
+    assert persisted_room.operational_since is None
+
+
+def test_put_room_into_operation_sets_business_date_only(
+    client, db_session, monkeypatch
+):
+    property_obj = create_property(db_session)
+    room = create_room(db_session, property_obj.id)
+    room.is_published = False
+    db_session.commit()
+    expected = datetime(2026, 8, 26).date()
+    monkeypatch.setattr(
+        "backend.services.room_service.business_today", lambda: expected
+    )
+
+    response = client.post(
+        f"/rooms/{room.id}/put-into-operation",
+        data={"destination": "list"},
+        follow_redirects=False,
+    )
+
+    db_session.refresh(room)
+    assert response.status_code == 303
+    assert room.operational_since == expected
+    assert room.active is True
+    assert room.is_published is False
 
 
 def test_room_form_does_not_request_commercial_values(client, db_session):
@@ -222,6 +248,93 @@ def test_room_listing_platform_loading_has_no_query_per_room(client, db_session)
     assert response.status_code == 200
     assert len(selects) == 3
     assert response.text.count("Shared &middot; Automatización pausada") == 12
+
+
+def test_archived_room_actions_and_labels_are_exposed_without_active_column(
+    client, db_session
+):
+    property_obj = create_property(db_session)
+    active = Room(
+        property_id=property_obj.id, code="ACTIVE", display_order=1,
+        base_price=350, active=True,
+    )
+    archived = Room(
+        property_id=property_obj.id, code="ARCHIVED", display_order=2,
+        base_price=350, active=False,
+    )
+    db_session.add_all([active, archived])
+    db_session.commit()
+
+    listing = client.get(f"/rooms/property/{property_obj.id}")
+    workspace = client.get(f"/rooms/{archived.id}")
+
+    assert listing.status_code == workspace.status_code == 200
+    assert "Publicada" in listing.text
+    assert "Archivada" in listing.text
+    assert f'/rooms/{active.id}/archive' in listing.text
+    assert f'/rooms/{archived.id}/restore' in listing.text
+    assert "Reactivar habitación" in workspace.text
+
+
+def test_room_lifecycle_actions_are_rendered_only_in_configuration_tab(
+    client, db_session
+):
+    property_obj = create_property(db_session)
+    preparation = Room(
+        property_id=property_obj.id, code="PREPARATION", display_order=1,
+        base_price=350, active=True, operational_since=None,
+    )
+    operational = Room(
+        property_id=property_obj.id, code="OPERATIONAL", display_order=2,
+        base_price=350, active=True,
+        operational_since=datetime(2026, 8, 26).date(),
+    )
+    archived = Room(
+        property_id=property_obj.id, code="ARCHIVED", display_order=3,
+        base_price=350, active=False,
+        operational_since=datetime(2026, 8, 26).date(),
+    )
+    db_session.add_all([preparation, operational, archived])
+    db_session.commit()
+
+    lifecycle_labels = (
+        "Poner en servicio",
+        "Archivar habitación",
+        "Reactivar habitación",
+    )
+    expected_by_room = {
+        preparation.id: ("Poner en servicio", "Archivar habitación"),
+        operational.id: ("Archivar habitación",),
+        archived.id: ("Reactivar habitación",),
+    }
+
+    for room_id, expected_labels in expected_by_room.items():
+        response = client.get(f"/rooms/{room_id}")
+        assert response.status_code == 200
+        header_and_reservations, configuration = response.text.split(
+            'id="configuracion"', 1
+        )
+        for label in lifecycle_labels:
+            assert label not in header_and_reservations
+        for label in expected_labels:
+            assert label in configuration
+
+    operational_response = client.get(f"/rooms/{operational.id}")
+    assert "Operativa desde 26.08.2026" in operational_response.text
+
+
+def test_archive_action_exists_only_in_room_contexts():
+    room_templates = (
+        open("backend/templates/pages/rooms.html", encoding="utf-8").read()
+        + open("backend/templates/pages/room_workspace.html", encoding="utf-8").read()
+    )
+    booking_contexts = (
+        open("backend/templates/components/booking_modal.html", encoding="utf-8").read()
+        + open("backend/templates/pages/dashboard.html", encoding="utf-8").read()
+        + open("backend/static/js/bookings.js", encoding="utf-8").read()
+    )
+    assert "Archivar habitación" in room_templates
+    assert "Archivar habitación" not in booking_contexts
 
 
 def test_platform_favicons_are_defensively_constrained_to_sixteen_pixels():

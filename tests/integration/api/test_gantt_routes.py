@@ -55,6 +55,27 @@ def test_data_contract_filters_window_and_excludes_private_data(client, db_sessi
         assert private not in encoded
 
 
+def test_archived_room_is_hidden_by_default_and_visible_with_archive_filter(
+    client, db_session
+):
+    property_obj, room, _booking = seed(client, db_session)
+    room.active = False
+    db_session.commit()
+    base = (
+        f"/gantt/data?start=2026-09-01&end=2026-10-01"
+        f"&property_id={property_obj.id}"
+    )
+
+    hidden = client.get(base).json()
+    visible = client.get(f"{base}&include_inactive=true").json()
+    page = client.get("/gantt/")
+
+    assert hidden["properties"] == []
+    assert visible["properties"][0]["rooms"][0]["id"] == room.id
+    assert visible["properties"][0]["rooms"][0]["active"] is False
+    assert "Archivadas" in page.text
+
+
 def test_data_rejects_invalid_or_excessive_windows(client):
     assert client.get("/gantt/data?start=2026-09-01&end=2026-09-01").status_code == 400
     assert client.get("/gantt/data?start=2026-01-01&end=2027-01-03").status_code == 400

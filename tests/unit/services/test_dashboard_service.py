@@ -28,7 +28,7 @@ class FakeRepository:
         self.overlaps = overlaps
         self.calls = []
 
-    def list_active_rooms(self, _db):
+    def list_operational_rooms(self, _db):
         self.calls.append("rooms")
         return self.rooms
 
@@ -343,6 +343,7 @@ def test_repository_backed_dashboard_keeps_four_selects_with_more_rooms(
         room_obj = Room(
             property_id=property_obj.id, code=f"D-{index:02}",
             display_order=index, base_price=500, active=True,
+            operational_since=TODAY,
         )
         db_session.add(room_obj); db_session.flush()
         if index < 3:
@@ -378,7 +379,7 @@ def test_repository_includes_movement_outside_contractual_query_window(db_sessio
     )
     room_obj = Room(
         property=property_obj, code="OP-1", display_order=1,
-        base_price=500, active=True,
+        base_price=500, active=True, operational_since=TODAY,
     )
     booking_obj = Booking(
         room=room_obj,
@@ -409,11 +410,11 @@ def test_repository_excludes_inactive_rooms_and_historical_overlap_incidents(
     db_session.add(property_obj); db_session.flush()
     active = Room(
         property_id=property_obj.id, code="ACTIVE", display_order=1,
-        base_price=500, active=True,
+        base_price=500, active=True, operational_since=TODAY,
     )
     inactive = Room(
         property_id=property_obj.id, code="INACTIVE", display_order=2,
-        base_price=500, active=False,
+        base_price=500, active=False, operational_since=TODAY,
     )
     db_session.add_all([active, inactive]); db_session.flush()
     db_session.add_all([

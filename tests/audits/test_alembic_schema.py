@@ -27,7 +27,58 @@ OPERATIONAL_OVERLAP_REVISION = "e3a5c7d9f102"
 PUBLICATION_FOUNDATION_REVISION = "f6b8d0e2a413"
 OPTIONAL_ROOM_PRICE_REVISION = "a8c1e4f6b209"
 SHARED_BATHROOM_REVISION = "c6e8a0b2d437"
-HEAD_REVISION = "d7f9b1c3e548"
+HEAD_REVISION = "e1c3a5b7d902"
+
+
+@pytest.mark.alembic_audit
+def test_room_operational_since_upgrade_downgrade_upgrade(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "room_operational_since.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "d7f9b1c3e548")
+    connection = sqlite3.connect(database_path)
+    connection.execute(
+        "INSERT INTO properties "
+        "(id,name,address,city,owner,active,is_published) "
+        "VALUES (1,'P','A','C','O',1,0)"
+    )
+    connection.execute(
+        "INSERT INTO rooms "
+        "(id,property_id,code,display_order,active,is_published,master_calendar_token) "
+        "VALUES (1,1,'R1',1,1,0,'token-1')"
+    )
+    connection.commit()
+    connection.close()
+
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT operational_since FROM rooms WHERE id=1"
+        ).fetchone() == ("2026-08-26",)
+        assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.downgrade(config, "d7f9b1c3e548")
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "operational_since" not in {
+            row[1] for row in connection.execute("PRAGMA table_info(rooms)")
+        }
+    finally:
+        connection.close()
+
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute(
+            "SELECT operational_since FROM rooms WHERE id=1"
+        ).fetchone() == ("2026-08-26",)
+        assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
 
 
 @pytest.mark.alembic_audit

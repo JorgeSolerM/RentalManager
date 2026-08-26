@@ -10,12 +10,15 @@ from backend.models.room_calendar import RoomCalendar
 
 
 class DashboardRepository:
-    def list_active_rooms(self, db: Session) -> list[Room]:
+    def list_operational_rooms(self, db: Session) -> list[Room]:
         return list(db.scalars(
             select(Room)
             .join(Room.property)
             .options(joinedload(Room.property))
-            .where(Room.active.is_(True))
+            .where(
+                Room.active.is_(True),
+                Room.operational_since.is_not(None),
+            )
             .order_by(Property.name, Room.display_order, Room.code)
         ).unique())
 

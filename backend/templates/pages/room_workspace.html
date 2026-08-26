@@ -16,13 +16,17 @@
 
             {{ room.code }}
 
-            {% if room.active %}
-            <span class="badge bg-success ms-3">
-                Activa
+            {% if not room.active %}
+            <span class="badge bg-secondary ms-3">
+                Archivada
+            </span>
+            {% elif room.operational_since is none %}
+            <span class="badge bg-warning text-dark ms-3">
+                En preparación
             </span>
             {% else %}
-            <span class="badge bg-secondary ms-3">
-                Inactiva
+            <span class="badge bg-success ms-3">
+                Operativa desde {{ room.operational_since.strftime('%d.%m.%Y') }}
             </span>
             {% endif %}
 
@@ -230,6 +234,42 @@
     </div>
 
 <div class="tab-pane fade{% if request.query_params.get('tab') == 'configuracion' %} show active{% endif %}" id="configuracion" role="tabpanel">
+
+    <div class="card mb-4">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h2 class="h5 mb-1">Ciclo de vida</h2>
+                <p class="text-muted mb-0">Gestiona la puesta en servicio o el archivo de la habitación.</p>
+            </div>
+            <div>
+                {% if not room.active %}
+                <form method="post" action="/rooms/{{ room.id }}/restore">
+                    <input type="hidden" name="destination" value="workspace">
+                    <button type="submit" class="btn btn-outline-primary">Reactivar habitación</button>
+                </form>
+                {% elif room.operational_since is none %}
+                <div class="d-flex flex-wrap gap-2">
+                    <form method="post" action="/rooms/{{ room.id }}/put-into-operation"
+                        onsubmit="return confirm('La habitación empezará a contar en las métricas operativas del Dashboard.');">
+                        <input type="hidden" name="destination" value="workspace">
+                        <button type="submit" class="btn btn-outline-primary">Poner en servicio</button>
+                    </form>
+                    <form method="post" action="/rooms/{{ room.id }}/archive"
+                        onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
+                        <input type="hidden" name="destination" value="workspace">
+                        <button type="submit" class="btn btn-outline-secondary">Archivar habitación</button>
+                    </form>
+                </div>
+                {% else %}
+                <form method="post" action="/rooms/{{ room.id }}/archive"
+                    onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
+                    <input type="hidden" name="destination" value="workspace">
+                    <button type="submit" class="btn btn-outline-secondary">Archivar habitación</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
     <div class="card mb-4">
         <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -454,6 +494,12 @@
 
             </div>
 
+            {% if not room.active %}
+            <div class="text-muted small mt-2">
+                Habitación archivada. La sincronización está pausada y la configuración se conserva.
+            </div>
+            {% endif %}
+
             {% elif platform.active and room.active and (platform.supports_import or platform.supports_export) %}
 
             <form method="post" action="/room-calendars/create" class="mt-3">
@@ -480,7 +526,11 @@
 
             <div class="text-muted small mt-2">
 
-                No se puede configurar mientras la Room o la Platform esté inactiva.
+                {% if not room.active %}
+                Habitación archivada. La sincronización está pausada y la configuración se conserva.
+                {% else %}
+                No se puede configurar mientras la plataforma esté inactiva.
+                {% endif %}
 
             </div>
 

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from backend.core.operation_result import OperationResult
+from backend.core.business_time import business_today
 from backend.core.platform_favicons import platform_favicon
 from backend.core.master_calendar_observation import (
     master_calendar_evidence,
@@ -20,6 +21,7 @@ SYNC_STATE_LABELS = {
     "paused": "Automatización pausada",
     "inactive": "Calendario inactivo",
     "platform_inactive": "Plataforma inactiva",
+    "room_archived": "Pausada por habitación archivada",
 }
 
 
@@ -70,6 +72,9 @@ class RoomService:
     def count_rooms_by_property(self, db: Session, property_id: int) -> int:
         return self.repository.count_by_property(db, property_id)
 
+    def count_active_rooms_by_property(self, db: Session, property_id: int) -> int:
+        return self.repository.count_active_by_property(db, property_id)
+
     def get_room(self, db: Session, room_id: int) -> Room | None:
         return self.repository.get_by_id(db, room_id)
 
@@ -95,6 +100,66 @@ class RoomService:
             return OperationResult(success=False, message="code_exists")
         try:
             room.code = code
+            self.repository.update(db, room)
+            db.commit()
+            return OperationResult(success=True, data=room)
+        except Exception:
+            db.rollback()
+            raise
+
+    def archive(self, db: Session, room_id: int) -> OperationResult[Room]:
+        room = self.repository.get_by_id(db, room_id)
+        if room is None:
+            return OperationResult(success=False, message="not_found")
+        if not room.active:
+            return OperationResult(success=True, data=room)
+        if self.repository.has_current_or_future_bookings(
+            db, room.id, business_today()
+        ):
+            return OperationResult(
+                success=False,
+                message="room_archive_has_current_or_future_bookings",
+            )
+        try:
+            room.active = False
+            room.is_published = False
+            self.repository.update(db, room)
+            db.commit()
+            return OperationResult(success=True, data=room)
+        except Exception:
+            db.rollback()
+            raise
+
+    def restore(self, db: Session, room_id: int) -> OperationResult[Room]:
+        room = self.repository.get_by_id(db, room_id)
+        if room is None:
+            return OperationResult(success=False, message="not_found")
+        if room.active:
+            return OperationResult(success=True, data=room)
+        try:
+            room.active = True
+            room.is_published = False
+            self.repository.update(db, room)
+            db.commit()
+            return OperationResult(success=True, data=room)
+        except Exception:
+            db.rollback()
+            raise
+
+    def put_into_operation(
+        self, db: Session, room_id: int
+    ) -> OperationResult[Room]:
+        room = self.repository.get_by_id(db, room_id)
+        if room is None:
+            return OperationResult(success=False, message="not_found")
+        if not room.active:
+            return OperationResult(
+                success=False, message="room_archived_cannot_be_operational"
+            )
+        if room.operational_since is not None:
+            return OperationResult(success=True, data=room)
+        try:
+            room.operational_since = business_today()
             self.repository.update(db, room)
             db.commit()
             return OperationResult(success=True, data=room)

@@ -93,6 +93,7 @@ def add_public_room(db, store, *, code="R01", slug="room-one"):
         minimum_stay_months=0,
         maximum_stay_months=None,
         active=True,
+        operational_since=TODAY,
         public_title="Habitación luminosa",
         public_description="Dormitorio exterior, cómodo y tranquilo.",
         public_slug=slug,
@@ -195,6 +196,7 @@ def test_detail_calculates_flatmates_from_eligible_sibling_bed_capacity(
         item = Room(
             property_id=property_obj.id, code=code, display_order=2,
             base_price=600, minimum_stay_months=0, active=True,
+            operational_since=TODAY,
             public_title=code, public_description="Descripción pública suficiente.",
             public_slug=slug, is_published=True, features=[bed],
         )
@@ -337,6 +339,19 @@ def test_catalog_exposes_only_rooms_that_are_really_publicable(
     property_obj.active = False
     db_session.commit()
     assert room.public_title not in client.get("/").text
+
+    property_obj.active = True
+    room.active = False
+    db_session.commit()
+    assert room.public_title not in client.get("/").text
+    assert client.get(f"/habitaciones/{room.public_slug}").status_code == 404
+
+    room.active = True
+    room.operational_since = None
+    room.is_published = True
+    db_session.commit()
+    assert room.public_title not in client.get("/").text
+    assert client.get(f"/habitaciones/{room.public_slug}").status_code == 404
 
 
 def test_catalog_and_detail_use_only_ordered_room_public_highlights(

@@ -1,4 +1,5 @@
 import secrets
+from datetime import date
 
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -79,6 +80,8 @@ class Room(Base):
         default=True,
         nullable=False,
     )
+
+    operational_since: Mapped[date | None] = mapped_column(nullable=True)
 
     minimum_stay_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     maximum_stay_months: Mapped[int | None] = mapped_column(Integer, nullable=True)

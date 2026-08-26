@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -57,6 +59,21 @@ class RoomRepository(BaseRepository):
 
         return db.scalar(statement) or 0
 
+    def count_active_by_property(
+        self,
+        db: Session,
+        property_id: int,
+    ) -> int:
+        statement = (
+            select(func.count())
+            .select_from(Room)
+            .where(
+                Room.property_id == property_id,
+                Room.active.is_(True),
+            )
+        )
+        return db.scalar(statement) or 0
+
     def get_by_id(
         self,
         db: Session,
@@ -105,6 +122,24 @@ class RoomRepository(BaseRepository):
         )
 
         return (db.scalar(statement) or 0) > 0
+
+    def has_current_or_future_bookings(
+        self,
+        db: Session,
+        room_id: int,
+        business_date: date,
+    ) -> bool:
+        """Use contractual dates; checkout on the business date is historical."""
+        statement = (
+            select(Booking.id)
+            .where(
+                Booking.room_id == room_id,
+                Booking.check_out > business_date,
+            )
+            .limit(1)
+        )
+        return db.scalar(statement) is not None
+
     def has_room_calendars(
         self,
         db: Session,

@@ -222,6 +222,33 @@ def test_cycle_uses_independent_sessions_and_continues_after_failure(tmp_path):
     engine.dispose()
 
 
+def test_cycle_ignores_archived_rooms_without_changing_sync_status(
+    db_session, tmp_path
+):
+    room, calendar = seed_calendar(db_session, "archived")
+    calendar.last_sync_status = "ok"
+    calendar.consecutive_failures = 3
+    room.active = False
+    db_session.commit()
+    service = ResultService({
+        calendar.id: OperationResult(
+            success=True, message="room_calendar_sync_completed"
+        )
+    })
+    runner = RoomCalendarSyncRunner(
+        service, FileLockManager(tmp_path), lambda: NOW
+    )
+
+    report = runner.run_cycle(lambda: db_session)
+
+    assert report.selected == report.attempted == 0
+    assert service.calls == []
+    persisted = db_session.get(RoomCalendar, calendar.id)
+    assert persisted.last_sync_status == "ok"
+    assert persisted.consecutive_failures == 3
+    assert runner.health_state(persisted) == "room_archived"
+
+
 def test_unexpected_error_is_sanitized_and_recorded(
     db_session, tmp_path, monkeypatch
 ):

@@ -20,7 +20,7 @@
     {% endfor %}
    </div>
    <label class="form-label mb-0"><span class="small">Propiedad</span><select class="form-select" id="ganttPropertyFilter"><option value="">Todas</option>{% for property in gantt_data.properties %}<option value="{{ property.id }}"{% if selected_property_id == property.id %} selected{% endif %}>{{ property.name }}</option>{% endfor %}</select></label>
-   <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ganttInactive" {% if include_inactive %}checked{% endif %}><label class="form-check-label" for="ganttInactive">Inactivas</label></div>
+   <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ganttInactive" {% if include_inactive %}checked{% endif %}><label class="form-check-label" for="ganttInactive">Archivadas</label></div>
   </div>
  </div>
  <div id="ganttStatus" class="visually-hidden" role="status" aria-live="polite"></div>

@@ -261,6 +261,7 @@ class PublicRoomService:
             and property_obj.manager is not None
             and property_obj.manager.active
             and room.active
+            and room.operational_since is not None
             and room.is_published
             and self._has_text(room.public_title)
             and self._has_text(room.public_description)

@@ -16,7 +16,8 @@ from backend.services.publication_service import PUBLIC_SLUG_PATTERN, Publicatio
 REASON_MESSAGES = {
     "property_inactive": "El inmueble está inactivo.", "property_not_published": "El inmueble no está publicado.",
     "property_public_title_required": "Falta el título público del inmueble.", "property_public_location_required": "Falta la ubicación pública del inmueble.",
-    "property_public_slug_required": "Falta un slug válido para el inmueble.", "room_inactive": "La habitación está inactiva.",
+    "property_public_slug_required": "Falta un slug válido para el inmueble.", "room_inactive": "La habitación está archivada.",
+    "room_not_operational": "La habitación todavía está en preparación.",
     "room_not_published": "La habitación no está marcada como publicada.", "room_public_title_required": "Falta el título público.",
     "room_public_description_required": "Falta la descripción pública.", "room_public_slug_required": "Falta un slug válido.",
     "room_price_invalid": "El precio mensual no es válido.", "public_photo_required": "Falta una fotografía principal efectiva.",

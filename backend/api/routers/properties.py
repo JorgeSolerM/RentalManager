@@ -36,7 +36,7 @@ def list_properties(
 
     for property_obj in properties:
 
-        room_count = room_service.count_rooms_by_property(
+        room_count = room_service.count_active_rooms_by_property(
             db,
             property_obj.id,
         )

@@ -143,6 +143,8 @@ class PublicationService:
 
         if not room.active:
             reasons.append("room_inactive")
+        if room.operational_since is None:
+            reasons.append("room_not_operational")
         if not room.is_published:
             reasons.append("room_not_published")
         if not self._has_text(room.public_title):

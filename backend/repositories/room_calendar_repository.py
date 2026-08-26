@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from backend.models.booking import Booking
+from backend.models.room import Room
 from backend.models.room_calendar import RoomCalendar
 from backend.repositories.base_repository import BaseRepository
 
@@ -28,6 +29,7 @@ class RoomCalendarRepository(BaseRepository):
     def list_automatic_candidates(self, db: Session) -> list[RoomCalendar]:
         return db.scalars(
             select(RoomCalendar)
+            .join(Room, Room.id == RoomCalendar.room_id)
             .options(
                 joinedload(RoomCalendar.platform),
                 joinedload(RoomCalendar.room),
@@ -36,6 +38,7 @@ class RoomCalendarRepository(BaseRepository):
                 RoomCalendar.active.is_(True),
                 RoomCalendar.automatic_sync_enabled.is_(True),
                 RoomCalendar.import_url.is_not(None),
+                Room.active.is_(True),
             )
             .order_by(RoomCalendar.id)
         ).all()

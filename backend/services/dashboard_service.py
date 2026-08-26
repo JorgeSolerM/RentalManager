@@ -119,17 +119,21 @@ class DashboardService:
         availability_end = today + timedelta(days=AVAILABILITY_DAYS)
         now = self.now_factory()
 
-        rooms = self.repository.list_active_rooms(db)
+        rooms = self.repository.list_operational_rooms(db)
         bookings = self.repository.list_operational_bookings(
             db, today, availability_end, movement_end
         )
         calendars = self.repository.list_room_calendars(db)
         overlaps = self.repository.list_operational_overlaps(db, today)
 
+        operational_room_ids = {room.id for room in rooms}
         occupied_room_ids = {
             booking.room_id
             for booking in bookings
-            if booking.check_in <= today < booking.check_out
+            if (
+                booking.room_id in operational_room_ids
+                and booking.check_in <= today < booking.check_out
+            )
         }
         arrivals = [
             self._movement(booking, booking.effective_arrival_date, today)

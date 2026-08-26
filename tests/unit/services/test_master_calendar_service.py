@@ -52,6 +52,22 @@ def test_platform_views_exclude_only_the_consuming_platform(db_session):
     assert flatio_uids == {f"{bookings[0].ical_uid}@rentalmanager", f"{bookings[2].ical_uid}@rentalmanager"}
 
 
+def test_archived_room_keeps_existing_master_calendar_url_working(db_session):
+    room, housing, _, _, _, _ = seed_export_data(db_session)
+    token = room.master_calendar_token
+    room.active = False
+    room.is_published = False
+    db_session.commit()
+
+    export = MasterCalendarService().export_for_platform(
+        db_session, token, housing.slug
+    )
+
+    assert export is not None
+    assert export.room_id == room.id
+    assert room.master_calendar_token == token
+
+
 def test_export_dates_rfc_fields_and_privacy(db_session):
     room, housing, _, _, _, bookings = seed_export_data(db_session)
     export = MasterCalendarService().export_for_platform(db_session, room.master_calendar_token, housing.slug)

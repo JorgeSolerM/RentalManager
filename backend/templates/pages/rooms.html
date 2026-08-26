@@ -41,13 +41,18 @@
 
         {% set room = item.room %}
 
-        <tr>
+        <tr{% if not room.active %} class="room-row-archived"{% endif %}>
 
             <td>
 
                 <a href="/rooms/{{ room.id }}" class="rm-object-link">
                     {{ room.code }}
                 </a>
+                {% if not room.active %}
+                <span class="badge bg-secondary ms-2">Archivada</span>
+                {% elif room.operational_since is none %}
+                <span class="badge bg-warning text-dark ms-2">En preparación</span>
+                {% endif %}
 
             </td>
 
@@ -89,6 +94,30 @@
                     ✏
 
                 </button>
+
+                {% if not room.active %}
+                <form method="post" action="/rooms/{{ room.id }}/restore" class="d-inline">
+                    <input type="hidden" name="destination" value="list">
+                    <button type="submit" class="btn-link" title="Reactivar habitación">Reactivar</button>
+                </form>
+                {% elif room.operational_since is none %}
+                <form method="post" action="/rooms/{{ room.id }}/put-into-operation" class="d-inline"
+                    onsubmit="return confirm('La habitación empezará a contar en las métricas operativas del Dashboard.');">
+                    <input type="hidden" name="destination" value="list">
+                    <button type="submit" class="btn-link" title="Poner en servicio">Poner en servicio</button>
+                </form>
+                <form method="post" action="/rooms/{{ room.id }}/archive" class="d-inline"
+                    onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
+                    <input type="hidden" name="destination" value="list">
+                    <button type="submit" class="btn-link" title="Archivar habitación">Archivar habitación</button>
+                </form>
+                {% else %}
+                <form method="post" action="/rooms/{{ room.id }}/archive" class="d-inline"
+                    onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
+                    <input type="hidden" name="destination" value="list">
+                    <button type="submit" class="btn-link" title="Archivar habitación">Archivar habitación</button>
+                </form>
+                {% endif %}
 
             </td>
 

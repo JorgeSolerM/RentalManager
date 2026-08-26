@@ -45,7 +45,7 @@ ERROR_MESSAGES = {
     "room_calendar_sync_overlap": "El calendario se solapa con otra reserva.",
     "room_calendar_sync_failed": "La sincronización no pudo aplicarse.",
     "room_calendar_inactive": "El calendario está inactivo.",
-    "room_calendar_room_inactive": "La habitación está inactiva.",
+    "room_calendar_room_inactive": "La habitación está archivada.",
     "room_calendar_platform_inactive": "La plataforma está inactiva.",
     "room_calendar_import_not_supported": "La importación no está disponible.",
     "room_calendar_sync_database_locked": "La base de datos estaba ocupada; se intentará más tarde.",
@@ -100,7 +100,8 @@ class RoomCalendarSyncRunner:
 
     def is_due(self, calendar, now: datetime | None = None) -> bool:
         if (
-            not calendar.active
+            not calendar.room.active
+            or not calendar.active
             or not calendar.automatic_sync_enabled
             or not calendar.import_url
         ):
@@ -122,7 +123,8 @@ class RoomCalendarSyncRunner:
 
     def is_overdue(self, calendar, now: datetime | None = None) -> bool:
         if (
-            not calendar.active
+            not calendar.room.active
+            or not calendar.active
             or not calendar.automatic_sync_enabled
             or not calendar.import_url
             or calendar.last_sync_attempt_at is None
@@ -134,6 +136,8 @@ class RoomCalendarSyncRunner:
 
     def health_state(self, calendar, now: datetime | None = None) -> str:
         """Return the concise operational state used by read-only UI summaries."""
+        if not calendar.room.active:
+            return "room_archived"
         if not calendar.active:
             return "inactive"
         if not calendar.platform.active:

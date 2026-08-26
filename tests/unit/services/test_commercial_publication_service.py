@@ -1,3 +1,5 @@
+from datetime import date
+
 from backend.models.feature import Feature
 from backend.models.media_asset import MediaAsset
 from backend.models.manager import Manager
@@ -13,7 +15,7 @@ def records(db):
     db.add(manager); db.flush()
     prop = Property(name="Internal", address="Private", city="Elche", owner="Owner", active=True, manager_id=manager.id)
     db.add(prop); db.flush()
-    room = Room(property_id=prop.id, code="R1", display_order=1, base_price=600, square_meters=12, active=True, minimum_stay_months=1)
+    room = Room(property_id=prop.id, code="R1", display_order=1, base_price=600, square_meters=12, active=True, operational_since=date(2026, 8, 26), minimum_stay_months=1)
     bed = Feature(slug="cama-individual", name="Cama individual", scope="room", category="Dormitorio", display_order=0, active=True)
     db.add_all([room, bed]); room.features.append(bed); db.commit(); return prop, room
 

@@ -34,6 +34,7 @@ def create_property_and_room(db_session):
         display_order=1,
         base_price=650,
         active=True,
+        operational_since=TODAY,
         minimum_stay_months=1,
     )
     db_session.add(room)
@@ -95,6 +96,8 @@ def fill_public_fields(property_obj, room):
 
 def test_publication_assessment_reports_every_missing_requirement(db_session):
     property_obj, room = create_property_and_room(db_session)
+    room.operational_since = None
+    db_session.commit()
 
     assessment = PublicationService().assess_room(db_session, room.id)
 
@@ -105,6 +108,7 @@ def test_publication_assessment_reports_every_missing_requirement(db_session):
         "property_public_location_required",
         "property_public_slug_required",
         "room_not_published",
+        "room_not_operational",
         "room_public_title_required",
         "room_public_description_required",
         "room_public_slug_required",

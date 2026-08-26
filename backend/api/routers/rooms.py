@@ -257,6 +257,69 @@ def update_room(
     )
 
 
+def _room_lifecycle_redirect(room: Room, destination: str, outcome: str) -> str:
+    if destination == "workspace":
+        return f"/rooms/{room.id}?{outcome}"
+    return f"/rooms/property/{room.property_id}?{outcome}"
+
+
+@router.post("/{room_id}/archive")
+def archive_room(
+    room_id: int,
+    destination: str = Form("list"),
+    db: Session = Depends(get_db),
+):
+    result = room_service.archive(db, room_id)
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Habitación no encontrada.")
+    room = result.data or room_service.get_room(db, room_id)
+    outcome = (
+        "success=room_archived"
+        if result.success
+        else f"error={result.message}"
+    )
+    return RedirectResponse(
+        _room_lifecycle_redirect(room, destination, outcome), status_code=303
+    )
+
+
+@router.post("/{room_id}/restore")
+def restore_room(
+    room_id: int,
+    destination: str = Form("list"),
+    db: Session = Depends(get_db),
+):
+    result = room_service.restore(db, room_id)
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Habitación no encontrada.")
+    return RedirectResponse(
+        _room_lifecycle_redirect(
+            result.data, destination, "success=room_restored"
+        ),
+        status_code=303,
+    )
+
+
+@router.post("/{room_id}/put-into-operation")
+def put_room_into_operation(
+    room_id: int,
+    destination: str = Form("list"),
+    db: Session = Depends(get_db),
+):
+    result = room_service.put_into_operation(db, room_id)
+    if not result.success and result.message == "not_found":
+        raise HTTPException(status_code=404, detail="Habitación no encontrada.")
+    room = result.data or room_service.get_room(db, room_id)
+    outcome = (
+        "success=room_put_into_operation"
+        if result.success
+        else f"error={result.message}"
+    )
+    return RedirectResponse(
+        _room_lifecycle_redirect(room, destination, outcome), status_code=303
+    )
+
+
 @router.post("/delete/{room_id}")
 def delete_room(
     room_id: int,

@@ -23,6 +23,7 @@ class PublicRoomRepository:
                 Room.id,
                 Room.property_id,
                 Room.active,
+                Room.operational_since,
                 Room.base_price,
                 Room.square_meters,
                 Room.minimum_stay_months,
@@ -147,6 +148,7 @@ class PublicRoomRepository:
             .options(*self._load_options(today))
             .where(
                 Room.active.is_(True),
+                Room.operational_since.is_not(None),
                 Room.is_published.is_(True),
                 Property.active.is_(True),
                 Property.is_published.is_(True),
@@ -193,6 +195,7 @@ class PublicRoomRepository:
             .where(
                 room_features.c.feature_id == Feature.id,
                 Room.active.is_(True),
+                Room.operational_since.is_not(None),
                 Room.is_published.is_(True),
                 Property.active.is_(True),
                 Property.is_published.is_(True),
@@ -205,6 +208,7 @@ class PublicRoomRepository:
             .where(
                 property_features.c.feature_id == Feature.id,
                 Room.active.is_(True),
+                Room.operational_since.is_not(None),
                 Room.is_published.is_(True),
                 Property.active.is_(True),
                 Property.is_published.is_(True),
@@ -249,6 +253,7 @@ class PublicRoomRepository:
             .where(
                 Room.property_id == property_id,
                 Room.active.is_(True),
+                Room.operational_since.is_not(None),
                 Room.is_published.is_(True),
                 Property.active.is_(True),
                 Property.is_published.is_(True),
