@@ -97,7 +97,7 @@
 
             ·
 
-            {{ current_booking.guest.full_name if current_booking.guest else "Huésped desconocido" }}
+            {{ current_booking.operational_person_name }}
 
             ·
 
@@ -131,7 +131,7 @@
 
             ·
 
-            {{ current_booking.guest.full_name if current_booking.guest else "Huésped desconocido" }}
+            {{ current_booking.operational_person_name }}
 
             ·
 
@@ -185,7 +185,7 @@
 
                     ·
 
-                    {{ booking.guest.full_name if booking.guest else "Huésped desconocido" }}
+                    {{ booking.operational_person_name }}
 
                     ·
 

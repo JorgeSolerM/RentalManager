@@ -11,6 +11,10 @@ class BookingResponse(BaseModel):
 
     guest_name: str | None
 
+    source_guest_name: str | None = None
+
+    parties: list[dict] = []
+
     origin: str
 
     check_in: date

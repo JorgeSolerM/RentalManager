@@ -2,7 +2,9 @@
 {% set active_section = 'dashboard' if path == '/' else (
     'gantt' if path.startswith('/gantt') else (
     'properties' if path.startswith('/properties') or path.startswith('/rooms') else (
+    'persons' if path.startswith('/persons') else (
     'settings' if path.startswith('/settings') or path.startswith('/platforms') else none
+    )
     )
     )
 ) %}
@@ -20,6 +22,10 @@
 
         <li class="{% if active_section == 'properties' %}active{% endif %}">
             <a href="/properties/"{% if active_section == 'properties' %} aria-current="page"{% endif %}>Propiedades</a>
+        </li>
+
+        <li class="{% if active_section == 'persons' %}active{% endif %}">
+            <a href="/persons"{% if active_section == 'persons' %} aria-current="page"{% endif %}>Inquilinos</a>
         </li>
 
     </ul>

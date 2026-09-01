@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased, joinedload
+from backend.models.booking_party import BookingParty
 
 from backend.models.booking import Booking
 from backend.models.property import Property
@@ -42,6 +43,7 @@ class DashboardRepository:
             .join(Booking.room)
             .options(
                 joinedload(Booking.guest),
+                joinedload(Booking.parties).joinedload(BookingParty.person),
                 joinedload(Booking.room).joinedload(Room.property),
                 joinedload(Booking.room_calendar).joinedload(
                     RoomCalendar.platform

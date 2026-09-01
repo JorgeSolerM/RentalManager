@@ -278,6 +278,38 @@ h2 {
     background: #2e9b62;
 }
 
+.person-photo-column {
+    width: 48px;
+}
+
+.person-avatar-placeholder {
+    align-items: center;
+    background: #e9ecef;
+    border-radius: 50%;
+    color: #59636e;
+    display: inline-flex;
+    font-size: .72rem;
+    font-weight: 700;
+    height: 32px;
+    justify-content: center;
+    letter-spacing: .02em;
+    width: 32px;
+}
+
+.person-sort-link {
+    align-items: center;
+    color: inherit;
+    display: inline-flex;
+    gap: .3rem;
+    text-decoration: none;
+}
+
+.person-sort-link:hover,
+.person-sort-link:focus-visible {
+    color: var(--rm-primary, #a85d36);
+    text-decoration: underline;
+}
+
 .room-row-archived {
     background: rgba(108, 117, 125, .06);
     color: #6c757d;

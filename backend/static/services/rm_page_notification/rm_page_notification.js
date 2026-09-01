@@ -38,6 +38,7 @@ const RMPageNotification = {
         ,property_rules_saved: "Normas y requisitos guardados."
         ,requirement_saved: "Requisito guardado."
         ,requirement_deleted: "Requisito eliminado."
+        ,person_deleted: "Inquilino eliminado."
     },
 
     errorMessages: {
@@ -119,6 +120,8 @@ const RMPageNotification = {
         ,requirement_slug_exists: "Ese slug de requisito ya existe."
         ,requirement_inactive: "No se puede asignar un requisito inactivo."
         ,requirement_in_use: "No se puede eliminar un requisito asignado. Desactívalo."
+        ,person_has_booking_parties: "No se puede eliminar este inquilino porque está vinculado a una o más reservas. Retira primero sus roles en esas reservas."
+        ,person_iban_invalid: "El IBAN indicado no es válido."
     },
 
     show() {

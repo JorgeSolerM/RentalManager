@@ -11,6 +11,7 @@ from backend.api.routers import (
     room_calendars,
     rooms,
     settings,
+    persons,
 )
 from backend.core.jinja_filters import format_date
 from backend.core.logging import configure_sensitive_url_logging
@@ -36,6 +37,7 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(properties.router)
     app.include_router(rooms.router)
     app.include_router(settings.router)
+    app.include_router(persons.router)
     app.include_router(bookings.router)
     app.include_router(room_calendars.router)
     app.include_router(master_calendars.router)

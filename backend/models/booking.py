@@ -52,6 +52,10 @@ class Booking(Base):
         nullable=False,
     )
 
+    source_guest_name: Mapped[str | None] = mapped_column(
+        String(160), nullable=True
+    )
+
     expected_arrival_date: Mapped[date | None] = mapped_column(
         Date,
         nullable=True,
@@ -83,6 +87,31 @@ class Booking(Base):
     guest: Mapped["Guest"] = relationship(
         back_populates="bookings",
     )
+
+    parties: Mapped[list["BookingParty"]] = relationship(
+        back_populates="booking",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="BookingParty.id",
+    )
+
+    @property
+    def operational_person_name(self) -> str:
+        role_order = {"tenant": 0, "occupant": 1, "unclassified": 2, "payer": 3, "guarantor": 4}
+        seen = set()
+        names = []
+        for party in sorted(self.parties, key=lambda item: (role_order.get(item.role, 99), item.id or 0)):
+            if party.person_id in seen:
+                continue
+            seen.add(party.person_id)
+            names.append(party.person.display_name or party.person.full_name)
+        if names:
+            return ", ".join(names)
+        if self.source_guest_name:
+            return self.source_guest_name
+        if self.guest is not None:
+            return self.guest.display_name or self.guest.full_name
+        return "Huésped desconocido"
 
     financial_terms: Mapped[list["BookingFinancialTerms"]] = relationship(
         back_populates="booking", order_by="BookingFinancialTerms.version"

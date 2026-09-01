@@ -19,16 +19,17 @@
             <div class="modal-body">
 
                 <div class="alert alert-info d-none" id="bookingImportedNotice" role="status">
-                    Reserva importada: únicamente pueden modificarse el huésped y las fechas previstas.
+                    Reserva importada: únicamente pueden modificarse el nombre recibido y las fechas previstas. Las personas y roles locales se gestionan aparte.
                 </div>
 
                 <div class="mb-3">
 
-                    <label for="bookingGuestName" class="form-label">
-                        Huésped
+                    <label for="bookingGuestName" class="form-label" id="bookingGuestNameLabel">
+                        Nombre inicial
                     </label>
 
                     <input type="text" class="form-control" id="bookingGuestName" name="guest_name" required autofocus>
+                    <div class="form-text" id="bookingGuestNameHelp">En una reserva nueva se creará una persona sin clasificar. Después podrás asignar sus roles.</div>
 
                 </div>
 
@@ -55,6 +56,17 @@
                     </div>
 
                 </div>
+
+                <fieldset class="mt-3 border rounded p-3 d-none" id="bookingPartiesSection">
+                    <legend class="float-none w-auto px-1 fs-6 mb-2">Personas y roles</legend>
+                    <div id="bookingPartiesList" class="mb-3" aria-live="polite"></div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-7"><label class="form-label" for="bookingPartyPerson">Persona</label><select class="form-select" id="bookingPartyPerson"><option value="">Selecciona una persona</option></select></div>
+                        <div class="col-md-3"><label class="form-label" for="bookingPartyRole">Rol</label><select class="form-select" id="bookingPartyRole"><option value="tenant">Arrendatario</option><option value="occupant">Ocupante</option><option value="payer">Responsable de pago</option><option value="guarantor">Avalista</option><option value="unclassified">Sin clasificar</option></select></div>
+                        <div class="col-md-2"><button class="btn btn-outline-primary w-100" id="bookingPartyAdd" type="button">Añadir</button></div>
+                    </div>
+                    <a class="small d-inline-block mt-2" href="/persons/new" target="_blank" rel="noopener">Crear inquilino</a>
+                </fieldset>
 
                 <fieldset class="mt-3 border rounded p-3">
 

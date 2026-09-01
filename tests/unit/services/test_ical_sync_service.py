@@ -7,6 +7,8 @@ from sqlalchemy.exc import IntegrityError
 from backend.integrations.ical_parser import IcalParseError, IcalParser, NormalizedIcalEvent
 from backend.models.booking import Booking
 from backend.models.guest import Guest
+from backend.models.person import Person
+from backend.models.booking_party import BookingParty
 from backend.models.platform import Platform
 from backend.models.property import Property
 from backend.models.room import Room
@@ -196,7 +198,7 @@ def test_resync_corrects_exclusive_ical_end_without_creating_booking(db_session)
     ].check_out == date(2027, 2, 28)
 
 
-def test_housinganywhere_name_creates_guest_and_resync_is_idempotent(db_session):
+def test_housinganywhere_name_is_metadata_and_resync_is_idempotent(db_session):
     _room, calendar = setup_housing_calendar(db_session)
     service = IcalSyncService(
         HousingFeedClient(housing_feed("HA-1", "Reservas: Aleksandra")),
@@ -208,17 +210,29 @@ def test_housinganywhere_name_creates_guest_and_resync_is_idempotent(db_session)
         select(Booking).where(Booking.external_reference == "HA-1")
     )
     booking_id = booking.id
+    person = Person(full_name="Persona local", active=True)
+    db_session.add(person)
+    db_session.flush()
+    party = BookingParty(
+        booking_id=booking.id, person_id=person.id, role="tenant"
+    )
+    db_session.add(party)
+    db_session.commit()
     second = service.synchronize(db_session, calendar.id)
 
     guests = db_session.scalars(select(Guest)).all()
     bookings = db_session.scalars(select(Booking)).all()
     assert first.success and second.success
-    assert len(guests) == 1 and guests[0].full_name == "Aleksandra"
+    assert guests == []
     assert len(bookings) == 1 and bookings[0].id == booking_id
-    assert bookings[0].guest_id == guests[0].id
+    assert bookings[0].guest_id is None
+    assert bookings[0].source_guest_name == "Aleksandra"
+    assert [(item.person_id, item.role) for item in bookings[0].parties] == [
+        (person.id, "tenant")
+    ]
 
 
-def test_housinganywhere_reuses_existing_guest_by_normalized_name(db_session):
+def test_housinganywhere_does_not_reuse_existing_guest_as_person(db_session):
     _room, calendar = setup_housing_calendar(db_session)
     guest = Guest(full_name="Aleksandra", display_name="Aleksandra", active=True)
     db_session.add(guest)
@@ -233,7 +247,8 @@ def test_housinganywhere_reuses_existing_guest_by_normalized_name(db_session):
         select(Booking).where(Booking.external_reference == "HA-REUSE")
     )
     assert result.success
-    assert booking.guest_id == guest.id
+    assert booking.guest_id is None
+    assert booking.source_guest_name == "Aleksandra"
     assert len(db_session.scalars(select(Guest)).all()) == 1
 
 
@@ -314,7 +329,7 @@ def test_housinganywhere_ignores_imported_calendar_echo_before_overlap(
             Booking.external_reference == "HA-MANUAL-BLOCK"
         )
     )
-    assert real.guest.full_name == "Aleksandra"
+    assert real.source_guest_name == "Aleksandra"
     assert block.guest_id is None
 
 
@@ -397,7 +412,7 @@ def test_historical_flatio_booking_can_overlap_dylan_history(
 
     assert first.success and first.data.created == 1
     assert second.success and second.data.unchanged == 1
-    assert dylan.guest.full_name == "Dylan S."
+    assert dylan.source_guest_name == "Dylan S."
     assert len(db_session.scalars(select(Booking)).all()) == 3
 
 

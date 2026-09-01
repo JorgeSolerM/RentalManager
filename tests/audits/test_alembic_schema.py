@@ -27,7 +27,88 @@ OPERATIONAL_OVERLAP_REVISION = "e3a5c7d9f102"
 PUBLICATION_FOUNDATION_REVISION = "f6b8d0e2a413"
 OPTIONAL_ROOM_PRICE_REVISION = "a8c1e4f6b209"
 SHARED_BATHROOM_REVISION = "c6e8a0b2d437"
-HEAD_REVISION = "f2d4b6c8a014"
+FINANCIAL_LEDGER_REVISION = "f2d4b6c8a014"
+PERSON_BOOKING_PARTY_REVISION = "a3c5e7f9b126"
+HEAD_REVISION = "b4d6f8a0c237"
+
+
+@pytest.mark.alembic_audit
+def test_person_iban_upgrade_downgrade_reupgrade_without_backfill(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "person_iban_round_trip.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, PERSON_BOOKING_PARTY_REVISION)
+    connection = sqlite3.connect(database_path)
+    connection.execute(
+        "INSERT INTO persons (id,full_name,active,verification_status,source) "
+        "VALUES (1,'Persona existente',1,'unverified','manual')"
+    )
+    connection.commit()
+    connection.close()
+
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "iban" in {
+            row[1] for row in connection.execute("PRAGMA table_info(persons)")
+        }
+        assert connection.execute("SELECT iban FROM persons WHERE id=1").fetchone() == (None,)
+        assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.downgrade(config, PERSON_BOOKING_PARTY_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "iban" not in {
+            row[1] for row in connection.execute("PRAGMA table_info(persons)")
+        }
+        assert connection.execute("SELECT full_name FROM persons WHERE id=1").fetchone() == ("Persona existente",)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.upgrade(config, HEAD_REVISION)
+
+
+@pytest.mark.alembic_audit
+def test_person_booking_party_migration_is_conservative_and_reversible(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "person_booking_party.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "f2d4b6c8a014")
+    connection = sqlite3.connect(database_path)
+    connection.create_function("rentalmanager_business_date", 0, lambda: "2026-09-01")
+    connection.execute("INSERT INTO properties (id,name,address,city,owner,active) VALUES (1,'P','A','C','O',1)")
+    connection.execute("INSERT INTO rooms (id,property_id,code,display_order,active,master_calendar_token,operational_since) VALUES (1,1,'R',1,1,'token','2026-09-01')")
+    connection.executemany("INSERT INTO guests (id,full_name,display_name,active) VALUES (?,?,?,1)", [(1,"Nombre A y Nombre B","Nombre A y Nombre B"),(2,"Mismo","Mismo"),(3,"Mismo","Mismo")])
+    connection.execute("INSERT INTO bookings (id,room_id,guest_id,origin,check_in,check_out,ical_uid) VALUES (1,1,1,'manual','2026-09-01','2026-10-01','uid')")
+    connection.commit(); connection.close()
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM persons").fetchone() == (3,)
+        assert connection.execute("SELECT full_name FROM persons WHERE id=1").fetchone() == ("Nombre A y Nombre B",)
+        assert connection.execute("SELECT COUNT(*) FROM persons WHERE full_name='Mismo'").fetchone() == (2,)
+        assert connection.execute("SELECT booking_id,person_id,role FROM booking_parties").fetchone() == (1,1,"unclassified")
+        assert connection.execute("SELECT guest_id,source_guest_name FROM bookings").fetchone() == (1,"Nombre A y Nombre B")
+        for table in ("booking_financial_terms","booking_charges","payments","payment_allocations"):
+            assert connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone() == (0,)
+            assert all(
+                foreign_key[2] not in {"persons", "booking_parties"}
+                for foreign_key in connection.execute(
+                    f"PRAGMA foreign_key_list({table})"
+                )
+            )
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally: connection.close()
+    command.downgrade(config, "f2d4b6c8a014")
+    connection = sqlite3.connect(database_path)
+    try:
+        assert "source_guest_name" not in {row[1] for row in connection.execute("PRAGMA table_info(bookings)")}
+        assert connection.execute("SELECT guest_id FROM bookings").fetchone() == (1,)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally: connection.close()
+    command.upgrade(config, HEAD_REVISION)
 
 
 @pytest.mark.alembic_audit
@@ -800,6 +881,7 @@ def test_alembic_upgrade_head_accepts_current_database_copy(
                 OPERATIONAL_OVERLAP_REVISION,
                 PUBLICATION_FOUNDATION_REVISION,
                 SHARED_BATHROOM_REVISION,
+                FINANCIAL_LEDGER_REVISION,
                 HEAD_REVISION,
         }
     finally:

@@ -8,6 +8,8 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.models.booking import Booking
 from backend.models.guest import Guest
+from backend.models.person import Person
+from backend.models.booking_party import BookingParty
 from backend.models.platform import Platform
 from backend.models.property import Property
 from backend.models.room import Room
@@ -53,7 +55,7 @@ def test_base_repository_only_flushes_writes():
     db.refresh.assert_not_called()
 
 
-def test_new_guest_and_booking_are_committed_together_and_existing_guest_is_reused(
+def test_new_person_party_and_booking_are_atomic_without_name_deduplication(
     db_session,
 ):
     room = persist_room(db_session)
@@ -67,13 +69,17 @@ def test_new_guest_and_booking_are_committed_together_and_existing_guest_is_reus
         date(2026, 9, 6), 220, None,
     )
 
-    guests = db_session.scalars(select(Guest)).all()
-    assert len(guests) == 1
-    assert first.data.guest_id == second.data.guest_id == guests[0].id
+    persons = db_session.scalars(select(Person)).all()
+    parties = db_session.scalars(select(BookingParty)).all()
+    assert len(persons) == 2
+    assert [person.full_name for person in persons] == ["Ana Pérez", "Ana Pérez"]
+    assert len(parties) == 2
+    assert {party.role for party in parties} == {"unclassified"}
+    assert first.data.guest_id is None and second.data.guest_id is None
     assert len(db_session.scalars(select(Booking)).all()) == 2
 
 
-def test_failed_booking_creation_rolls_back_new_guest(db_session, monkeypatch):
+def test_failed_booking_creation_rolls_back_new_person_and_party(db_session, monkeypatch):
     room = persist_room(db_session)
     service = BookingService()
 
@@ -87,9 +93,8 @@ def test_failed_booking_creation_rolls_back_new_guest(db_session, monkeypatch):
             date(2026, 9, 3), None, None,
         )
 
-    assert db_session.scalar(
-        select(Guest).where(Guest.full_name == "Guest Parcial")
-    ) is None
+    assert db_session.scalar(select(Person)) is None
+    assert db_session.scalar(select(BookingParty)) is None
 
 
 def test_missing_room_rejection_rolls_back_and_session_can_be_reused(db_session):
@@ -99,7 +104,7 @@ def test_missing_room_rejection_rolls_back_and_session_can_be_reused(db_session)
         date(2026, 9, 3), None, None,
     )
     assert result.message == "booking_room_not_found"
-    assert db_session.scalar(select(Guest).where(Guest.full_name == "Guest FK")) is None
+    assert db_session.scalar(select(Person).where(Person.full_name == "Guest FK")) is None
 
     room = persist_room(db_session)
     booking = service.create_manual_booking(
@@ -109,7 +114,7 @@ def test_missing_room_rejection_rolls_back_and_session_can_be_reused(db_session)
     assert booking.data.id is not None
 
 
-def test_failed_booking_update_leaves_no_guest_or_partial_changes(
+def test_failed_booking_update_leaves_no_person_role_or_partial_changes(
     db_session, monkeypatch
 ):
     room = persist_room(db_session)
@@ -132,9 +137,12 @@ def test_failed_booking_update_leaves_no_guest_or_partial_changes(
     persisted = db_session.get(Booking, booking.data.id)
     assert persisted.notes == "Original"
     assert persisted.price == 100
-    assert persisted.guest.full_name == "Original"
+    assert persisted.source_guest_name == "Original"
+    assert [(party.person.full_name, party.role) for party in persisted.parties] == [
+        ("Original", "unclassified")
+    ]
     assert db_session.scalar(
-        select(Guest).where(Guest.full_name == "Guest Nuevo")
+        select(Person).where(Person.full_name == "Guest Nuevo")
     ) is None
 
 

@@ -16,6 +16,7 @@ from backend.schemas.dashboard_schema import (
     DashboardSummary,
 )
 from backend.services.room_calendar_sync_runner import RoomCalendarSyncRunner
+from backend.core.booking_person_name import booking_person_name
 
 
 MOVEMENT_DAYS = 14
@@ -57,7 +58,7 @@ class DashboardService:
             property_name=booking.room.property.name,
             date=movement_date,
             days_remaining=max(0, (movement_date - today).days),
-            guest_name=(booking.guest.full_name if booking.guest else "Huésped desconocido"),
+            guest_name=booking_person_name(booking),
             origin_name=name,
             origin_slug=slug,
             favicon=favicon,
@@ -227,7 +228,7 @@ class DashboardService:
 
         unknown_seen = set()
         for booking in bookings:
-            if booking.guest_id is not None:
+            if getattr(booking, "parties", None) or booking.guest_id is not None:
                 continue
             relevant = (
                 booking.check_in <= today < booking.check_out

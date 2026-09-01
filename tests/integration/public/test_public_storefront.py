@@ -19,6 +19,8 @@ from backend.models.room import Room
 from backend.models.room_photo import RoomPhoto
 from backend.models.room_public_highlight import RoomPublicHighlight
 from backend.models.rental_requirement import RentalRequirement
+from backend.models.person import Person
+from backend.models.booking_party import BookingParty
 from backend.public.app_factory import create_public_app
 from backend.public.database import get_public_db
 from backend.public.service import PublicRoomService
@@ -131,6 +133,43 @@ def add_public_room(db, store, *, code="R01", slug="room-one"):
     ])
     db.commit()
     return property_obj, room
+
+
+def test_public_pages_never_expose_personal_person_records(public_context, db_session):
+    client, store = public_context
+    _, room = add_public_room(db_session, store)
+    person = Person(
+        full_name="PERSON PRIVATE UNIQUE",
+        email="private-person@example.invalid",
+        document_type="passport",
+        document_number="PRIVATE-123",
+        iban="ES9121000418450200051332",
+        birth_date=date(1990, 1, 2),
+        active=True,
+    )
+    booking = Booking(
+        room_id=room.id,
+        origin="manual",
+        check_in=date(2027, 1, 1),
+        check_out=date(2027, 2, 1),
+    )
+    db_session.add_all([person, booking])
+    db_session.flush()
+    db_session.add(
+        BookingParty(
+            booking_id=booking.id, person_id=person.id, role="tenant"
+        )
+    )
+    db_session.commit()
+
+    responses = [client.get("/"), client.get(f"/habitaciones/{room.public_slug}")]
+    for response in responses:
+        assert response.status_code == 200
+        assert "PERSON PRIVATE UNIQUE" not in response.text
+        assert "private-person@example.invalid" not in response.text
+        assert "PRIVATE-123" not in response.text
+        assert "ES9121000418450200051332" not in response.text
+        assert "ES91 2100 0418 4502 0005 1332" not in response.text
 
 
 @pytest.mark.parametrize(

@@ -27,6 +27,13 @@ const BookingUI = {
         this.roomId = document.getElementById("bookingRoomId");
 
         this.guestName = document.getElementById("bookingGuestName");
+        this.guestNameLabel = document.getElementById("bookingGuestNameLabel");
+        this.guestNameHelp = document.getElementById("bookingGuestNameHelp");
+        this.partiesSection = document.getElementById("bookingPartiesSection");
+        this.partiesList = document.getElementById("bookingPartiesList");
+        this.partyPerson = document.getElementById("bookingPartyPerson");
+        this.partyRole = document.getElementById("bookingPartyRole");
+        this.partyAdd = document.getElementById("bookingPartyAdd");
 
         this.checkIn = document.getElementById("bookingCheckIn");
 
@@ -84,6 +91,8 @@ const BookingUI = {
 
         });
 
+        this.partyAdd?.addEventListener("click", () => this.addParty());
+
     },
 
     openCreateModal(roomId = null, checkIn = null) {
@@ -117,6 +126,9 @@ const BookingUI = {
             this.bookingId = booking.id;
 
             this.fillForm(booking);
+            await this.loadPersonOptions();
+            this.renderParties(booking.parties || []);
+            this.partiesSection.classList.remove("d-none");
 
             const imported = readOnly || booking.editable === false;
 
@@ -167,6 +179,10 @@ const BookingUI = {
         this.externalBlockDeletable = externalBlockDeletable;
 
         this.importedNotice.classList.toggle("d-none", !readOnly);
+        this.guestNameLabel.textContent = readOnly ? "Nombre recibido del canal" : "Nombre de referencia";
+        this.guestNameHelp.textContent = readOnly
+            ? "Este texto procede del canal y no crea ni modifica una persona contractual."
+            : "Las identidades y sus funciones se gestionan en Personas y roles.";
 
         this.title.textContent = readOnly
             ? "Detalle de reserva importada"
@@ -221,6 +237,64 @@ const BookingUI = {
 
     },
 
+    roleLabel(role) {
+        return {tenant: "Arrendatario", occupant: "Ocupante", payer: "Responsable de pago", guarantor: "Avalista", unclassified: "Sin clasificar"}[role] || role;
+    },
+
+    async loadPersonOptions() {
+        const response = await fetch("/persons/options");
+        if (!response.ok) throw new Error("No se han podido cargar las personas.");
+        const persons = await response.json();
+        this.partyPerson.innerHTML = '<option value="">Selecciona una persona</option>';
+        persons.forEach(person => {
+            const option = document.createElement("option");
+            option.value = person.id;
+            option.textContent = person.name;
+            this.partyPerson.append(option);
+        });
+    },
+
+    renderParties(parties) {
+        this.currentParties = parties;
+        this.partiesList.innerHTML = "";
+        if (!parties.length) {
+            this.partiesList.innerHTML = '<p class="text-muted small mb-0">No hay personas vinculadas.</p>';
+            return;
+        }
+        const groups = ["tenant", "occupant", "payer", "guarantor", "unclassified"];
+        groups.forEach(group => {
+          const groupedParties = parties.filter(party => party.role === group);
+          if (!groupedParties.length) return;
+          const heading = document.createElement("h6");
+          heading.className = "small text-muted mt-2 mb-1";
+          heading.textContent = this.roleLabel(group);
+          this.partiesList.append(heading);
+          groupedParties.forEach(party => {
+            const row = document.createElement("div");
+            row.className = "d-flex justify-content-between align-items-center gap-2 border rounded p-2 mb-2";
+            const copy = document.createElement("div");
+            const link = document.createElement("a"); link.href = `/persons/${party.person_id}`; link.textContent = party.person_name; link.target = "_blank"; link.rel = "noopener";
+            copy.append(link);
+            const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn btn-sm btn-outline-danger"; remove.textContent = "Retirar rol"; remove.addEventListener("click", () => this.removeParty(party.id));
+            row.append(copy, remove); this.partiesList.append(row);
+          });
+        });
+    },
+
+    async addParty() {
+        if (!this.bookingId || !this.partyPerson.value) return;
+        const body = new FormData(); body.set("person_id", this.partyPerson.value); body.set("role", this.partyRole.value);
+        const response = await fetch(`/bookings/${this.bookingId}/parties`, {method: "POST", body});
+        if (!response.ok) { RMNotification.error("No se ha podido vincular la persona o el rol ya existe."); return; }
+        const party = await response.json(); this.renderParties([...this.currentParties, party]);
+    },
+
+    async removeParty(partyId) {
+        const response = await fetch(`/bookings/${this.bookingId}/parties/${partyId}/remove`, {method: "POST"});
+        if (!response.ok) { RMNotification.error("No se ha podido retirar el rol."); return; }
+        this.renderParties(this.currentParties.filter(party => party.id !== partyId));
+    },
+
     resetModalState() {
 
         this.bookingId = null;
@@ -244,6 +318,8 @@ const BookingUI = {
             .forEach(field => field.disabled = false);
 
         this.title.textContent = "Nueva reserva";
+        this.guestNameLabel.textContent = "Nombre inicial";
+        this.guestNameHelp.textContent = "En una reserva nueva se creará una persona sin clasificar. Después podrás asignar sus roles.";
 
         this.submitButton.textContent = "Guardar";
 
@@ -254,6 +330,9 @@ const BookingUI = {
         this.deleteButton.textContent = "Eliminar";
 
         this.importedNotice.classList.add("d-none");
+        this.partiesSection.classList.add("d-none");
+        this.partiesList.innerHTML = "";
+        this.currentParties = [];
 
     },
 

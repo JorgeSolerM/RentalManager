@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from backend.models.booking import Booking
 from backend.models.guest import Guest
+from backend.models.person import Person
 from backend.models.platform import Platform
 from backend.models.property import Property
 from backend.models.room import Room
@@ -275,7 +276,7 @@ def test_edit_invading_another_booking_is_rejected_without_partial_changes(db_se
     persisted = db_session.get(Booking, first.id)
     assert persisted.check_out == date(2026, 9, 5)
     assert persisted.price == 100
-    assert persisted.guest.full_name == "Primera"
+    assert persisted.operational_person_name == "Primera"
     assert db_session.scalar(
         select(Guest).where(Guest.full_name == "Guest Nuevo")
     ) is None
@@ -402,7 +403,7 @@ def test_imported_booking_without_guest_is_valid_and_manual_edit_is_read_only(
     assert persisted.check_in == date(2026, 9, 10)
 
 
-def test_imported_guest_can_be_assigned_reused_changed_and_removed(db_session):
+def test_imported_operational_name_can_be_assigned_changed_and_removed(db_session):
     booking = create_imported_booking_without_guest(db_session)
     service = BookingService()
     original = (
@@ -410,26 +411,22 @@ def test_imported_guest_can_be_assigned_reused_changed_and_removed(db_session):
         booking.external_reference, booking.check_in, booking.check_out,
         booking.price,
     )
-    existing = Guest(full_name="Ana Pérez", display_name="Ana Pérez", active=True)
-    db_session.add(existing)
-    db_session.commit()
-
     assigned = service.update_imported_guest(
         db_session, booking.id, "  Ana   Pérez  "
     )
     assert assigned.success
-    assert assigned.data.guest_id == existing.id
-    assert db_session.scalar(
-        select(Guest).where(Guest.full_name == "Ana Pérez")
-    ).id == existing.id
+    assert assigned.data.guest_id is None
+    assert assigned.data.source_guest_name == "Ana Pérez"
+    assert db_session.scalar(select(Person)) is None
 
     changed = service.update_imported_guest(db_session, booking.id, "Bea López")
     assert changed.success
-    assert changed.data.guest.full_name == "Bea López"
+    assert changed.data.source_guest_name == "Bea López"
 
     removed = service.update_imported_guest(db_session, booking.id, "   ")
     assert removed.success
     assert removed.data.guest_id is None
+    assert removed.data.source_guest_name is None
     assert (
         removed.data.room_id, removed.data.room_calendar_id, removed.data.origin,
         removed.data.external_reference, removed.data.check_in,
@@ -450,7 +447,7 @@ def test_imported_guest_update_rejects_manual_booking(db_session):
 
     assert not result.success
     assert result.message == "booking_not_imported"
-    assert booking.guest.full_name == "Ana"
+    assert booking.operational_person_name == "Ana"
 
 
 def test_imported_guest_update_rolls_back_and_session_remains_usable(
@@ -494,13 +491,13 @@ def test_manual_booking_can_always_be_deleted(
         db_session, service, room.id, check_in, check_out,
         guest_name="Guest Conservado",
     )
-    guest_id = booking.guest_id
+    person_id = booking.parties[0].person_id
 
     result = service.delete_booking(db_session, booking)
 
     assert result.success
     assert db_session.get(Booking, booking.id) is None
-    assert db_session.get(Guest, guest_id) is not None
+    assert db_session.get(Person, person_id) is not None
 
 
 def test_manual_delete_preserves_guest_and_other_bookings(db_session):
@@ -514,11 +511,11 @@ def test_manual_delete_preserves_guest_and_other_bookings(db_session):
         db_session, service, room.id, date(2026, 9, 5), date(2026, 9, 10),
         guest_name="Mismo Guest",
     )
-    guest_id = deleted.guest_id
+    person_id = deleted.parties[0].person_id
 
     assert service.delete_booking(db_session, deleted).success
     assert db_session.get(Booking, kept.id) is not None
-    assert db_session.get(Guest, guest_id) is not None
+    assert db_session.get(Person, person_id) is not None
 
 
 def test_imported_booking_cannot_be_deleted_and_session_is_reusable(db_session):

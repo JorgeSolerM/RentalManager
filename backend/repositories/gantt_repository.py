@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
+from backend.models.booking_party import BookingParty
 
 from backend.models.booking import Booking
 from backend.models.property import Property
@@ -46,6 +47,7 @@ class GanttRepository:
             )
             .options(
                 joinedload(Booking.guest),
+                joinedload(Booking.parties).joinedload(BookingParty.person),
                 joinedload(Booking.room_calendar).joinedload(
                     RoomCalendar.platform
                 ),
@@ -66,4 +68,3 @@ class GanttRepository:
             .order_by(RoomCalendar.room_id, RoomCalendar.id)
         )
         return list(db.scalars(statement).unique())
-

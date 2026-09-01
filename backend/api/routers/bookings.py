@@ -7,10 +7,12 @@ from sqlalchemy.orm import Session
 from backend.database.session import get_db
 from backend.schemas.booking_schema import BookingResponse
 from backend.services.booking_service import BookingService
+from backend.services.booking_party_service import BookingPartyService
 
 router = APIRouter(prefix="/bookings")
 
 booking_service = BookingService()
+party_service = BookingPartyService()
 
 
 @router.get("/room/{room_id}")
@@ -49,7 +51,16 @@ def get_booking(
 
         room_id=booking.room_id,
 
-        guest_name=booking.guest.full_name if booking.guest is not None else None,
+        guest_name=(
+            None
+            if booking.operational_person_name == "Huésped desconocido"
+            else booking.operational_person_name
+        ),
+        source_guest_name=booking.source_guest_name,
+        parties=[
+            {"id": party.id, "person_id": party.person_id, "person_name": party.person.display_name or party.person.full_name, "role": party.role}
+            for party in booking.parties
+        ],
 
         origin=booking.origin,
 
@@ -265,3 +276,20 @@ def update_imported_local_details(
         url=f"/rooms/{room_id}?success=booking_local_details_updated",
         status_code=303,
     )
+
+
+@router.post("/{booking_id}/parties")
+def add_booking_party(booking_id: int, person_id: int = Form(...), role: str = Form(...), db: Session = Depends(get_db)):
+    result = party_service.add(db, booking_id, person_id, role)
+    if not result.success:
+        raise HTTPException(422, detail=result.message)
+    party = result.data
+    return {"id": party.id, "person_id": party.person_id, "person_name": party.person.display_name or party.person.full_name, "role": party.role}
+
+
+@router.post("/{booking_id}/parties/{party_id}/remove")
+def remove_booking_party(booking_id: int, party_id: int, db: Session = Depends(get_db)):
+    result = party_service.remove(db, party_id, booking_id)
+    if not result.success:
+        raise HTTPException(422, detail=result.message)
+    return {"success": True}

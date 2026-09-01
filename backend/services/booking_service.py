@@ -14,31 +14,20 @@ from backend.core.external_booking_policy import (
 from backend.models.booking import Booking
 from backend.models.guest import Guest
 from backend.repositories.booking_repository import BookingRepository
-from backend.repositories.guest_repository import GuestRepository
 from backend.repositories.room_repository import RoomRepository
 from backend.repositories.room_calendar_repository import RoomCalendarRepository
 from backend.repositories.financial_repository import FinancialRepository
+from backend.models.booking_party import BookingParty
+from backend.services.person_service import PersonService
 
 
 class BookingService:
     def __init__(self):
         self.booking_repository = BookingRepository()
-        self.guest_repository = GuestRepository()
         self.room_repository = RoomRepository()
         self.room_calendar_repository = RoomCalendarRepository()
         self.financial_repository = FinancialRepository()
-
-    def _get_or_create_guest(self, db: Session, full_name: str) -> Guest:
-        full_name = " ".join(full_name.split())
-        guest = self.guest_repository.get_by_full_name(db, full_name)
-        if guest is None:
-            guest = Guest(
-                full_name=full_name,
-                display_name=full_name,
-                active=True,
-            )
-            self.guest_repository.create(db, guest)
-        return guest
+        self.person_service = PersonService()
 
     def _validate_booking(
         self,
@@ -101,7 +90,8 @@ class BookingService:
         expected_arrival_date: date | None = None,
         expected_departure_date: date | None = None,
     ) -> None:
-        booking.guest_id = guest.id
+        booking.guest_id = guest.id if guest is not None else None
+        booking.source_guest_name = guest.full_name if guest is not None else booking.source_guest_name
         booking.room_calendar_id = None
         booking.origin = "manual"
         booking.check_in = check_in
@@ -181,11 +171,11 @@ class BookingService:
             )
             if validation_error:
                 return self._rejected(db, validation_error)
-            guest = self._get_or_create_guest(db, stripped_guest_name)
+            person = self.person_service.create_unclassified_in_session(db, stripped_guest_name)
             booking = Booking(room_id=room_id)
             self.populate_booking(
                 booking,
-                guest,
+                None,
                 check_in,
                 check_out,
                 price,
@@ -194,6 +184,8 @@ class BookingService:
                 expected_departure_date,
             )
             self.booking_repository.create(db, booking)
+            booking.source_guest_name = stripped_guest_name
+            db.add(BookingParty(booking_id=booking.id, person_id=person.id, role="unclassified"))
             db.commit()
             return OperationResult(success=True, data=booking)
         except IntegrityError as error:
@@ -268,10 +260,9 @@ class BookingService:
             if validation_error:
                 return self._rejected(db, validation_error, booking)
 
-            guest = self._get_or_create_guest(db, stripped_guest_name)
             self.populate_booking(
                 booking,
-                guest,
+                None,
                 check_in,
                 check_out,
                 price,
@@ -279,6 +270,7 @@ class BookingService:
                 expected_arrival_date,
                 expected_departure_date,
             )
+            booking.source_guest_name = stripped_guest_name
             self.booking_repository.update(db, booking)
             db.commit()
             return OperationResult(success=True, data=booking)
@@ -305,11 +297,7 @@ class BookingService:
                 return self._rejected(db, "booking_not_imported", booking)
 
             normalized_guest_name = " ".join(guest_name.split())
-            if normalized_guest_name:
-                guest = self._get_or_create_guest(db, normalized_guest_name)
-                booking.guest_id = guest.id
-            else:
-                booking.guest_id = None
+            booking.source_guest_name = normalized_guest_name or None
 
             self.booking_repository.update(db, booking)
             db.commit()
@@ -334,11 +322,7 @@ class BookingService:
                 return self._rejected(db, "booking_not_imported", booking)
 
             normalized_guest_name = " ".join(guest_name.split())
-            if normalized_guest_name:
-                guest = self._get_or_create_guest(db, normalized_guest_name)
-                booking.guest_id = guest.id
-            else:
-                booking.guest_id = None
+            booking.source_guest_name = normalized_guest_name or None
             booking.expected_arrival_date = expected_arrival_date
             booking.expected_departure_date = expected_departure_date
 
