@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 
@@ -25,3 +26,15 @@ class BookingLedgerSummary:
 class LegacyPriceCandidate:
     amount: Decimal | None
     source: str = "booking.price"
+
+
+@dataclass(frozen=True)
+class RecurringChargePreview:
+    type: str
+    concept: str
+    service_period_start: date | None
+    service_period_end: date | None
+    due_date: date
+    amount: Decimal
+    currency: str
+    generation_key: str

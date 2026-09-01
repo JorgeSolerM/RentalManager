@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import select
@@ -14,6 +15,9 @@ from backend.models.property import Property
 from backend.models.room import Room
 from backend.models.room_calendar import RoomCalendar
 from backend.services.ical_sync_service import IcalSyncService
+from backend.services.financial_service import FinancialService
+from backend.models.booking_charge import BookingCharge
+from backend.models.booking_financial_terms import BookingFinancialTerms
 
 
 class FakeHttpClient:
@@ -139,6 +143,45 @@ def test_sync_creates_idempotently_then_updates_existing_booking(db_session):
     assert bookings[0].expected_arrival_date == date(2026, 9, 3)
     assert bookings[0].expected_departure_date == date(2026, 9, 4)
     assert first_sync_at is not None
+
+
+def test_resync_never_modifies_local_financial_terms_or_charges(db_session):
+    _room, calendar = setup_calendar(db_session, "finance")
+    first_event = imported(
+        "UID-FIN", date(2026, 9, 1), date(2026, 11, 1), "Guest"
+    )
+    service_for([first_event]).synchronize(db_session, calendar.id)
+    booking = db_session.scalar(
+        select(Booking).where(Booking.external_reference == "UID-FIN")
+    )
+    finance = FinancialService()
+    terms = finance.create_terms_draft(
+        db_session, booking.id, booking.check_in, Decimal("410.00")
+    ).data
+    finance.confirm_terms(db_session, terms.id)
+    finance.generate_booking_charges(db_session, booking.id, terms.id)
+    terms_before = db_session.get(BookingFinancialTerms, terms.id)
+    charge_values = [
+        (charge.id, charge.amount, charge.lifecycle, charge.generation_key)
+        for charge in db_session.scalars(
+            select(BookingCharge).where(BookingCharge.booking_id == booking.id)
+        ).all()
+    ]
+
+    moved = imported(
+        "UID-FIN", date(2026, 9, 2), date(2026, 11, 2), "Moved"
+    )
+    result = service_for([moved]).synchronize(db_session, calendar.id)
+    db_session.refresh(terms_before)
+
+    assert result.success
+    assert (terms_before.monthly_rent, terms_before.status) == (Decimal("410.00"), "confirmed")
+    assert [
+        (charge.id, charge.amount, charge.lifecycle, charge.generation_key)
+        for charge in db_session.scalars(
+            select(BookingCharge).where(BookingCharge.booking_id == booking.id)
+        ).all()
+    ] == charge_values
 
 
 def test_resync_corrects_exclusive_ical_end_without_creating_booking(db_session):

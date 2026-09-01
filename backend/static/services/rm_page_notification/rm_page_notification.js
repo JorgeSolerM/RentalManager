@@ -39,6 +39,11 @@ const RMPageNotification = {
         ,requirement_saved: "Requisito guardado."
         ,requirement_deleted: "Requisito eliminado."
         ,person_deleted: "Inquilino eliminado."
+        ,financial_terms_saved: "Borrador de condiciones económicas guardado."
+        ,financial_terms_confirmed: "Condiciones económicas confirmadas."
+        ,financial_charges_generated: "Cargos generados en borrador."
+        ,financial_charges_regenerated: "Borradores regenerados con las fechas actuales."
+        ,financial_charges_posted: "Cargos contabilizados."
     },
 
     errorMessages: {
@@ -58,6 +63,7 @@ const RMPageNotification = {
         booking_guest_required: "Debe introducir el nombre del huésped.",
         booking_invalid_dates: "La fecha de salida debe ser posterior a la fecha de entrada.",
         booking_invalid_price: "El precio mensual debe ser un número mayor o igual que cero.",
+        booking_form_invalid: "Revisa los datos de la reserva antes de guardarla.",
         booking_imported_read_only: "Las reservas importadas no se pueden modificar manualmente.",
         booking_not_imported: "Esta acción solo está disponible para reservas importadas.",
         booking_external_block_still_present: "El bloqueo sigue presente en la plataforma externa. Elimínalo primero allí.",
@@ -122,6 +128,13 @@ const RMPageNotification = {
         ,requirement_in_use: "No se puede eliminar un requisito asignado. Desactívalo."
         ,person_has_booking_parties: "No se puede eliminar este inquilino porque está vinculado a una o más reservas. Retira primero sus roles en esas reservas."
         ,person_iban_invalid: "El IBAN indicado no es válido."
+        ,financial_terms_immutable: "Las condiciones confirmadas no pueden editarse destructivamente."
+        ,financial_terms_not_confirmed: "Confirma primero las condiciones económicas."
+        ,financial_terms_invalid: "Las condiciones económicas no son válidas."
+        ,financial_amount_invalid: "Los importes deben ser valores monetarios válidos."
+        ,financial_no_draft_charges: "No existen cargos generados en borrador para confirmar."
+        ,financial_multiple_terms_not_supported: "Esta primera versión no genera todavía una estancia con varios tramos de renta. Requiere revisión económica específica."
+        ,financial_terms_change_requires_full_month: "Una nueva renta debe aplicarse desde el primer día de un mes natural completo."
     },
 
     show() {

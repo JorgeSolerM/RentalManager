@@ -130,7 +130,7 @@ def test_failed_booking_update_leaves_no_person_role_or_partial_changes(
     monkeypatch.setattr(service.booking_repository, "update", fail_update)
     with pytest.raises(RuntimeError, match="update failed"):
         service.update_manual_booking(
-            db_session, booking.data.id, "Guest Nuevo", date(2026, 10, 1),
+            db_session, booking.data.id, date(2026, 10, 1),
             date(2026, 10, 3), 999, "Cambiada",
         )
 

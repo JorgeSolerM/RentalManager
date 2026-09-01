@@ -1,12 +1,17 @@
 import calendar
 from datetime import date, datetime, timezone
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.core.business_time import business_today
-from backend.core.financial_policy import DEFAULT_CURRENCY, DEFAULT_DUE_DAY
+from backend.core.financial_policy import (
+    DEFAULT_CURRENCY,
+    DEFAULT_DUE_DAY,
+    MONEY_QUANTUM,
+    round_money,
+)
 from backend.core.operation_result import OperationResult
 from backend.models.booking import Booking
 from backend.models.booking_charge import BookingCharge
@@ -14,9 +19,14 @@ from backend.models.booking_financial_terms import BookingFinancialTerms
 from backend.models.payment import Payment
 from backend.models.payment_allocation import PaymentAllocation
 from backend.repositories.financial_repository import FinancialRepository
-from backend.schemas.financial_schema import BookingLedgerSummary, ChargeBalance, LegacyPriceCandidate
+from backend.schemas.financial_schema import (
+    BookingLedgerSummary,
+    ChargeBalance,
+    LegacyPriceCandidate,
+    RecurringChargePreview,
+)
 
-CENT = Decimal("0.01")
+CENT = MONEY_QUANTUM
 ZERO = Decimal("0.00")
 
 
@@ -33,7 +43,7 @@ class FinancialService:
         if isinstance(value, float):
             raise ValueError("financial_amount_float_not_allowed")
         try:
-            amount = Decimal(value).quantize(CENT, rounding=ROUND_HALF_UP)
+            amount = round_money(Decimal(value))
         except (InvalidOperation, TypeError):
             raise ValueError("financial_amount_invalid")
         if not amount.is_finite() or amount < ZERO or (not allow_zero and amount == ZERO):
@@ -54,6 +64,94 @@ class FinancialService:
         return date(year, month, min(usual_due_day, calendar.monthrange(year, month)[1]))
 
     @staticmethod
+    def _next_month(value: date) -> date:
+        return date(value.year + (value.month == 12), 1 if value.month == 12 else value.month + 1, 1)
+
+    @classmethod
+    def preview_monthly_rent(
+        cls,
+        *,
+        check_in: date,
+        check_out: date,
+        monthly_rent: Decimal,
+        usual_due_day: int,
+        terms_id: int,
+        currency: str = DEFAULT_CURRENCY,
+    ) -> list[RecurringChargePreview]:
+        """Build calendar-month charges for the half-open stay [check_in, check_out)."""
+        if check_out <= check_in:
+            raise ValueError("financial_booking_dates_invalid")
+        rent = cls._money(monthly_rent)
+        if rent == ZERO:
+            raise ValueError("financial_amount_invalid")
+        cls._currency(currency)
+        cls.due_date_for_month(check_in.year, check_in.month, usual_due_day)
+        rows: list[RecurringChargePreview] = []
+        cursor = date(check_in.year, check_in.month, 1)
+        while cursor < check_out:
+            month_end = cls._next_month(cursor)
+            period_start = max(check_in, cursor)
+            period_end = min(check_out, month_end)
+            if period_start < period_end:
+                days_in_month = (month_end - cursor).days
+                occupied_days = (period_end - period_start).days
+                amount = rent if occupied_days == days_in_month else round_money(
+                    rent * Decimal(occupied_days) / Decimal(days_in_month)
+                )
+                due_date = cls.due_date_for_month(cursor.year, cursor.month, usual_due_day)
+                if not rows and due_date < check_in:
+                    due_date = check_in
+                rows.append(
+                    RecurringChargePreview(
+                        type="rent",
+                        concept=f"Renta {cursor.strftime('%m/%Y')}",
+                        service_period_start=period_start,
+                        service_period_end=period_end,
+                        due_date=due_date,
+                        amount=amount,
+                        currency=currency,
+                        generation_key=(
+                            f"rent:terms-{terms_id}:{period_start.isoformat()}:{period_end.isoformat()}"
+                        ),
+                    )
+                )
+            cursor = month_end
+        return rows
+
+    @classmethod
+    def preview_for_booking(
+        cls,
+        booking: Booking,
+        terms: BookingFinancialTerms,
+        *,
+        include_deposit: bool = False,
+    ) -> list[RecurringChargePreview]:
+        if terms.booking_id != booking.id or terms.status != "confirmed":
+            raise ValueError("financial_terms_not_confirmed")
+        rows = cls.preview_monthly_rent(
+            check_in=booking.check_in,
+            check_out=booking.check_out,
+            monthly_rent=terms.monthly_rent,
+            usual_due_day=terms.usual_due_day,
+            terms_id=terms.id,
+            currency=terms.currency,
+        )
+        if include_deposit and terms.deposit_agreed > ZERO:
+            rows.append(
+                RecurringChargePreview(
+                    type="security_deposit",
+                    concept="Fianza",
+                    service_period_start=None,
+                    service_period_end=None,
+                    due_date=booking.check_in,
+                    amount=round_money(terms.deposit_agreed),
+                    currency=terms.currency,
+                    generation_key=f"security-deposit:terms-{terms.id}",
+                )
+            )
+        return rows
+
+    @staticmethod
     def _fail(db, message):
         db.rollback()
         return OperationResult(success=False, message=message)
@@ -64,10 +162,12 @@ class FinancialService:
                 return self._fail(db, "booking_not_found")
             if not 1 <= usual_due_day <= 31 or (effective_until and effective_until <= effective_from):
                 return self._fail(db, "financial_terms_invalid")
-            terms = BookingFinancialTerms(booking_id=booking_id, version=self.repository.next_terms_version(db, booking_id), effective_from=effective_from, effective_until=effective_until, monthly_rent=self._money(monthly_rent), currency=self._currency(currency), usual_due_day=usual_due_day, deposit_agreed=self._money(deposit_agreed), notes=notes, status="draft")
+            terms = BookingFinancialTerms(booking_id=booking_id, version=self.repository.next_terms_version(db, booking_id), effective_from=effective_from, effective_until=effective_until, monthly_rent=self._money(monthly_rent, allow_zero=False), currency=self._currency(currency), usual_due_day=usual_due_day, deposit_agreed=self._money(deposit_agreed), notes=notes, status="draft")
             db.add(terms); db.commit(); return OperationResult(success=True, data=terms)
-        except (ValueError, IntegrityError) as error:
+        except ValueError as error:
             return self._fail(db, str(error))
+        except IntegrityError:
+            return self._fail(db, "financial_terms_invalid")
 
     def update_terms_draft(self, db: Session, terms_id: int, **changes):
         terms = self.repository.get_terms(db, terms_id)
@@ -75,7 +175,8 @@ class FinancialService:
         if terms.status != "draft": return self._fail(db, "financial_terms_immutable")
         try:
             for key, value in changes.items():
-                if key in {"monthly_rent", "deposit_agreed"}: value = self._money(value)
+                if key == "monthly_rent": value = self._money(value, allow_zero=False)
+                if key == "deposit_agreed": value = self._money(value)
                 if key == "currency": value = self._currency(value)
                 if key in {"booking_id", "version", "status", "confirmed_at", "supersedes_id"}: return self._fail(db, "financial_terms_field_immutable")
                 setattr(terms, key, value)
@@ -90,10 +191,151 @@ class FinancialService:
         if self.repository.overlapping_confirmed_terms(db, terms): return self._fail(db, "financial_terms_overlap")
         terms.status = "confirmed"; terms.confirmed_at = self._now(); db.commit(); return OperationResult(success=True, data=terms)
 
+    def generate_booking_charges(
+        self,
+        db: Session,
+        booking_id: int,
+        terms_id: int,
+        *,
+        include_deposit: bool = False,
+    ):
+        booking = db.get(Booking, booking_id)
+        terms = self.repository.get_terms(db, terms_id)
+        if booking is None:
+            return self._fail(db, "booking_not_found")
+        if terms is None or terms.booking_id != booking_id or terms.status != "confirmed":
+            return self._fail(db, "financial_terms_not_confirmed")
+        if len(self.repository.list_terms(db, booking_id)) > 1:
+            return self._fail(db, "financial_multiple_terms_not_supported")
+        try:
+            preview = self.preview_for_booking(
+                booking, terms, include_deposit=include_deposit
+            )
+            existing = self.repository.charge_generation_keys(db, booking_id)
+            created = []
+            for row in preview:
+                if row.generation_key in existing:
+                    continue
+                charge = BookingCharge(
+                    booking_id=booking_id,
+                    financial_terms_id=terms.id,
+                    type=row.type,
+                    direction="debit",
+                    concept=row.concept,
+                    service_period_start=row.service_period_start,
+                    service_period_end=row.service_period_end,
+                    due_date=row.due_date,
+                    amount=row.amount,
+                    currency=row.currency,
+                    lifecycle="draft",
+                    generation_key=row.generation_key,
+                )
+                db.add(charge)
+                created.append(charge)
+            db.commit()
+            return OperationResult(success=True, data=created)
+        except ValueError as error:
+            return self._fail(db, str(error))
+        except IntegrityError:
+            return self._fail(db, "charge_duplicate_or_invalid")
+
+    def regenerate_draft_charges(
+        self,
+        db: Session,
+        booking_id: int,
+        terms_id: int,
+        *,
+        include_deposit: bool = False,
+    ):
+        booking = db.get(Booking, booking_id)
+        terms = self.repository.get_terms(db, terms_id)
+        if booking is None:
+            return self._fail(db, "booking_not_found")
+        if terms is None or terms.booking_id != booking_id or terms.status != "confirmed":
+            return self._fail(db, "financial_terms_not_confirmed")
+        if len(self.repository.list_terms(db, booking_id)) > 1:
+            return self._fail(db, "financial_multiple_terms_not_supported")
+        try:
+            preview = self.preview_for_booking(
+                booking, terms, include_deposit=include_deposit
+            )
+            for charge in self.repository.draft_generated_charges(db, booking_id):
+                db.delete(charge)
+            db.flush()
+            existing = self.repository.charge_generation_keys(db, booking_id)
+            created = []
+            for row in preview:
+                if row.generation_key in existing:
+                    continue
+                charge = BookingCharge(
+                    booking_id=booking_id,
+                    financial_terms_id=terms.id,
+                    type=row.type,
+                    direction="debit",
+                    concept=row.concept,
+                    service_period_start=row.service_period_start,
+                    service_period_end=row.service_period_end,
+                    due_date=row.due_date,
+                    amount=row.amount,
+                    currency=row.currency,
+                    lifecycle="draft",
+                    generation_key=row.generation_key,
+                )
+                db.add(charge)
+                created.append(charge)
+            db.commit()
+            return OperationResult(success=True, data=created)
+        except ValueError as error:
+            return self._fail(db, str(error))
+        except IntegrityError:
+            return self._fail(db, "charge_duplicate_or_invalid")
+
+    def post_generated_drafts(self, db: Session, booking_id: int):
+        charges = self.repository.draft_generated_charges(db, booking_id)
+        if not charges:
+            return self._fail(db, "financial_no_draft_charges")
+        now = self._now()
+        for charge in charges:
+            charge.lifecycle = "posted"
+            charge.posted_at = now
+        db.commit()
+        return OperationResult(success=True, data=charges)
+
+    def generation_state(
+        self,
+        db: Session,
+        booking: Booking,
+        terms: BookingFinancialTerms | None,
+    ) -> dict[str, bool]:
+        if terms is None or terms.status != "confirmed":
+            return {"drafts_stale": False, "posted_mismatch": False}
+        expected = {
+            row.generation_key
+            for row in self.preview_for_booking(
+                booking, terms, include_deposit=True
+            )
+        }
+        charges = self.repository.list_charges(db, booking.id)
+        generated = [charge for charge in charges if charge.generation_key]
+        expected_rent = {key for key in expected if key.startswith("rent:")}
+        draft_rent = {
+            charge.generation_key
+            for charge in generated
+            if charge.lifecycle == "draft" and charge.type == "rent"
+        }
+        return {
+            "drafts_stale": bool(draft_rent) and draft_rent != expected_rent,
+            "posted_mismatch": any(
+                charge.lifecycle == "posted" and charge.generation_key not in expected
+                for charge in generated
+            ),
+        }
+
     def supersede_terms(self, db: Session, terms_id: int, effective_from: date, monthly_rent, **kwargs):
         old = self.repository.get_terms(db, terms_id)
         if old is None or old.status != "confirmed": return self._fail(db, "financial_terms_not_confirmed")
-        if effective_from <= old.effective_from: return self._fail(db, "financial_terms_invalid_supersession")
+        if effective_from <= old.effective_from or effective_from.day != 1:
+            return self._fail(db, "financial_terms_change_requires_full_month")
         try:
             old.status = "superseded"; old.effective_until = effective_from
             new = BookingFinancialTerms(booking_id=old.booking_id, version=self.repository.next_terms_version(db, old.booking_id), effective_from=effective_from, monthly_rent=self._money(monthly_rent), currency=old.currency, usual_due_day=kwargs.get("usual_due_day", old.usual_due_day), deposit_agreed=self._money(kwargs.get("deposit_agreed", old.deposit_agreed)), status="confirmed", confirmed_at=self._now(), supersedes_id=old.id, notes=kwargs.get("notes"))

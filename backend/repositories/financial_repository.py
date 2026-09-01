@@ -14,6 +14,21 @@ class FinancialRepository:
     def get_terms(self, db: Session, terms_id: int):
         return db.get(BookingFinancialTerms, terms_id)
 
+    def list_terms(self, db: Session, booking_id: int):
+        return db.scalars(
+            select(BookingFinancialTerms)
+            .where(BookingFinancialTerms.booking_id == booking_id)
+            .order_by(BookingFinancialTerms.version)
+        ).all()
+
+    def latest_terms(self, db: Session, booking_id: int):
+        return db.scalar(
+            select(BookingFinancialTerms)
+            .where(BookingFinancialTerms.booking_id == booking_id)
+            .order_by(BookingFinancialTerms.version.desc())
+            .limit(1)
+        )
+
     def overlapping_confirmed_terms(self, db: Session, terms: BookingFinancialTerms):
         statement = select(BookingFinancialTerms).where(
             BookingFinancialTerms.booking_id == terms.booking_id,
@@ -38,7 +53,30 @@ class FinancialRepository:
         return db.execute(select(PaymentAllocation, Payment).join(Payment).where(PaymentAllocation.charge_id == charge_id)).all()
 
     def list_charges(self, db: Session, booking_id: int):
-        return db.scalars(select(BookingCharge).where(BookingCharge.booking_id == booking_id)).all()
+        return db.scalars(
+            select(BookingCharge)
+            .where(BookingCharge.booking_id == booking_id)
+            .order_by(BookingCharge.due_date, BookingCharge.id)
+        ).all()
+
+    def charge_generation_keys(self, db: Session, booking_id: int):
+        return set(
+            db.scalars(
+                select(BookingCharge.generation_key).where(
+                    BookingCharge.booking_id == booking_id,
+                    BookingCharge.generation_key.is_not(None),
+                )
+            ).all()
+        )
+
+    def draft_generated_charges(self, db: Session, booking_id: int):
+        return db.scalars(
+            select(BookingCharge).where(
+                BookingCharge.booking_id == booking_id,
+                BookingCharge.lifecycle == "draft",
+                BookingCharge.generation_key.is_not(None),
+            )
+        ).all()
 
     def list_payments(self, db: Session, booking_id: int):
         return db.scalars(select(Payment).where(Payment.booking_id == booking_id)).all()

@@ -21,12 +21,14 @@ const BookingUI = {
         this.submitButton = document.getElementById("bookingSubmitButton");
 
         this.deleteButton = document.getElementById("bookingDeleteButton");
+        this.financeButton = document.getElementById("bookingFinanceButton");
 
         this.importedNotice = document.getElementById("bookingImportedNotice");
 
         this.roomId = document.getElementById("bookingRoomId");
 
         this.guestName = document.getElementById("bookingGuestName");
+        this.guestNameGroup = document.getElementById("bookingGuestNameGroup");
         this.guestNameLabel = document.getElementById("bookingGuestNameLabel");
         this.guestNameHelp = document.getElementById("bookingGuestNameHelp");
         this.partiesSection = document.getElementById("bookingPartiesSection");
@@ -124,6 +126,8 @@ const BookingUI = {
             this.resetModalState();
 
             this.bookingId = booking.id;
+            this.financeButton.href = `/bookings/${booking.id}/finance`;
+            this.financeButton.classList.remove("d-none");
 
             this.fillForm(booking);
             await this.loadPersonOptions();
@@ -156,11 +160,15 @@ const BookingUI = {
 
         this.importedGuestMode = readOnly;
 
-        this.guestName.disabled = false;
+        const creating = this.form.action.endsWith("/bookings/create");
+
+        this.guestNameGroup.classList.toggle("d-none", !creating && !readOnly);
+        this.guestName.disabled = !creating && !readOnly;
+        this.guestName.readOnly = readOnly;
 
         this.roomId.disabled = false;
 
-        this.guestName.required = !readOnly;
+        this.guestName.required = creating;
 
         [this.checkIn, this.checkOut, this.price, this.notes]
             .forEach(field => field.disabled = readOnly);
@@ -179,10 +187,10 @@ const BookingUI = {
         this.externalBlockDeletable = externalBlockDeletable;
 
         this.importedNotice.classList.toggle("d-none", !readOnly);
-        this.guestNameLabel.textContent = readOnly ? "Nombre recibido del canal" : "Nombre de referencia";
+        this.guestNameLabel.textContent = readOnly ? "Nombre recibido de la plataforma" : "Inquilino inicial";
         this.guestNameHelp.textContent = readOnly
-            ? "Este texto procede del canal y no crea ni modifica una persona contractual."
-            : "Las identidades y sus funciones se gestionan en Personas y roles.";
+            ? "Este texto procede de la plataforma y no puede modificarse aquí."
+            : "Se creará una persona sin clasificar. Después podrás asignar sus roles.";
 
         this.title.textContent = readOnly
             ? "Detalle de reserva importada"
@@ -215,7 +223,7 @@ const BookingUI = {
 
         this.roomId.value = booking.room_id;
 
-        this.guestName.value = booking.guest_name ?? "";
+        this.guestName.value = booking.source_guest_name ?? "";
 
         this.checkIn.value = booking.check_in;
 
@@ -308,6 +316,8 @@ const BookingUI = {
         this.roomId.disabled = false;
 
         this.guestName.disabled = false;
+        this.guestName.readOnly = false;
+        this.guestNameGroup.classList.remove("d-none");
 
         this.guestName.required = true;
 
@@ -318,7 +328,7 @@ const BookingUI = {
             .forEach(field => field.disabled = false);
 
         this.title.textContent = "Nueva reserva";
-        this.guestNameLabel.textContent = "Nombre inicial";
+        this.guestNameLabel.textContent = "Inquilino inicial";
         this.guestNameHelp.textContent = "En una reserva nueva se creará una persona sin clasificar. Después podrás asignar sus roles.";
 
         this.submitButton.textContent = "Guardar";
@@ -326,6 +336,8 @@ const BookingUI = {
         this.submitButton.classList.remove("d-none");
 
         this.deleteButton.classList.add("d-none");
+        this.financeButton.classList.add("d-none");
+        this.financeButton.href = "#";
 
         this.deleteButton.textContent = "Eliminar";
 
@@ -340,15 +352,13 @@ const BookingUI = {
 
         const validator = new RMValidator();
 
-        validator.addRule(
-
-            this.guestName,
-
-            value => value.trim() !== "",
-
-            "Debe introducir el nombre del huésped."
-
-        );
+        if (this.form.action.endsWith("/bookings/create")) {
+            validator.addRule(
+                this.guestName,
+                value => value.trim() !== "",
+                "Debe introducir el nombre del inquilino inicial."
+            );
+        }
 
         validator.addRule(
 
@@ -356,7 +366,7 @@ const BookingUI = {
 
             () => this.checkOut.value > this.checkIn.value,
 
-            "La fecha de salida debe ser posterior a la fecha de entrada."
+            "El fin de contrato debe ser posterior al inicio de contrato."
 
         );
 

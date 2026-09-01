@@ -19,13 +19,13 @@
             <div class="modal-body">
 
                 <div class="alert alert-info d-none" id="bookingImportedNotice" role="status">
-                    Reserva importada: únicamente pueden modificarse el nombre recibido y las fechas previstas. Las personas y roles locales se gestionan aparte.
+                    Reserva importada: únicamente pueden modificarse las fechas previstas. Las personas y roles locales se gestionan aparte.
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3" id="bookingGuestNameGroup">
 
                     <label for="bookingGuestName" class="form-label" id="bookingGuestNameLabel">
-                        Nombre inicial
+                        Inquilino inicial
                     </label>
 
                     <input type="text" class="form-control" id="bookingGuestName" name="guest_name" required autofocus>
@@ -38,7 +38,7 @@
                     <div class="col">
 
                         <label for="bookingCheckIn" class="form-label">
-                            Entrada
+                            Inicio de contrato
                         </label>
 
                         <input type="date" class="form-control" id="bookingCheckIn" name="check_in" required>
@@ -48,7 +48,7 @@
                     <div class="col">
 
                         <label for="bookingCheckOut" class="form-label">
-                            Salida
+                            Fin de contrato
                         </label>
 
                         <input type="date" class="form-control" id="bookingCheckOut" name="check_out" required>
@@ -127,6 +127,10 @@
             </div>
 
             <div class="modal-footer">
+
+                <a class="btn btn-outline-primary d-none me-auto" id="bookingFinanceButton" href="#">
+                    Cuenta económica
+                </a>
 
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     Cancelar

@@ -169,7 +169,7 @@ def test_manual_historical_overlaps_can_be_created_and_edited(
     assert second.success
 
     edited = service.update_manual_booking(
-        db_session, second.data.id, "Historical Two",
+        db_session, second.data.id,
         date(2026, 4, 10), date(2026, 5, 30), 100, None,
     )
     assert edited.success
@@ -230,7 +230,7 @@ def test_manual_create_and_update_use_real_operational_intersection(
         guest_name="Editable",
     )
     edited = service.update_manual_booking(
-        db_session, editable.id, "Editable",
+        db_session, editable.id,
         date(2026, 5, 10), date(2026, 8, 30), 100, None,
     )
     assert edited.success
@@ -249,7 +249,7 @@ def test_edit_does_not_conflict_with_itself(db_session):
         db_session, service, room.id, date(2026, 9, 10), date(2026, 9, 20)
     )
     result = service.update_manual_booking(
-        db_session, booking.id, "Ana", booking.check_in,
+        db_session, booking.id, booking.check_in,
         booking.check_out, 100, "Sin cambios de fechas",
     )
     assert result.success
@@ -268,7 +268,7 @@ def test_edit_invading_another_booking_is_rejected_without_partial_changes(db_se
     )
 
     result = service.update_manual_booking(
-        db_session, first.id, "Guest Nuevo", date(2026, 9, 1),
+        db_session, first.id, date(2026, 9, 1),
         date(2026, 9, 12), 999, "No debe persistir",
     )
 
@@ -296,7 +296,7 @@ def test_inactive_room_rejects_creation_and_edit_cleanly(db_session):
         date(2026, 9, 15), 100, None,
     )
     update = service.update_manual_booking(
-        db_session, booking.id, "Cambiado", date(2026, 9, 2),
+        db_session, booking.id, date(2026, 9, 2),
         date(2026, 9, 6), 200, "Cambio",
     )
 
@@ -394,7 +394,7 @@ def test_imported_booking_without_guest_is_valid_and_manual_edit_is_read_only(
 ):
     booking = create_imported_booking_without_guest(db_session)
     result = BookingService().update_manual_booking(
-        db_session, booking.id, "Ana", date(2026, 9, 11),
+        db_session, booking.id, date(2026, 9, 11),
         date(2026, 9, 16), 100, None,
     )
     assert result.message == "booking_imported_read_only"
@@ -403,54 +403,21 @@ def test_imported_booking_without_guest_is_valid_and_manual_edit_is_read_only(
     assert persisted.check_in == date(2026, 9, 10)
 
 
-def test_imported_operational_name_can_be_assigned_changed_and_removed(db_session):
+def test_imported_local_update_preserves_platform_name(db_session):
     booking = create_imported_booking_without_guest(db_session)
+    booking.source_guest_name = "Nombre de plataforma"
+    db_session.commit()
     service = BookingService()
-    original = (
-        booking.room_id, booking.room_calendar_id, booking.origin,
-        booking.external_reference, booking.check_in, booking.check_out,
-        booking.price,
+    updated = service.update_imported_local_details(
+        db_session, booking.id, date(2026, 9, 12), date(2026, 9, 14)
     )
-    assigned = service.update_imported_guest(
-        db_session, booking.id, "  Ana   Pérez  "
-    )
-    assert assigned.success
-    assert assigned.data.guest_id is None
-    assert assigned.data.source_guest_name == "Ana Pérez"
-    assert db_session.scalar(select(Person)) is None
-
-    changed = service.update_imported_guest(db_session, booking.id, "Bea López")
-    assert changed.success
-    assert changed.data.source_guest_name == "Bea López"
-
-    removed = service.update_imported_guest(db_session, booking.id, "   ")
-    assert removed.success
-    assert removed.data.guest_id is None
-    assert removed.data.source_guest_name is None
-    assert (
-        removed.data.room_id, removed.data.room_calendar_id, removed.data.origin,
-        removed.data.external_reference, removed.data.check_in,
-        removed.data.check_out, removed.data.price,
-    ) == original
+    assert updated.success
+    assert updated.data.source_guest_name == "Nombre de plataforma"
+    assert updated.data.expected_arrival_date == date(2026, 9, 12)
+    assert updated.data.expected_departure_date == date(2026, 9, 14)
 
 
-def test_imported_guest_update_rejects_manual_booking(db_session):
-    room = make_room(db_session)
-    booking = create_manual(
-        db_session, BookingService(), room.id,
-        date(2026, 9, 1), date(2026, 9, 5),
-    )
-
-    result = BookingService().update_imported_guest(
-        db_session, booking.id, "No permitido"
-    )
-
-    assert not result.success
-    assert result.message == "booking_not_imported"
-    assert booking.operational_person_name == "Ana"
-
-
-def test_imported_guest_update_rolls_back_and_session_remains_usable(
+def test_imported_local_update_rolls_back_and_session_remains_usable(
     db_session, monkeypatch
 ):
     booking = create_imported_booking_without_guest(db_session)
@@ -463,9 +430,12 @@ def test_imported_guest_update_rolls_back_and_session_remains_usable(
 
     monkeypatch.setattr(service.booking_repository, "update", fail_update)
     with pytest.raises(RuntimeError, match="forced failure"):
-        service.update_imported_guest(db_session, booking.id, "Temporal")
+        service.update_imported_local_details(
+            db_session, booking.id, date(2026, 9, 12), date(2026, 9, 14)
+        )
 
     assert db_session.get(Booking, booking.id).guest_id is None
+    assert db_session.get(Booking, booking.id).expected_arrival_date is None
     assert db_session.scalar(select(Room).where(Room.id == booking.room_id)) is not None
 
 

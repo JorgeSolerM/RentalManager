@@ -232,7 +232,6 @@ class BookingService:
         self,
         db: Session,
         booking_id: int,
-        guest_name: str,
         check_in: date,
         check_out: date,
         price: float | None,
@@ -247,14 +246,15 @@ class BookingService:
             if not self._is_manual(booking):
                 return self._rejected(db, "booking_imported_read_only", booking)
 
-            stripped_guest_name = guest_name.strip()
             validation_error = self._validate_booking(
                 db,
                 booking.room_id,
                 check_in,
                 check_out,
                 price,
-                manual_guest_present=bool(stripped_guest_name),
+                # Existing-booking identity is managed independently through
+                # BookingParty; saving contractual fields must not require it.
+                manual_guest_present=True,
                 exclude_booking_id=booking.id,
             )
             if validation_error:
@@ -270,7 +270,6 @@ class BookingService:
                 expected_arrival_date,
                 expected_departure_date,
             )
-            booking.source_guest_name = stripped_guest_name
             self.booking_repository.update(db, booking)
             db.commit()
             return OperationResult(success=True, data=booking)
@@ -283,34 +282,10 @@ class BookingService:
             db.rollback()
             raise
 
-    def update_imported_guest(
-        self,
-        db: Session,
-        booking_id: int,
-        guest_name: str,
-    ) -> OperationResult[Booking]:
-        try:
-            booking = self.booking_repository.get_by_id(db, booking_id)
-            if booking is None:
-                return self._rejected(db, "not_found")
-            if not self.is_imported_booking(booking):
-                return self._rejected(db, "booking_not_imported", booking)
-
-            normalized_guest_name = " ".join(guest_name.split())
-            booking.source_guest_name = normalized_guest_name or None
-
-            self.booking_repository.update(db, booking)
-            db.commit()
-            return OperationResult(success=True, data=booking)
-        except Exception:
-            db.rollback()
-            raise
-
     def update_imported_local_details(
         self,
         db: Session,
         booking_id: int,
-        guest_name: str,
         expected_arrival_date: date | None,
         expected_departure_date: date | None,
     ) -> OperationResult[Booking]:
@@ -321,8 +296,6 @@ class BookingService:
             if not self.is_imported_booking(booking):
                 return self._rejected(db, "booking_not_imported", booking)
 
-            normalized_guest_name = " ".join(guest_name.split())
-            booking.source_guest_name = normalized_guest_name or None
             booking.expected_arrival_date = expected_arrival_date
             booking.expected_departure_date = expected_departure_date
 

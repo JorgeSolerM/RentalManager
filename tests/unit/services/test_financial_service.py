@@ -6,6 +6,9 @@ from backend.models.property import Property
 from backend.models.room import Room
 from backend.services.booking_service import BookingService
 from backend.services.financial_service import FinancialService
+from sqlalchemy import select
+
+from backend.models.booking_charge import BookingCharge
 
 
 def booking(db, *, origin="manual", price=777):
@@ -34,10 +37,17 @@ def test_supersession_closes_previous_period(db_session):
     item=booking(db_session); service=FinancialService()
     old=service.create_terms_draft(db_session,item.id,date(2026,9,1),Decimal("445")).data
     service.confirm_terms(db_session,old.id)
+    rejected = service.supersede_terms(
+        db_session, old.id, date(2027, 1, 15), Decimal("475")
+    )
+    assert rejected.message == "financial_terms_change_requires_full_month"
     result=service.supersede_terms(db_session,old.id,date(2027,1,1),Decimal("475"))
     db_session.refresh(old)
     assert result.success and result.data.version == 2
     assert old.status == "superseded" and old.effective_until == date(2027,1,1)
+    assert service.generate_booking_charges(
+        db_session, item.id, result.data.id
+    ).message == "financial_multiple_terms_not_supported"
 
 
 def test_partial_allocations_unapplied_balance_refund_and_derived_metrics(db_session):
@@ -89,3 +99,126 @@ def test_imported_booking_can_have_local_ledger(db_session):
     item=booking(db_session,origin="housinganywhere"); service=FinancialService()
     assert service.create_terms_draft(db_session,item.id,date(2026,9,1),Decimal("445")).success
     assert item.price == Decimal("777.00")
+
+
+def test_monthly_preview_uses_half_open_calendar_months_and_rounds_each_charge():
+    service = FinancialService()
+    full = service.preview_monthly_rent(
+        check_in=date(2026, 9, 1), check_out=date(2026, 10, 1),
+        monthly_rent=Decimal("400"), usual_due_day=1, terms_id=1,
+    )
+    entry_partial = service.preview_monthly_rent(
+        check_in=date(2026, 9, 16), check_out=date(2026, 10, 1),
+        monthly_rent=Decimal("400"), usual_due_day=1, terms_id=1,
+    )
+    exit_partial = service.preview_monthly_rent(
+        check_in=date(2026, 9, 1), check_out=date(2026, 9, 16),
+        monthly_rent=Decimal("400"), usual_due_day=1, terms_id=1,
+    )
+    same_month = service.preview_monthly_rent(
+        check_in=date(2026, 9, 16), check_out=date(2026, 9, 21),
+        monthly_rent=Decimal("400"), usual_due_day=20, terms_id=1,
+    )
+
+    assert full[0].amount == Decimal("400.00")
+    assert entry_partial[0].amount == Decimal("200.00")
+    assert entry_partial[0].due_date == date(2026, 9, 16)
+    assert exit_partial[0].amount == Decimal("200.00")
+    assert same_month[0].amount == Decimal("66.67")
+    assert same_month[0].service_period_end == date(2026, 9, 21)
+    assert same_month[0].due_date == date(2026, 9, 20)
+
+
+def test_monthly_preview_handles_february_year_boundary_and_due_days_29_to_31():
+    service = FinancialService()
+    normal = service.preview_monthly_rent(
+        check_in=date(2027, 2, 1), check_out=date(2027, 3, 1),
+        monthly_rent=Decimal("400"), usual_due_day=31, terms_id=1,
+    )
+    leap = service.preview_monthly_rent(
+        check_in=date(2028, 2, 1), check_out=date(2028, 3, 1),
+        monthly_rent=Decimal("400"), usual_due_day=30, terms_id=1,
+    )
+    crossing = service.preview_monthly_rent(
+        check_in=date(2026, 12, 15), check_out=date(2027, 2, 2),
+        monthly_rent=Decimal("310"), usual_due_day=29, terms_id=1,
+    )
+
+    assert (normal[0].amount, normal[0].due_date) == (Decimal("400.00"), date(2027, 2, 28))
+    assert (leap[0].amount, leap[0].due_date) == (Decimal("400.00"), date(2028, 2, 29))
+    assert [row.service_period_start for row in crossing] == [date(2026, 12, 15), date(2027, 1, 1), date(2027, 2, 1)]
+    assert crossing[0].due_date == date(2026, 12, 29)
+    assert crossing[-1].amount == Decimal("11.07")
+
+
+def test_generation_is_atomic_idempotent_can_include_deposit_and_post(db_session):
+    item = booking(db_session)
+    item.check_out = date(2026, 11, 1)
+    db_session.commit()
+    service = FinancialService()
+    terms = service.create_terms_draft(
+        db_session, item.id, item.check_in, Decimal("445"),
+        deposit_agreed=Decimal("400"), usual_due_day=31,
+    ).data
+    service.confirm_terms(db_session, terms.id)
+
+    first = service.generate_booking_charges(
+        db_session, item.id, terms.id, include_deposit=True
+    )
+    second = service.generate_booking_charges(
+        db_session, item.id, terms.id, include_deposit=True
+    )
+    charges = db_session.scalars(
+        select(BookingCharge).where(BookingCharge.booking_id == item.id)
+    ).all()
+
+    assert first.success and len(first.data) == 3
+    assert second.success and second.data == []
+    assert {charge.type for charge in charges} == {"rent", "security_deposit"}
+    assert all(charge.lifecycle == "draft" for charge in charges)
+    assert next(c for c in charges if c.type == "rent").due_date == date(2026, 9, 30)
+    assert next(c for c in charges if c.type == "security_deposit").due_date == item.check_in
+    assert service.post_generated_drafts(db_session, item.id).success
+    assert all(charge.lifecycle == "posted" for charge in charges)
+
+
+def test_date_changes_only_mark_generated_records_stale_until_explicit_regeneration(db_session):
+    item = booking(db_session)
+    item.check_out = date(2026, 11, 1)
+    db_session.commit()
+    service = FinancialService()
+    terms = service.create_terms_draft(db_session, item.id, item.check_in, Decimal("445")).data
+    service.confirm_terms(db_session, terms.id)
+    service.generate_booking_charges(db_session, item.id, terms.id)
+    original_ids = [charge.id for charge in service.repository.list_charges(db_session, item.id)]
+
+    item.check_out = date(2026, 12, 1)
+    db_session.commit()
+    assert service.generation_state(db_session, item, terms)["drafts_stale"]
+    assert [charge.id for charge in service.repository.list_charges(db_session, item.id)] == original_ids
+
+    regenerated = service.regenerate_draft_charges(db_session, item.id, terms.id)
+    assert regenerated.success and len(regenerated.data) == 3
+    assert not service.generation_state(db_session, item, terms)["drafts_stale"]
+
+    service.post_generated_drafts(db_session, item.id)
+    item.check_in = date(2026, 9, 20)
+    db_session.commit()
+    state = service.generation_state(db_session, item, terms)
+    assert state["posted_mismatch"] and not state["drafts_stale"]
+
+
+def test_deposit_is_never_generated_without_explicit_inclusion(db_session):
+    item = booking(db_session)
+    item.check_out = date(2026, 10, 1)
+    db_session.commit()
+    service = FinancialService()
+    terms = service.create_terms_draft(
+        db_session, item.id, item.check_in, Decimal("445"),
+        deposit_agreed=Decimal("400"),
+    ).data
+    service.confirm_terms(db_session, terms.id)
+
+    result = service.generate_booking_charges(db_session, item.id, terms.id)
+
+    assert result.success and [charge.type for charge in result.data] == ["rent"]

@@ -136,8 +136,6 @@ def update_booking(
 
     room_id: int = Form(...),
 
-    guest_name: str = Form(...),
-
     check_in: date = Form(...),
 
     check_out: date = Form(...),
@@ -156,7 +154,6 @@ def update_booking(
     result = booking_service.update_manual_booking(
         db,
         booking_id,
-        guest_name,
         check_in,
         check_out,
         price,
@@ -222,34 +219,9 @@ def delete_booking(
     )
 
 
-@router.post("/update-imported-guest/{booking_id}")
-def update_imported_guest(
-    booking_id: int,
-    guest_name: str = Form(""),
-    db: Session = Depends(get_db),
-):
-    result = booking_service.update_imported_guest(db, booking_id, guest_name)
-
-    if not result.success and result.message == "not_found":
-        raise HTTPException(status_code=404, detail="Reserva no encontrada.")
-
-    room_id = result.data.room_id
-    if not result.success:
-        return RedirectResponse(
-            url=f"/rooms/{room_id}?error={result.message}",
-            status_code=303,
-        )
-
-    return RedirectResponse(
-        url=f"/rooms/{room_id}?success=booking_guest_updated",
-        status_code=303,
-    )
-
-
 @router.post("/update-imported-local/{booking_id}")
 def update_imported_local_details(
     booking_id: int,
-    guest_name: str = Form(""),
     expected_arrival_date: date | None = Form(None),
     expected_departure_date: date | None = Form(None),
     db: Session = Depends(get_db),
@@ -257,7 +229,6 @@ def update_imported_local_details(
     result = booking_service.update_imported_local_details(
         db,
         booking_id,
-        guest_name,
         expected_arrival_date,
         expected_departure_date,
     )

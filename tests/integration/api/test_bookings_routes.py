@@ -56,6 +56,17 @@ def booking_data(room_id: int, **overrides) -> dict:
     return data
 
 
+def test_update_contract_does_not_include_guest_name():
+    schema = create_app().openapi()
+    body_ref = schema["paths"]["/bookings/update/{booking_id}"]["post"][
+        "requestBody"
+    ]["content"]["application/x-www-form-urlencoded"]["schema"]["$ref"]
+    body_schema = schema["components"]["schemas"][body_ref.rsplit("/", 1)[-1]]
+
+    assert "guest_name" not in body_schema["properties"]
+    assert "guest_name" not in body_schema.get("required", [])
+
+
 def test_booking_create_list_and_get_use_overridden_temporary_database(
     client, db_session
 ):
@@ -106,6 +117,18 @@ def test_booking_create_list_and_get_use_overridden_temporary_database(
     }
 
 
+def test_manual_create_still_requires_initial_tenant_name(client, db_session):
+    room = create_room(db_session)
+    payload = booking_data(room.id)
+    payload.pop("guest_name")
+
+    response = client.post("/bookings/create", data=payload)
+
+    assert response.status_code == 422
+    assert db_session.scalar(select(Booking)) is None
+    assert db_session.scalar(select(Person)) is None
+
+
 def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
     client, db_session
 ):
@@ -115,21 +138,20 @@ def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
 
     update_response = client.post(
         f"/bookings/update/{booking.id}",
-        data=booking_data(
+        data={key: value for key, value in booking_data(
             room.id,
-            guest_name="Luis García",
             check_in="2026-10-01",
             check_out="2026-10-03",
             price="300",
             notes="Actualizada",
             expected_arrival_date="2026-09-29",
             expected_departure_date="2026-10-02",
-        ),
+        ).items() if key != "guest_name"},
         follow_redirects=False,
     )
     db_session.refresh(booking)
     assert booking.parties[0].person.full_name == "Ana Pérez"
-    assert booking.source_guest_name == "Luis García"
+    assert booking.source_guest_name == "Ana Pérez"
     assert booking.check_in == date(2026, 10, 1)
     assert booking.expected_arrival_date == date(2026, 9, 29)
     assert booking.expected_departure_date == date(2026, 10, 2)
@@ -153,7 +175,7 @@ def test_booking_update_delete_and_not_found_use_overridden_temporary_database(
     assert not_found_response.json() == {"detail": "Reserva no encontrada."}
 
 
-def test_manual_guest_only_change_uses_full_contract_and_preserves_other_fields(
+def test_manual_update_ignores_legacy_reference_name_and_preserves_identity(
     client, db_session
 ):
     room = create_room(db_session)
@@ -176,11 +198,47 @@ def test_manual_guest_only_change_uses_full_contract_and_preserves_other_fields(
         f"/rooms/{room.id}?success=booking_updated"
     )
     assert booking.parties[0].person.full_name == "Ana Pérez"
-    assert booking.source_guest_name == "Nombre corregido"
+    assert booking.source_guest_name == "Ana Pérez"
     assert (
         booking.room_id, booking.check_in, booking.check_out,
         booking.price, booking.notes,
     ) == original
+
+
+def test_roles_then_manual_update_without_guest_name_are_independent(
+    client, db_session
+):
+    room = create_room(db_session)
+    client.post("/bookings/create", data=booking_data(room.id))
+    booking = db_session.scalar(select(Booking))
+    person = booking.parties[0].person
+    initial_party = booking.parties[0]
+    source_name = booking.source_guest_name
+    person_count = len(db_session.scalars(select(Person)).all())
+
+    payer = client.post(
+        f"/bookings/{booking.id}/parties",
+        data={"person_id": person.id, "role": "payer"},
+    )
+    removed = client.post(
+        f"/bookings/{booking.id}/parties/{initial_party.id}/remove"
+    )
+    payload = booking_data(room.id, notes="Editada después de cambiar roles")
+    payload.pop("guest_name")
+    updated = client.post(
+        f"/bookings/update/{booking.id}", data=payload, follow_redirects=False
+    )
+
+    db_session.expire_all()
+    persisted = db_session.get(Booking, booking.id)
+    assert payer.status_code == removed.status_code == 200
+    assert updated.status_code == 303
+    assert updated.headers["location"] == f"/rooms/{room.id}?success=booking_updated"
+    assert persisted.source_guest_name == source_name
+    assert [(party.person_id, party.role) for party in persisted.parties] == [
+        (person.id, "payer")
+    ]
+    assert len(db_session.scalars(select(Person)).all()) == person_count
 
 
 def test_manual_update_contract_still_requires_room_id(client, db_session):
@@ -196,6 +254,28 @@ def test_manual_update_contract_still_requires_room_id(client, db_session):
     db_session.refresh(booking)
     assert booking.parties[0].person.full_name == "Ana Pérez"
     assert booking.source_guest_name == "Ana Pérez"
+
+
+def test_booking_form_validation_redirects_normal_ui_instead_of_raw_json(
+    client, db_session
+):
+    room = create_room(db_session)
+    client.post("/bookings/create", data=booking_data(room.id))
+    booking = db_session.scalar(select(Booking))
+    payload = booking_data(room.id)
+    payload.pop("check_out")
+
+    response = client.post(
+        f"/bookings/update/{booking.id}",
+        data=payload,
+        headers={"referer": f"http://testserver/rooms/{room.id}"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        f"/rooms/{room.id}?error=booking_form_invalid"
+    )
 
 
 def test_deleted_manual_booking_disappears_from_workspace_and_gantt(
@@ -263,6 +343,16 @@ def test_booking_ui_populates_room_and_resets_manual_imported_modes():
     assert "booking.expected_arrival_date" in source
     assert "booking.expected_departure_date" in source
     assert "/bookings/update/" in source
+    assert 'this.guestNameGroup.classList.toggle("d-none", !creating && !readOnly)' in source
+    assert 'this.guestName.readOnly = readOnly' in source
+    assert '"Nombre recibido de la plataforma"' in source
+    assert '"Inquilino inicial"' in source
+    modal = open(
+        "backend/templates/components/booking_modal.html", encoding="utf-8"
+    ).read()
+    assert "Inicio de contrato" in modal
+    assert "Fin de contrato" in modal
+    assert "Nombre de referencia" not in modal
     for template in (workspace, gantt, dashboard):
         assert "components/booking_modal.html" in template
         assert "js/bookings.js" in template
@@ -416,9 +506,7 @@ def test_imported_booking_without_guest_returns_null_and_is_read_only(
     assert db_session.get(Booking, booking.id) is not None
 
 
-def test_imported_guest_endpoint_updates_only_guest_and_supports_empty_name(
-    client, db_session
-):
+def test_imported_platform_name_has_no_local_edit_endpoint(client, db_session):
     room = create_room(db_session)
     platform = Platform(name="Spotahome", slug="spotahome", active=True)
     db_session.add(platform)
@@ -430,75 +518,24 @@ def test_imported_guest_endpoint_updates_only_guest_and_supports_empty_name(
         room_id=room.id, room_calendar_id=calendar.id, origin="spotahome",
         external_reference="spot-35", check_in=date(2026, 11, 1),
         check_out=date(2026, 11, 5), price=725,
+        source_guest_name="Nombre recibido",
     )
     db_session.add(booking)
     db_session.commit()
-    original = (
-        booking.room_id, booking.room_calendar_id, booking.origin,
-        booking.external_reference, booking.check_in, booking.check_out,
-        booking.price,
-    )
-
     response = client.post(
         f"/bookings/update-imported-guest/{booking.id}",
         data={"guest_name": "  Nombre   Real  "}, follow_redirects=False,
     )
 
-    assert response.status_code == 303
-    assert response.headers["location"] == (
-        f"/rooms/{room.id}?success=booking_guest_updated"
-    )
+    assert response.status_code == 404
     db_session.refresh(booking)
     assert booking.guest_id is None
-    assert booking.source_guest_name == "Nombre Real"
+    assert booking.source_guest_name == "Nombre recibido"
     assert db_session.scalars(select(Person)).all() == []
     assert db_session.scalars(select(BookingParty)).all() == []
-    assert (
-        booking.room_id, booking.room_calendar_id, booking.origin,
-        booking.external_reference, booking.check_in, booking.check_out,
-        booking.price,
-    ) == original
-    assert "Nombre Real" in client.get(f"/rooms/{room.id}").text
-    gantt = client.get(
-        "/gantt/data?start=2026-11-01&end=2026-12-01"
-    ).json()
-    assert gantt["properties"][0]["rooms"][0]["bookings"][0]["guest_name"] == "Nombre Real"
-
-    cleared = client.post(
-        f"/bookings/update-imported-guest/{booking.id}",
-        data={"guest_name": ""}, follow_redirects=False,
-    )
-    assert cleared.status_code == 303
-    db_session.refresh(booking)
-    assert booking.guest_id is None
-    assert booking.source_guest_name is None
 
 
-def test_imported_guest_endpoint_rejects_manual_booking(client, db_session):
-    room = create_room(db_session)
-    created = client.post(
-        "/bookings/create",
-        data=booking_data(room.id, guest_name="Manual"),
-        follow_redirects=False,
-    )
-    assert created.status_code == 303
-    booking = db_session.scalar(select(Booking).where(Booking.room_id == room.id))
-
-    response = client.post(
-        f"/bookings/update-imported-guest/{booking.id}",
-        data={"guest_name": "Intruso"}, follow_redirects=False,
-    )
-
-    assert response.status_code == 303
-    assert response.headers["location"] == (
-        f"/rooms/{room.id}?error=booking_not_imported"
-    )
-    db_session.refresh(booking)
-    assert booking.parties[0].person.full_name == "Manual"
-    assert booking.source_guest_name == "Manual"
-
-
-def test_imported_local_details_update_only_guest_and_expected_dates(
+def test_imported_local_details_preserve_platform_name_and_update_expected_dates(
     client, db_session
 ):
     room = create_room(db_session)
@@ -518,6 +555,7 @@ def test_imported_local_details_update_only_guest_and_expected_dates(
         check_in=date(2026, 9, 1),
         check_out=date(2027, 6, 30),
         price=725,
+        source_guest_name="Nombre de plataforma",
     )
     db_session.add(booking)
     db_session.commit()
@@ -544,7 +582,7 @@ def test_imported_local_details_update_only_guest_and_expected_dates(
     assert response.status_code == 303
     db_session.refresh(booking)
     assert booking.guest_id is None
-    assert booking.source_guest_name == "Inquilino local"
+    assert booking.source_guest_name == "Nombre de plataforma"
     assert booking.expected_arrival_date == date(2026, 9, 4)
     assert booking.expected_departure_date == date(2027, 6, 28)
     assert (
