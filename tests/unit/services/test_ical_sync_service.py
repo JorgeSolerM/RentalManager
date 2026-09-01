@@ -550,7 +550,13 @@ def test_overlap_with_manual_booking_rejects_every_event_and_session_is_reusable
     assert db_session.scalar(select(Booking).where(Booking.id == manual.id)) is not None
 
 
-def test_overlap_is_checked_after_all_day_checkout_conversion(db_session):
+def test_overlap_is_checked_after_all_day_checkout_conversion(db_session, monkeypatch):
+    # Keep this boundary test independent from the wall clock. The overlap is
+    # operational on this business date and becomes historical later.
+    monkeypatch.setattr(
+        "backend.services.ical_sync_service.business_today",
+        lambda: date(2026, 8, 17),
+    )
     room, calendar = setup_calendar(db_session)
     manual = Booking(
         room_id=room.id, room_calendar_id=None, guest_id=None, origin="manual",

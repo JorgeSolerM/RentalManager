@@ -27,7 +27,51 @@ OPERATIONAL_OVERLAP_REVISION = "e3a5c7d9f102"
 PUBLICATION_FOUNDATION_REVISION = "f6b8d0e2a413"
 OPTIONAL_ROOM_PRICE_REVISION = "a8c1e4f6b209"
 SHARED_BATHROOM_REVISION = "c6e8a0b2d437"
-HEAD_REVISION = "e1c3a5b7d902"
+HEAD_REVISION = "f2d4b6c8a014"
+
+
+@pytest.mark.alembic_audit
+def test_financial_ledger_upgrade_downgrade_upgrade_without_backfill(tmp_path, monkeypatch):
+    database_path = Path(tmp_path) / "financial_ledger_round_trip.db"
+    config, _ = configure_temporary_database(monkeypatch, database_path)
+    command.upgrade(config, "e1c3a5b7d902")
+    connection = sqlite3.connect(database_path)
+    connection.create_function("rentalmanager_business_date", 0, lambda: "2026-09-01")
+    connection.execute(
+        "INSERT INTO properties (id,name,address,city,owner,active) "
+        "VALUES (1,'Piso','Calle','Elche','Owner',1)"
+    )
+    connection.execute(
+        "INSERT INTO rooms (id,property_id,code,display_order,active,master_calendar_token,operational_since) "
+        "VALUES (1,1,'R1',1,1,'token','2026-09-01')"
+    )
+    connection.execute(
+        "INSERT INTO bookings (id,room_id,origin,check_in,check_out,price,ical_uid) "
+        "VALUES (1,1,'manual','2026-09-01','2027-06-30',445,'financial-test')"
+    )
+    connection.commit(); connection.close()
+
+    command.upgrade(config, HEAD_REVISION)
+    connection = sqlite3.connect(database_path)
+    try:
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (HEAD_REVISION,)
+        for table in ("booking_financial_terms", "booking_charges", "payments", "payment_allocations"):
+            assert connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+        assert connection.execute("SELECT price FROM bookings WHERE id=1").fetchone() == (445,)
+        assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        connection.close()
+
+    command.downgrade(config, "e1c3a5b7d902")
+    connection = sqlite3.connect(database_path)
+    try:
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "booking_charges" not in tables
+        assert connection.execute("SELECT price FROM bookings WHERE id=1").fetchone() == (445,)
+    finally:
+        connection.close()
+    command.upgrade(config, HEAD_REVISION)
 
 
 @pytest.mark.alembic_audit

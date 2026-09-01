@@ -84,6 +84,16 @@ class Booking(Base):
         back_populates="bookings",
     )
 
+    financial_terms: Mapped[list["BookingFinancialTerms"]] = relationship(
+        back_populates="booking", order_by="BookingFinancialTerms.version"
+    )
+    charges: Mapped[list["BookingCharge"]] = relationship(
+        back_populates="booking", order_by="BookingCharge.due_date, BookingCharge.id"
+    )
+    payments: Mapped[list["Payment"]] = relationship(
+        back_populates="booking", order_by="Payment.effective_date, Payment.id"
+    )
+
     ical_uid: Mapped[str] = mapped_column(
         String(64),
         nullable=False,

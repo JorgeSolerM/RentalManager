@@ -17,6 +17,7 @@ from backend.repositories.booking_repository import BookingRepository
 from backend.repositories.guest_repository import GuestRepository
 from backend.repositories.room_repository import RoomRepository
 from backend.repositories.room_calendar_repository import RoomCalendarRepository
+from backend.repositories.financial_repository import FinancialRepository
 
 
 class BookingService:
@@ -25,6 +26,7 @@ class BookingService:
         self.guest_repository = GuestRepository()
         self.room_repository = RoomRepository()
         self.room_calendar_repository = RoomCalendarRepository()
+        self.financial_repository = FinancialRepository()
 
     def _get_or_create_guest(self, db: Session, full_name: str) -> Guest:
         full_name = " ".join(full_name.split())
@@ -422,6 +424,10 @@ class BookingService:
         db: Session,
         booking: Booking,
     ) -> OperationResult[None]:
+        if self.financial_repository.has_posted_activity(db, booking.id):
+            return self._rejected(db, "booking_has_posted_financial_activity", booking)
+        if self.financial_repository.has_any_records(db, booking.id):
+            return self._rejected(db, "booking_has_financial_records", booking)
         imported_block = is_external_manual_block(booking)
         if not self._is_manual(booking):
             if not imported_block:
