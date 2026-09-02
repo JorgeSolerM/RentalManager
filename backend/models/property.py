@@ -139,3 +139,9 @@ class Property(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+    ownerships: Mapped[list["PropertyOwnership"]] = relationship(
+        back_populates="property",
+        order_by="PropertyOwnership.id",
+        passive_deletes="all",
+    )

@@ -364,6 +364,9 @@ def test_catalog_exposes_only_rooms_that_are_really_publicable(
     ):
         assert private_column not in public_sql
     assert "room_calendars" not in public_sql and "guests" not in public_sql
+    assert "owners" not in public_sql
+    assert "owner_bank_accounts" not in public_sql
+    assert "property_ownerships" not in public_sql
 
     room.is_published = False
     db_session.commit()

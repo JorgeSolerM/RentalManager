@@ -1,7 +1,8 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from backend.models.property import Property
+from backend.models.property_ownership import PropertyOwnership
 from backend.repositories.base_repository import BaseRepository
 
 
@@ -9,7 +10,10 @@ class PropertyRepository(BaseRepository):
 
     def get_all(self, db: Session) -> list[Property]:
 
-        statement = select(Property).order_by(Property.name)
+        statement = select(Property).options(
+            selectinload(Property.ownerships).selectinload(PropertyOwnership.owner),
+            selectinload(Property.ownerships).selectinload(PropertyOwnership.rent_bank_account),
+        ).order_by(Property.name)
 
         return db.scalars(statement).all()
 
@@ -20,7 +24,10 @@ class PropertyRepository(BaseRepository):
     ) -> Property | None:
 
         statement = (
-            select(Property)
+            select(Property).options(
+                selectinload(Property.ownerships).selectinload(PropertyOwnership.owner),
+                selectinload(Property.ownerships).selectinload(PropertyOwnership.rent_bank_account),
+            )
             .where(Property.id == property_id)
         )
 

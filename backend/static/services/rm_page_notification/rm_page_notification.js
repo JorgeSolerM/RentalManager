@@ -44,6 +44,11 @@ const RMPageNotification = {
         ,financial_charges_generated: "Cargos generados en borrador."
         ,financial_charges_regenerated: "Borradores regenerados con las fechas actuales."
         ,financial_charges_posted: "Cargos contabilizados."
+        ,owner_saved: "Propietario guardado."
+        ,owner_deleted: "Propietario eliminado."
+        ,owner_account_saved: "Cuenta bancaria guardada."
+        ,ownership_saved: "Relación con la finca guardada."
+        ,ownership_deactivated: "Relación con la finca desvinculada y conservada en el histórico."
     },
 
     errorMessages: {
@@ -135,6 +140,25 @@ const RMPageNotification = {
         ,financial_no_draft_charges: "No existen cargos generados en borrador para confirmar."
         ,financial_multiple_terms_not_supported: "Esta primera versión no genera todavía una estancia con varios tramos de renta. Requiere revisión económica específica."
         ,financial_terms_change_requires_full_month: "Una nueva renta debe aplicarse desde el primer día de un mes natural completo."
+        ,owner_not_found: "El propietario solicitado no existe."
+        ,owner_legal_name_required: "Indica el nombre legal del propietario."
+        ,owner_country_invalid: "El país debe indicarse mediante un código de dos letras."
+        ,owner_invalid: "No se han podido guardar los datos del propietario."
+        ,owner_has_relations: "No se puede eliminar un propietario con cuentas o relaciones con fincas. Desactívalo si procede."
+        ,owner_account_not_found: "La cuenta bancaria no existe."
+        ,owner_account_holder_required: "Indica el titular de la cuenta."
+        ,owner_account_iban_invalid: "El IBAN indicado no es válido."
+        ,owner_account_bic_invalid: "El BIC indicado no tiene un formato válido."
+        ,owner_account_duplicate: "Esta cuenta ya está registrada para el propietario."
+        ,owner_account_in_use: "La cuenta está asignada a una finca activa y no puede desactivarse ni dejar de recibir rentas."
+        ,ownership_percentage_invalid: "La participación debe ser un valor mayor que 0 y menor o igual que 100."
+        ,ownership_dates_invalid: "La fecha final no puede ser anterior a la inicial."
+        ,property_not_found: "La finca seleccionada no existe."
+        ,ownership_exists: "Este propietario ya tiene una relación activa con la finca."
+        ,ownership_property_immutable: "La finca de una relación existente no puede sustituirse. Desvincúlala y crea otra relación."
+        ,ownership_account_wrong_owner: "La cuenta receptora debe pertenecer al mismo propietario."
+        ,ownership_account_not_eligible: "La cuenta receptora debe estar activa y marcada para recibir rentas."
+        ,ownership_invalid: "No se ha podido guardar la relación con la finca."
     },
 
     show() {

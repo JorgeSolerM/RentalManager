@@ -19,6 +19,7 @@ from backend.api.routers import (
     settings,
     persons,
     booking_finance,
+    owners,
 )
 from backend.core.jinja_filters import format_date
 from backend.core.logging import configure_sensitive_url_logging
@@ -66,6 +67,7 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(rooms.router)
     app.include_router(settings.router)
     app.include_router(persons.router)
+    app.include_router(owners.router)
     app.include_router(bookings.router)
     app.include_router(booking_finance.router)
     app.include_router(room_calendars.router)

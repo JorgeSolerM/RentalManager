@@ -78,9 +78,6 @@ function fillPropertyForm(property) {
     document.getElementById("city").value =
         property.city ?? "";
 
-    document.getElementById("owner").value =
-        property.owner ?? "";
-
     document.getElementById("notes").value =
         property.notes ?? "";
 

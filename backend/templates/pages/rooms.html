@@ -16,6 +16,16 @@
 
 </div>
 
+<section class="card card-body mb-4" aria-labelledby="propertyOwnersTitle">
+    <h2 class="h5" id="propertyOwnersTitle">Propietarios</h2>
+    {% set active_ownerships = property.ownerships|selectattr('active')|list %}
+    {% if active_ownerships %}
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Propietario</th><th>Participación</th><th>Cuenta de cobro</th></tr></thead><tbody>
+    {% for ownership in active_ownerships %}<tr><td><a href="/owners/{{ ownership.owner.id }}">{{ ownership.owner.name }}</a></td><td>{{ ownership.ownership_percentage }} %</td><td>{{ ownership.rent_bank_account.masked_iban if ownership.rent_bank_account else 'Sin cuenta asignada' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<p class="text-muted mb-0">Sin propietario configurado.</p>{% endif %}
+</section>
+
 {% if rooms %}
 
 <table class="table">

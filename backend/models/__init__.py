@@ -17,6 +17,9 @@ from backend.models.payment import Payment
 from backend.models.payment_allocation import PaymentAllocation
 from backend.models.person import Person
 from backend.models.booking_party import BookingParty
+from backend.models.owner import Owner
+from backend.models.owner_bank_account import OwnerBankAccount
+from backend.models.property_ownership import PropertyOwnership
 
 __all__ = [
     "Property",
@@ -31,6 +34,9 @@ __all__ = [
     "PaymentAllocation",
     "Person",
     "BookingParty",
+    "Owner",
+    "OwnerBankAccount",
+    "PropertyOwnership",
     "Feature",
     "MediaAsset",
     "Manager",

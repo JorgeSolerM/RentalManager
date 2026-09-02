@@ -80,7 +80,6 @@ def get_property(
         "alias": property_obj.alias,
         "address": property_obj.address,
         "city": property_obj.city,
-        "owner": property_obj.owner,
         "notes": property_obj.notes,
         "active": property_obj.active,
         "street": property_obj.street,
@@ -184,7 +183,6 @@ def create_property(
     floor: str = Form(""),
     door: str = Form(""),
     city: str = Form(...),
-    owner: str = Form(...),
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -198,7 +196,7 @@ def create_property(
         floor=floor or None,
         door=door or None,
         city=city,
-        owner=owner,
+        owner="",
         notes=notes or None,
         active=True,
     )
@@ -252,14 +250,13 @@ def update_property(
     floor: str = Form(""),
     door: str = Form(""),
     city: str = Form(...),
-    owner: str = Form(...),
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
 
     result = property_service.update_property(
         db, property_id, name, alias or None, street, street_number or None,
-        floor or None, door or None, city, owner, notes or None
+        floor or None, door or None, city, notes or None
     )
 
     if not result.success and result.message == "not_found":

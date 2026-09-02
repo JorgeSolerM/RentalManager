@@ -1,0 +1,17 @@
+{% extends "layouts/base.html" %}
+{% block title %}Propietarios · RentalManager{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+  <div><h1 class="h3 mb-1">Propietarios</h1><p class="text-muted mb-0">Titulares, cuentas y participación en fincas.</p></div>
+  <a class="btn btn-primary" href="/owners/new">Nuevo propietario</a>
+</div>
+<div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
+<thead><tr><th>Nombre</th><th>Fincas</th><th>Cuenta rentas</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
+{% for owner in owners %}{% set active_ownerships = owner.property_ownerships|selectattr('active')|list %}{% set rent_accounts = owner.bank_accounts|selectattr('active')|selectattr('receives_rent')|list %}
+<tr><td><a class="rm-object-link" href="/owners/{{ owner.id }}"><strong>{{ owner.name }}</strong></a>{% if owner.display_name %}<small class="d-block text-muted">{{ owner.legal_name }}</small>{% endif %}</td>
+<td>{{ active_ownerships|length }}</td><td>{% if rent_accounts|length == 1 %}{{ rent_accounts[0].masked_iban }}{% elif rent_accounts|length > 1 %}{{ rent_accounts|length }} cuentas{% else %}<span class="text-muted">Sin cuenta</span>{% endif %}</td>
+<td><span class="room-publication-status{% if owner.active %} is-published{% endif %}" role="img" aria-label="{{ 'Activo' if owner.active else 'Inactivo' }}" title="{{ 'Activo' if owner.active else 'Inactivo' }}"></span></td>
+<td class="text-end"><form class="d-inline" method="post" action="/owners/{{ owner.id }}/delete" onsubmit="return confirm('¿Eliminar este propietario? Solo es posible si no tiene cuentas ni relaciones con fincas.');"><button class="btn btn-sm btn-outline-danger" aria-label="Eliminar propietario" title="Eliminar">🗑</button></form></td></tr>
+{% else %}<tr><td colspan="5" class="text-center text-muted py-4">No hay propietarios configurados.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

@@ -3,7 +3,9 @@
     'gantt' if path.startswith('/gantt') else (
     'properties' if path.startswith('/properties') or path.startswith('/rooms') else (
     'persons' if path.startswith('/persons') else (
+    'owners' if path.startswith('/owners') else (
     'settings' if path.startswith('/settings') or path.startswith('/platforms') else none
+    )
     )
     )
     )
@@ -26,6 +28,10 @@
 
         <li class="{% if active_section == 'persons' %}active{% endif %}">
             <a href="/persons"{% if active_section == 'persons' %} aria-current="page"{% endif %}>Inquilinos</a>
+        </li>
+
+        <li class="{% if active_section == 'owners' %}active{% endif %}">
+            <a href="/owners"{% if active_section == 'owners' %} aria-current="page"{% endif %}>Propietarios</a>
         </li>
 
     </ul>

@@ -50,7 +50,7 @@
 
             <td>{{ item.property.city }}</td>
 
-            <td>{{ item.property.owner }}</td>
+            <td>{% set active_ownerships = item.property.ownerships|selectattr('active')|list %}{% if active_ownerships|length == 1 %}<a href="/owners/{{ active_ownerships[0].owner.id }}">{{ active_ownerships[0].owner.name }}</a>{% elif active_ownerships|length > 1 %}{{ active_ownerships|length }} propietarios{% else %}<span class="text-muted">Sin propietario configurado</span>{% endif %}</td>
 
             <td>
 

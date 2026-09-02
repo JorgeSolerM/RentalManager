@@ -45,7 +45,7 @@ class PropertyService:
     def update_property(
         self, db: Session, property_id: int, name: str, alias: str | None,
         street: str, street_number: str | None, floor: str | None,
-        door: str | None, city: str, owner: str, notes: str | None,
+        door: str | None, city: str, notes: str | None,
     ) -> OperationResult[Property]:
         property_obj = self.repository.get_by_id(db, property_id)
         if property_obj is None:
@@ -68,7 +68,6 @@ class PropertyService:
             property_obj.door = normalize_address_part(door)
             property_obj.city = normalized_city
             property_obj.address = format_property_address(property_obj)
-            property_obj.owner = owner
             property_obj.notes = notes
             self.repository.update(db, property_obj)
             db.commit()
