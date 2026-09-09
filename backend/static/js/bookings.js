@@ -22,6 +22,7 @@ const BookingUI = {
 
         this.deleteButton = document.getElementById("bookingDeleteButton");
         this.financeButton = document.getElementById("bookingFinanceButton");
+        this.sepaButton = document.getElementById("bookingSepaButton");
 
         this.importedNotice = document.getElementById("bookingImportedNotice");
 
@@ -128,6 +129,8 @@ const BookingUI = {
             this.bookingId = booking.id;
             this.financeButton.href = `/bookings/${booking.id}/finance`;
             this.financeButton.classList.remove("d-none");
+            this.sepaButton.href = `/sepa/bookings/${booking.id}`;
+            this.sepaButton.classList.remove("d-none");
 
             this.fillForm(booking);
             await this.loadPersonOptions();
@@ -338,6 +341,8 @@ const BookingUI = {
         this.deleteButton.classList.add("d-none");
         this.financeButton.classList.add("d-none");
         this.financeButton.href = "#";
+        this.sepaButton.classList.add("d-none");
+        this.sepaButton.href = "#";
 
         this.deleteButton.textContent = "Eliminar";
 

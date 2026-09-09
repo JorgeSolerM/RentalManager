@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, selectinload
 from backend.models.owner import Owner
 from backend.models.owner_bank_account import OwnerBankAccount
 from backend.models.property_ownership import PropertyOwnership
+from backend.models.sepa_creditor_profile import SepaCreditorProfile
 
 
 class OwnerRepository:
@@ -18,6 +19,9 @@ class OwnerRepository:
                     ),
                     selectinload(Owner.property_ownerships).selectinload(
                         PropertyOwnership.rent_bank_account
+                    ),
+                    selectinload(Owner.sepa_creditor_profiles).selectinload(
+                        SepaCreditorProfile.bank_account
                     ),
                 )
                 .order_by(Owner.legal_name, Owner.id)
@@ -34,6 +38,9 @@ class OwnerRepository:
                 ),
                 selectinload(Owner.property_ownerships).selectinload(
                     PropertyOwnership.rent_bank_account
+                ),
+                selectinload(Owner.sepa_creditor_profiles).selectinload(
+                    SepaCreditorProfile.bank_account
                 ),
             )
             .where(Owner.id == owner_id)
@@ -62,6 +69,14 @@ class OwnerRepository:
                 PropertyOwnership.active.is_(True),
             )
             .limit(1)
+        ) is not None
+
+    def account_in_active_sepa_profile(self, db: Session, account_id: int) -> bool:
+        return db.scalar(
+            select(SepaCreditorProfile.id).where(
+                SepaCreditorProfile.bank_account_id == account_id,
+                SepaCreditorProfile.active.is_(True),
+            ).limit(1)
         ) is not None
 
     def active_property_total(self, db: Session, property_id: int):

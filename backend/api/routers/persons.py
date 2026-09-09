@@ -9,11 +9,13 @@ from sqlalchemy.orm import Session
 from backend.database.session import get_db
 from backend.core.business_time import business_today
 from backend.services.person_service import PersonService
+from backend.services.sepa_service import SepaService
 
 
 router = APIRouter(prefix="/persons")
 templates = Jinja2Templates(directory="backend/templates")
 service = PersonService()
+sepa_service = SepaService()
 
 
 @router.get("")
@@ -125,7 +127,7 @@ def person_detail(request: Request, person_id: int, db: Session = Depends(get_db
     return templates.TemplateResponse(
         request=request,
         name="pages/person_detail.html",
-        context={"request": request, "person": person, "today": business_today()},
+        context={"request": request, "person": person, "today": business_today(), "sepa_profiles": sepa_service.repository.active_profiles(db)},
     )
 
 

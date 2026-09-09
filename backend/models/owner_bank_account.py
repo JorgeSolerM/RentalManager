@@ -66,6 +66,9 @@ class OwnerBankAccount(Base):
         foreign_keys="PropertyOwnership.rent_bank_account_id",
         passive_deletes="all",
     )
+    sepa_creditor_profiles: Mapped[list["SepaCreditorProfile"]] = relationship(
+        back_populates="bank_account", order_by="SepaCreditorProfile.id", passive_deletes="all"
+    )
 
     @property
     def formatted_iban(self) -> str:

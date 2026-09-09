@@ -585,7 +585,12 @@ def test_same_uid_in_another_calendar_is_never_modified(db_session):
     ).all()) == 2
 
 
-def test_overlap_with_manual_booking_rejects_every_event_and_session_is_reusable(db_session):
+def test_overlap_with_manual_booking_rejects_every_event_and_session_is_reusable(db_session, monkeypatch):
+    # This scenario requires an operational conflict, not a historical overlap.
+    monkeypatch.setattr(
+        "backend.services.ical_sync_service.business_today",
+        lambda: date(2026, 8, 17),
+    )
     room, calendar = setup_calendar(db_session)
     manual = Booking(
         room_id=room.id, room_calendar_id=None, guest_id=None, origin="manual",

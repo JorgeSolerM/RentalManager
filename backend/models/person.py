@@ -43,6 +43,9 @@ class Person(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
 
     booking_parties: Mapped[list["BookingParty"]] = relationship(back_populates="person", passive_deletes="all")
+    sepa_mandates: Mapped[list["SepaMandate"]] = relationship(
+        back_populates="person", order_by="SepaMandate.id", passive_deletes="all"
+    )
 
     @property
     def formatted_iban(self) -> str:

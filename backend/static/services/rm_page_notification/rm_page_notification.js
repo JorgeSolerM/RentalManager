@@ -49,6 +49,10 @@ const RMPageNotification = {
         ,owner_account_saved: "Cuenta bancaria guardada."
         ,ownership_saved: "Relación con la finca guardada."
         ,ownership_deactivated: "Relación con la finca desvinculada y conservada en el histórico."
+        ,sepa_profile_saved: "Perfil acreedor SEPA guardado."
+        ,sepa_mandate_saved: "Mandato SEPA guardado."
+        ,sepa_mandate_linked: "Mandato SEPA vinculado a la reserva."
+        ,sepa_mandate_unlinked: "Mandato SEPA desvinculado de la reserva."
     },
 
     errorMessages: {
@@ -150,7 +154,7 @@ const RMPageNotification = {
         ,owner_account_iban_invalid: "El IBAN indicado no es válido."
         ,owner_account_bic_invalid: "El BIC indicado no tiene un formato válido."
         ,owner_account_duplicate: "Esta cuenta ya está registrada para el propietario."
-        ,owner_account_in_use: "La cuenta está asignada a una finca activa y no puede desactivarse ni dejar de recibir rentas."
+        ,owner_account_in_use: "La cuenta está en uso por una finca o perfil SEPA activo y no puede desactivarse ni dejar de recibir rentas."
         ,ownership_percentage_invalid: "La participación debe ser un valor mayor que 0 y menor o igual que 100."
         ,ownership_dates_invalid: "La fecha final no puede ser anterior a la inicial."
         ,property_not_found: "La finca seleccionada no existe."
@@ -159,6 +163,27 @@ const RMPageNotification = {
         ,ownership_account_wrong_owner: "La cuenta receptora debe pertenecer al mismo propietario."
         ,ownership_account_not_eligible: "La cuenta receptora debe estar activa y marcada para recibir rentas."
         ,ownership_invalid: "No se ha podido guardar la relación con la finca."
+        ,sepa_account_not_found: "La cuenta receptora seleccionada no existe."
+        ,sepa_account_not_eligible: "La cuenta receptora debe estar activa y habilitada para recibir rentas."
+        ,sepa_account_wrong_owner: "La cuenta receptora debe pertenecer al propietario del perfil."
+        ,sepa_creditor_identifier_invalid: "El identificador de acreedor SEPA no tiene un formato válido."
+        ,sepa_scheme_invalid: "El esquema SEPA seleccionado no está admitido."
+        ,sepa_profile_required_fields: "Completa los datos obligatorios del perfil acreedor."
+        ,sepa_profile_not_found: "El perfil acreedor SEPA no existe."
+        ,sepa_profile_account_conflict: "Ya existe un perfil acreedor activo para esa cuenta receptora."
+        ,person_not_found: "El inquilino seleccionado no existe."
+        ,sepa_mandate_required_fields: "Completa los datos obligatorios del mandato SEPA."
+        ,sepa_debtor_iban_invalid: "El IBAN del deudor no es válido."
+        ,sepa_debtor_bic_invalid: "El BIC del deudor no tiene un formato válido."
+        ,sepa_mandate_state_invalid: "El tipo o estado del mandato SEPA no es válido."
+        ,sepa_mandate_not_found: "El mandato SEPA no existe."
+        ,sepa_mandate_reference_exists: "Esa referencia de mandato ya existe para el acreedor."
+        ,sepa_mandate_invalid: "No se ha podido guardar el mandato SEPA."
+        ,sepa_reference_immutable: "La referencia y el acreedor de un mandato activado no pueden cambiarse."
+        ,sepa_mandate_not_active: "Solo puede vincularse un mandato y un perfil acreedor activos."
+        ,sepa_mandate_property_incompatible: "El acreedor del mandato no es compatible con la cuenta de rentas de esta finca."
+        ,sepa_mandate_link_invalid: "No se ha podido vincular el mandato SEPA a la reserva."
+        ,sepa_booking_mandate_missing: "La reserva no tiene un mandato SEPA predeterminado."
     },
 
     show() {

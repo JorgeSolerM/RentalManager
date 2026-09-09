@@ -20,6 +20,9 @@ from backend.models.booking_party import BookingParty
 from backend.models.owner import Owner
 from backend.models.owner_bank_account import OwnerBankAccount
 from backend.models.property_ownership import PropertyOwnership
+from backend.models.sepa_creditor_profile import SepaCreditorProfile
+from backend.models.sepa_mandate import SepaMandate
+from backend.models.booking_sepa_mandate import BookingSepaMandate
 
 __all__ = [
     "Property",
@@ -37,6 +40,9 @@ __all__ = [
     "Owner",
     "OwnerBankAccount",
     "PropertyOwnership",
+    "SepaCreditorProfile",
+    "SepaMandate",
+    "BookingSepaMandate",
     "Feature",
     "MediaAsset",
     "Manager",

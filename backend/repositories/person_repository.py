@@ -5,11 +5,15 @@ from backend.models.booking_party import BookingParty
 from backend.models.booking import Booking
 from backend.models.room import Room
 from backend.models.person import Person
+from backend.models.sepa_mandate import SepaMandate
 
 
 class PersonRepository:
     def get(self, db: Session, person_id: int) -> Person | None:
-        return db.scalar(select(Person).options(selectinload(Person.booking_parties).selectinload(BookingParty.booking)).where(Person.id == person_id))
+        return db.scalar(select(Person).options(
+            selectinload(Person.booking_parties).selectinload(BookingParty.booking),
+            selectinload(Person.sepa_mandates).selectinload(SepaMandate.creditor_profile),
+        ).where(Person.id == person_id))
 
     def list(self, db: Session, search: str = "") -> list[Person]:
         statement = (
@@ -28,4 +32,6 @@ class PersonRepository:
         return list(db.scalars(statement))
 
     def is_linked(self, db: Session, person_id: int) -> bool:
-        return db.scalar(select(BookingParty.id).where(BookingParty.person_id == person_id).limit(1)) is not None
+        party = db.scalar(select(BookingParty.id).where(BookingParty.person_id == person_id).limit(1))
+        mandate = db.scalar(select(SepaMandate.id).where(SepaMandate.person_id == person_id).limit(1))
+        return party is not None or mandate is not None

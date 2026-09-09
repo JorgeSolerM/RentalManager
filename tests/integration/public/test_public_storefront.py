@@ -574,7 +574,7 @@ def test_room_detail_uses_effective_gallery_features_and_derived_availability(
     serialized = dto.model_dump_json()
     for forbidden in (
         "guest", "booking", "platform", "room_calendar", "external_reference",
-        "ical", "owner", "notes", "address",
+        "ical", "owner", "notes", "address", "sepa", "iban", "mandate",
     ):
         assert forbidden not in serialized.lower()
 

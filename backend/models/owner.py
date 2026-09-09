@@ -54,6 +54,9 @@ class Owner(Base):
         order_by="PropertyOwnership.id",
         passive_deletes="all",
     )
+    sepa_creditor_profiles: Mapped[list["SepaCreditorProfile"]] = relationship(
+        back_populates="owner", order_by="SepaCreditorProfile.id", passive_deletes="all"
+    )
 
     @property
     def name(self) -> str:

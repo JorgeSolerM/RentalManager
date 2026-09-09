@@ -122,6 +122,14 @@ class Booking(Base):
     payments: Mapped[list["Payment"]] = relationship(
         back_populates="booking", order_by="Payment.effective_date, Payment.id"
     )
+    sepa_mandate_links: Mapped[list["BookingSepaMandate"]] = relationship(
+        back_populates="booking", order_by="BookingSepaMandate.id",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+
+    @property
+    def active_sepa_mandate_link(self):
+        return next((item for item in self.sepa_mandate_links if item.active), None)
 
     ical_uid: Mapped[str] = mapped_column(
         String(64),

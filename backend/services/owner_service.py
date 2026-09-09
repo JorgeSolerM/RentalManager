@@ -76,7 +76,10 @@ class OwnerService:
             return OperationResult(False, "owner_account_iban_invalid", account)
         active = bool(values.get("active", False))
         receives_rent = bool(values.get("receives_rent", False))
-        if account.id and self.repository.account_in_active_ownership(db, account.id):
+        if account.id and (
+            self.repository.account_in_active_ownership(db, account.id)
+            or self.repository.account_in_active_sepa_profile(db, account.id)
+        ):
             if not active or not receives_rent:
                 db.rollback()
                 return OperationResult(False, "owner_account_in_use", account)
@@ -176,7 +179,7 @@ class OwnerService:
         owner = self.repository.get(db, owner_id)
         if owner is None:
             db.rollback(); return OperationResult(False, "owner_not_found")
-        if owner.bank_accounts or owner.property_ownerships:
+        if owner.bank_accounts or owner.property_ownerships or owner.sepa_creditor_profiles:
             db.rollback(); return OperationResult(False, "owner_has_relations")
         db.delete(owner)
         db.commit()
