@@ -14,6 +14,7 @@ from backend.models.room_photo import RoomPhoto
 from backend.models.room_public_highlight import RoomPublicHighlight
 from backend.models.rental_requirement import RentalRequirement, property_requirements
 from backend.models.payment import Payment
+from backend.models.payment_registration import PaymentRegistration
 from backend.models.payment_allocation import PaymentAllocation
 from backend.models.person import Person
 from backend.models.booking_party import BookingParty
@@ -23,6 +24,7 @@ from backend.models.property_ownership import PropertyOwnership
 from backend.models.sepa_creditor_profile import SepaCreditorProfile
 from backend.models.sepa_mandate import SepaMandate
 from backend.models.booking_sepa_mandate import BookingSepaMandate
+from backend.models.sepa_collection import SepaSettings, SepaBatch, SepaBatchGroup, SepaDebit, SepaDebitChargeAllocation, SepaExportArtifact
 
 __all__ = [
     "Property",
@@ -34,6 +36,7 @@ __all__ = [
     "BookingFinancialTerms",
     "BookingCharge",
     "Payment",
+    "PaymentRegistration",
     "PaymentAllocation",
     "Person",
     "BookingParty",
@@ -43,6 +46,12 @@ __all__ = [
     "SepaCreditorProfile",
     "SepaMandate",
     "BookingSepaMandate",
+    "SepaSettings",
+    "SepaBatch",
+    "SepaBatchGroup",
+    "SepaDebit",
+    "SepaDebitChargeAllocation",
+    "SepaExportArtifact",
     "Feature",
     "MediaAsset",
     "Manager",

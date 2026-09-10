@@ -1,0 +1,25 @@
+.collection-name [hidden] { display: none !important; }
+.collection-name-pencil,
+.collection-name-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: .25rem;
+    background: transparent;
+    color: var(--bs-secondary-color, #595959);
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: .25rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.collection-name-controls { display: flex; align-items: center; gap: .25rem; }
+.collection-name-controls input { min-width: 0; flex: 1; }
+.collection-name-action { font-size: 1.25rem; }
+.collection-name button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (min-width: 992px) and (hover: hover) and (pointer: fine) {
+    .collection-name-pencil { opacity: 0; }
+    .collection-name:hover .collection-name-pencil,
+    .collection-name:focus-within .collection-name-pencil { opacity: 1; }
+}

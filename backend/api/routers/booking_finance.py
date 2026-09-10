@@ -1,20 +1,27 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.core.business_time import business_today
 from backend.database.session import get_db
 from backend.models.booking import Booking
 from backend.services.financial_service import FinancialService
+from backend.services.manual_payment_service import ManualPaymentService, METHODS, ALL_METHODS
+from backend.services.sepa_collection_service import SepaCollectionService
+from backend.services.collection_plan_service import CollectionPlanService
+from backend.services.financial_account_view import account_view, movement_label
 
 
 router = APIRouter(prefix="/bookings")
 templates = Jinja2Templates(directory="backend/templates")
 service = FinancialService()
+manual_payments = ManualPaymentService()
 
 
 def _inclusive_period_end(period_end):
@@ -51,7 +58,7 @@ def booking_finance(
     )
     charges = service.repository.list_charges(db, booking_id)
     deposit_generated = any(
-        charge.type == "security_deposit" and charge.lifecycle == "draft"
+        charge.type == "security_deposit" and charge.lifecycle != "void"
         for charge in charges
     )
     balances = {charge.id: service.charge_balance(db, charge.id) for charge in charges}
@@ -77,6 +84,8 @@ def booking_finance(
     total_expected = sum((row.amount for row in preview), Decimal("0.00"))
     if confirmed_terms is not None:
         total_expected += confirmed_terms.deposit_agreed
+    payments = manual_payments.history(db, booking_id)
+    account = account_view(db, charges, balances, payments, business_today())
     return templates.TemplateResponse(
         request=request,
         name="pages/booking_finance.html",
@@ -100,8 +109,84 @@ def booking_finance(
             "total_expected": total_expected,
             "today": business_today(),
             "inclusive_period_end": _inclusive_period_end,
+            "payments": payments,
+            "account": account,
+            "movement_label": movement_label,
+            "plan_token": CollectionPlanService().review_token(booking, confirmed_terms) if confirmed_terms and not preview_error else None,
+            "payment_methods": ALL_METHODS,
+            "sepa_warnings": SepaCollectionService().booking_warnings(db, booking_id),
         },
+        headers={"Cache-Control": "private, no-store"},
     )
+
+
+@router.post('/{booking_id}/finance/plan')
+def generate_collection_plan(booking_id: int, terms_id: int = Form(...),
+        review_token: str = Form(''), confirm_plan: str = Form(''),
+        include_deposit: bool = Form(False), db: Session = Depends(get_db)):
+    from urllib.parse import quote
+    try:
+        if confirm_plan != 'yes':
+            raise ValueError('Confirme que ha revisado el plan y su contabilización.')
+        CollectionPlanService().generate(db, booking_id, terms_id, review_token=review_token,
+                                         include_deposit=include_deposit)
+        return _redirect(booking_id, 'success', 'financial_charges_posted')
+    except ValueError as error:
+        db.rollback()
+        # Rendered by the finance page, not an unhandled JSON validation response.
+        return RedirectResponse(f'/bookings/{booking_id}/finance?plan_error={quote(str(error))}', status_code=303)
+    except SQLAlchemyError:
+        db.rollback()
+        return RedirectResponse(f'/bookings/{booking_id}/finance?plan_error=No+se+pudo+generar+el+plan.+La+operación+se+ha+revertido.', status_code=303)
+
+
+def payment_page(request, db, booking_id, *, values=None, rows=None, error=None, status=200):
+    return templates.TemplateResponse(request=request, name='pages/booking_payment.html',
+        context={'booking':_booking(db,booking_id), 'today':business_today(), 'methods':METHODS,
+            'values':values or {}, 'rows':rows, 'error':error, 'request_key':str(uuid4()),
+            'warnings':SepaCollectionService().booking_warnings(db,booking_id)},
+        status_code=status, headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/{booking_id}/finance/payments/new')
+def new_payment(request:Request, booking_id:int, db:Session=Depends(get_db)):
+    return payment_page(request,db,booking_id)
+
+
+@router.post('/{booking_id}/finance/payments/{action}')
+async def register_manual_payment(request:Request, booking_id:int, action:str, db:Session=Depends(get_db)):
+    _booking(db,booking_id)
+    form=await request.form()
+    values={key:str(form.get(key,'')) for key in ('amount','effective_date','method','reference','notes')}
+    try:
+        try:
+            amount=service._money(values['amount'],allow_zero=False)
+            effective=date.fromisoformat(values['effective_date'])
+        except (ValueError, TypeError, ArithmeticError):
+            raise ValueError('Revise el importe y la fecha del cobro.') from None
+        if values['method'] not in METHODS or effective > business_today():
+            raise ValueError('Revise el método y la fecha efectiva del cobro.')
+        if action=='preview':
+            rows, _ = manual_payments.propose(db,booking_id,amount)
+            return payment_page(request,db,booking_id,values=values,rows=rows)
+        if action!='register': raise ValueError('Acción no válida.')
+        pairs=[]
+        try:
+            for key,value in form.multi_items():
+                if key.startswith('allocation_') and value and Decimal(str(value)) != 0:
+                    pairs.append((int(key.removeprefix('allocation_')),str(value)))
+        except (ValueError, ArithmeticError):
+            raise ValueError('Distribución no válida.') from None
+        manual_payments.register(db,booking_id,amount=amount,effective_date=effective,
+            method=values['method'],allocations=pairs,request_key=str(form.get('request_key','')),
+            reference=values['reference'],notes=values['notes'],allow_unallocated=form.get('allow_unallocated')=='yes')
+        return RedirectResponse(f'/bookings/{booking_id}/finance',status_code=303)
+    except ValueError as error:
+        db.rollback()
+        return payment_page(request,db,booking_id,values=values,error=str(error),status=400)
+    except SQLAlchemyError:
+        db.rollback()
+        return payment_page(request,db,booking_id,values=values,error='No se pudo registrar el pago. La operación se ha revertido íntegramente.',status=500)
 
 
 @router.post("/{booking_id}/finance/terms")

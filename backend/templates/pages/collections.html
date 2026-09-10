@@ -1,0 +1,103 @@
+{% extends "layouts/base.html" %}
+{% block title %}Cobros · RentalManager{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/collection-name.css?v=1">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+  <div><h1 class="h3 mb-1">Cobros</h1><p class="text-muted mb-0">Remesas SEPA BBVA y registro de cobros recibidos.</p></div>
+  <div class="d-flex gap-2">{% if mode != 'detail' %}<a href="/collections" class="btn btn-outline-secondary">Remesas</a>{% endif %}<a href="/collections/new" class="btn btn-primary">Nueva remesa</a></div>
+</div>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% if mode == 'index' %}
+<details class="card p-3 mb-3"{% if not settings or not settings.initiator_name %} open{% endif %}>
+<summary>Configuración SEPA general · Presentador</summary>
+<form method="post" action="/collections/settings" class="row g-3 mt-1">
+<div class="col-md-5"><label class="form-label" for="initiator-name">Nombre del presentador</label><input id="initiator-name" class="form-control" name="initiator_name" maxlength="70" required value="{{ settings.initiator_name or '' if settings else '' }}"></div>
+<div class="col-md-5"><label class="form-label" for="initiator-id">Identificador del presentador</label><input id="initiator-id" class="form-control" name="initiator_identifier" maxlength="35" required value="{{ settings.initiator_identifier or '' if settings else '' }}"></div>
+<div class="col-md-2 align-self-end"><button class="btn btn-primary">Guardar</button></div>
+<p class="small text-muted mb-0">Es el presentador global, no necesariamente el acreedor. No se deduce de los propietarios.</p>
+</form></details>
+<div class="card table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Remesa</th><th>Mes de vencimiento</th><th>Fecha de cobro</th><th>Estado</th></tr></thead><tbody>
+{% for item in batches %}<tr><td><a href="/collections/{{ item.id }}" class="text-break">{{ item.display_name or ('Remesa ' ~ item.id) }}</a></td><td>{{ item.period.strftime('%m/%Y') }}</td><td>{{ item.requested_collection_date.strftime('%d/%m/%Y') }}</td><td>{{ batch_label(item) if batch_label is defined else states[item.status] }}</td></tr>
+{% else %}<tr><td colspan="4" class="text-muted p-4">Todavía no hay remesas. Crear o exportar una remesa no registra pagos.</td></tr>{% endfor %}
+</tbody></table></div>
+{% elif mode == 'new' %}
+<form method="post" action="/collections/preview" class="card p-3">
+<div class="mb-3"><label for="batch-name" class="form-label">Nombre de la remesa (opcional)</label><input id="batch-name" name="name" class="form-control" maxlength="160"><small class="text-muted">Solo administrativo. No se incluye en el XML bancario.</small></div>
+<div class="row g-3"><div class="col-sm-6"><label for="period" class="form-label">Periodo · mes de vencimiento</label><input id="period" class="form-control" type="month" name="period" required value="{{ today.strftime('%Y-%m') }}"></div>
+<div class="col-sm-6"><label for="collection-date" class="form-label">Fecha solicitada de cobro</label><input id="collection-date" class="form-control" type="date" name="collection_date" required value="{{ today.isoformat() }}"></div></div>
+<fieldset class="mt-3"><legend class="h6">Fincas</legend><label class="d-block mb-2"><input type="checkbox" data-select-all="property_ids"> Seleccionar todas</label>
+<div class="row g-2">{% for property in properties %}<label class="col-md-6"><input type="checkbox" name="property_ids" value="{{ property.id }}"> {{ property.name }}</label>{% endfor %}</div></fieldset>
+<p class="text-muted small mt-3">Solo cargos contabilizados con saldo pendiente. No se crean mensualidades ni se utilizan precios legacy.</p>
+<div><button class="btn btn-primary">Previsualizar cobros</button></div>
+</form>
+{% elif mode == 'preview' %}
+<h2 class="h5">Previsualización · {{ period.strftime('%m/%Y') }}</h2>
+<p>Fecha solicitada de cobro: {{ collection_date.strftime('%d/%m/%Y') }}</p>
+{% if collection_date < today %}<div class="alert alert-warning">La fecha de cobro está en el pasado. Vuelva a Nueva remesa para corregirla; no se permite exportarla.</div>{% endif %}
+{% if not settings or not settings.initiator_name %}<div class="alert alert-warning">Falta configurar el presentador en <a href="/collections">Configuración SEPA general</a>.</div>{% endif %}
+<form method="post" action="/collections/create">
+<input type="hidden" name="name" value="{{ batch_name or '' }}">
+{% if batch_name %}<p class="text-break">Nombre: {{ batch_name }}</p>{% endif %}
+<input type="hidden" name="period" value="{{ period.strftime('%Y-%m') }}"><input type="hidden" name="collection_date" value="{{ collection_date.isoformat() }}"><input type="hidden" name="request_key" value="{{ request_key }}">
+{% for id in property_ids %}<input type="hidden" name="property_ids" value="{{ id }}">{% endfor %}
+<div class="card table-responsive mb-3"><table class="table table-sm align-middle mb-0"><thead><tr><th><input type="checkbox" data-select-all="charge_ids" aria-label="Seleccionar cargos elegibles"></th><th>Inquilino</th><th>Finca / habitación</th><th>Concepto</th><th>Vencimiento</th><th>Pendiente</th><th>Acreedor</th><th>Mandato / IBAN</th><th>Elegibilidad</th></tr></thead><tbody>
+{% for row in rows %}<tr><td><input type="checkbox" name="charge_ids" value="{{ row.charge.id }}" aria-label="Seleccionar cargo {{ row.charge.id }}" {% if row.eligible %}checked{% else %}disabled{% endif %}></td>
+<td>{{ row.booking.operational_person_name }}</td><td>{{ row.booking.room.property.name }}<small class="d-block">{{ row.booking.room.code }}</small></td>
+<td><a href="/bookings/{{ row.booking.id }}/finance">{{ row.charge.concept }}</a></td><td>{{ row.charge.due_date.strftime('%d/%m/%Y') }}</td><td class="text-nowrap">{{ '%.2f'|format(row.amount) }} €</td><td>{{ row.profile.display_name if row.profile else '—' }}</td><td>{{ row.mandate.mandate_reference if row.mandate else '—' }}<small class="d-block text-nowrap">{{ row.masked_iban }}</small></td><td>{{ row.reason }}</td></tr>
+{% else %}<tr><td colspan="9" class="p-4 text-muted">No hay cargos contabilizados para este periodo.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if rows %}<button class="btn btn-primary" {% if collection_date < today %}disabled{% endif %}>Crear remesa con los cargos seleccionados</button>{% endif %}
+</form>
+{% if not rows %}<h3 class="h6">Cuentas económicas de las estancias del periodo</h3><ul>{% for booking in bookings %}<li><a href="/bookings/{{ booking.id }}/finance">{{ booking.room.code }} · Reserva {{ booking.id }}</a></li>{% else %}<li>Sin estancias en este periodo.</li>{% endfor %}</ul>{% endif %}
+{% elif mode == 'detail' %}
+<div class="collection-name mb-2" data-collection-name>
+<h2 class="h4 text-break mb-0" data-name-title>{{ batch.display_name or ('Remesa ' ~ batch.id) }} <button hidden type="button" class="collection-name-pencil" data-name-edit title="Editar nombre de la remesa" aria-label="Editar nombre de la remesa" aria-controls="batch-name-form"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg></button></h2>
+<form hidden id="batch-name-form" method="post" action="/collections/{{ batch.id }}/rename" data-name-form>
+<label for="edit-batch-name" class="visually-hidden">Nombre de la remesa</label>
+<div class="collection-name-controls">
+<input id="edit-batch-name" name="name" class="form-control" maxlength="160" value="{{ batch.name or '' }}" aria-describedby="batch-name-help">
+<button class="collection-name-action" type="submit" title="Guardar nombre" aria-label="Guardar nombre">✓</button>
+<button class="collection-name-action" type="button" data-name-cancel title="Cancelar edición del nombre" aria-label="Cancelar edición del nombre">×</button>
+</div>
+<p id="batch-name-help" class="form-text mb-0">Solo nombre administrativo. Vacío muestra Remesa {{ batch.id }}. Enter guarda; Esc cancela.</p>
+</form></div>
+<p>{{ batch_label(batch) if batch_label is defined else states[batch.status] }}</p>
+{% if batch.status=='cancelled' %}<div class="alert alert-warning">Remesa cancelada. No presentar los XML históricos. Cree una nueva remesa con los cargos pendientes.</div>{% endif %}
+{% set totals = namespace(count=0, amount=0) %}{% for group in batch.groups %}{% for debit in group.debits %}{% if debit.status!='cancelled' %}{% set totals.count = totals.count + 1 %}{% set totals.amount = totals.amount + debit.amount %}{% endif %}{% endfor %}{% endfor %}
+<p><strong>{{ totals.count }} adeudos · {{ '%.2f'|format(totals.amount) }} €</strong> · {{ batch.groups|length }} grupos acreedores</p>
+<p>Mes de vencimiento: {{ batch.period.strftime('%m/%Y') }} · Cobro solicitado: {{ batch.requested_collection_date.strftime('%d/%m/%Y') }}</p>
+<p class="small text-muted text-break">Referencia interna: {{ batch.reference }}</p>
+<div class="d-flex flex-wrap gap-2 mb-3">
+{% if batch.status == 'prepared' %}<form method="post" action="/collections/{{ batch.id }}/export"><button class="btn btn-primary">Generar XML por acreedor</button></form>{% endif %}
+{% if batch.status == 'exported' %}<form method="post" action="/collections/{{ batch.id }}/present" onsubmit="return confirm('¿Ha presentado todos los XML de esta remesa en BBVA? Esta acción no registra pagos.');"><button class="btn btn-primary">Marcar como presentada</button></form>{% endif %}
+</div>
+<form method="post" action="/collections/{{ batch.id }}/collect" onsubmit="return confirm('¿Confirma que ha recibido realmente los importes seleccionados? Se crearán pagos y asignaciones a los cargos.');">
+{% set collectable = batch.status in ['presented','partially_collected'] %}
+{% if collectable %}<div class="card p-3 mb-3"><label><input type="checkbox" data-select-all="debit_ids"> Seleccionar todos los pendientes</label><label class="form-label mt-2" for="effective-date">Fecha efectiva del cobro</label><input id="effective-date" class="form-control" type="date" name="effective_date" required max="{{ today.isoformat() }}" value="{{ (batch.requested_collection_date if batch.requested_collection_date <= today else today).isoformat() }}"><div class="mt-2"><button class="btn btn-primary">Marcar seleccionados como cobrados</button></div></div>{% endif %}
+{% for group in batch.groups %}
+<section class="card mb-3"><div class="card-header"><h3 class="h6 mb-1">{{ group.snapshot.creditor_name }}</h3><span class="small">{{ mask_iban(group.snapshot.creditor_iban) }} · {{ group.debits|length }} {{ 'adeudo' if group.debits|length == 1 else 'adeudos' }} · {{ '%.2f'|format(group.debits|sum(attribute='amount')) }} €</span>
+{% if group.artifact %}<a class="btn btn-sm btn-outline-primary ms-2" href="/collections/artifacts/{{ group.artifact.id }}">{{ 'Archivo histórico cancelado · NO presentar' if batch.status=='cancelled' else 'Descargar XML privado' }}</a>{% endif %}</div>
+<div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Cobro</th><th>Inquilino / deudor</th><th>Finca / habitación</th><th>Cargos</th><th>Importe</th><th>Estado</th></tr></thead><tbody>
+{% for debit in group.debits %}<tr{% if debit.status=='returned' %} class="table-danger"{% endif %}><td>{% if collectable and debit.status=='presented' %}<input type="checkbox" name="debit_ids" value="{{ debit.id }}" aria-label="Seleccionar adeudo {{ debit.id }}">{% endif %}</td><td>{{ debit.snapshot.person }}<small class="d-block text-muted">{{ debit.snapshot.debtor_name }} · {{ mask_iban(debit.snapshot.debtor_iban) }}</small></td><td>{{ debit.snapshot.property }}<small class="d-block">{{ debit.snapshot.room }}</small></td>
+<td><a href="/bookings/{{ debit.booking_id }}/finance">Cuenta económica</a>{% for charge in debit.snapshot.charges %}<small class="d-block">{{ charge.concept }} · {{ charge.amount }} €</small>{% endfor %}</td><td class="text-nowrap">{{ '%.2f'|format(debit.amount) }} €</td><td><span class="badge {{ 'text-bg-success' if debit.status=='collected' else ('text-bg-danger' if debit.status=='returned' else 'text-bg-secondary') }}">{{ {'collected':'✓ Cobrado','returned':'! Devuelto','presented':'Presentado','cancelled':'Cancelado','prepared':'Pendiente'}[debit.status] }}</span>
+{% if debit_warnings is defined %}{% if debit.payment %}<small class="d-block">Cobrado {{ debit.payment.effective_date.strftime('%d/%m/%Y') }}</small>{% endif %}{% if debit.returned_on %}<small class="d-block">Devuelto {{ debit.returned_on.strftime('%d/%m/%Y') }} · {{ debit.return_reason or '' }}</small>{% endif %}{% if debit.cancellation_reason %}<small class="d-block">{{ debit.cancellation_reason }}</small>{% endif %}{% if debit_warnings.get(debit.id) %}<div class="alert alert-warning mt-2" role="alert">{{ debit_warnings[debit.id] }}</div>{% endif %}{% endif %}
+</td></tr>{% endfor %}
+</tbody></table></div></section>{% endfor %}
+</form>
+{% if debit_warnings is defined %}
+{% set all_debits = namespace(collected=[], prepared=[]) %}{% for group in batch.groups %}{% for debit in group.debits %}{% if debit.status=='collected' %}{% set all_debits.collected=all_debits.collected+[debit] %}{% endif %}{% if debit.status=='prepared' %}{% set all_debits.prepared=all_debits.prepared+[debit] %}{% endif %}{% endfor %}{% endfor %}
+{% if all_debits.collected %}<details class="card p-3 mb-3"><summary>Registrar devolución / devoluciones</summary>
+<form method="post" action="/collections/{{ batch.id }}/return" class="mt-3">
+<p>Solo para devoluciones bancarias reales. No sirve para deshacer un cobro marcado por error. El pago original se conserva.</p>
+{% for debit in all_debits.collected %}<label class="d-block"><input type="checkbox" name="debit_ids" value="{{ debit.id }}"> Adeudo {{ debit.id }} · {{ debit.snapshot.room }} · {{ '%.2f'|format(debit.amount) }} €</label>{% endfor %}
+<div class="row g-3 mt-1"><div class="col-md-4"><label for="return-date" class="form-label">Fecha de devolución</label><input id="return-date" name="returned_on" type="date" class="form-control" required max="{{ today.isoformat() }}" value="{{ today.isoformat() }}"></div><div class="col-md-4"><label for="return-reason" class="form-label">Motivo opcional</label><input id="return-reason" name="reason" class="form-control" maxlength="255"></div><div class="col-md-4"><label for="return-reference" class="form-label">Referencia/nota bancaria opcional</label><input id="return-reference" name="reference" class="form-control" maxlength="255"></div></div>
+<button class="btn btn-outline-danger mt-3" type="submit">Registrar devoluciones seleccionadas</button></form></details>{% endif %}
+{% if all_debits.prepared and batch.status in ['prepared','exported'] %}<details class="card p-3"><summary>{{ 'Cancelar remesa exportada no presentada' if batch.status=='exported' else 'Excluir adeudos no presentados' }}</summary>
+<form method="post" action="/collections/{{ batch.id }}/cancel" class="mt-3">
+{% if batch.status=='exported' %}<p>Se cancelará la remesa completa. El XML se conserva como histórico y NO debe presentarse. Los cargos pendientes podrán incluirse en una nueva remesa.</p>{% endif %}
+{% for debit in all_debits.prepared %}<label class="d-block"><input type="checkbox" name="debit_ids" value="{{ debit.id }}"> Adeudo {{ debit.id }} · {{ debit.snapshot.room }} · {{ '%.2f'|format(debit.amount) }} €</label>{% endfor %}
+<label class="d-block my-3"><input type="checkbox" required name="confirm_cancellation" value="yes"> Confirmo la cancelación y que no se ha presentado al banco.</label><button class="btn btn-outline-danger" type="submit">{{ 'Cancelar remesa completa' if batch.status=='exported' else 'Excluir seleccionados' }}</button></form></details>{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="/static/js/collections.js?v=2" defer></script>{% endblock %}

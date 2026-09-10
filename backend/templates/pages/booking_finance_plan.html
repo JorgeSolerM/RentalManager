@@ -1,0 +1,23 @@
+<section class="card card-body">
+  <h2 class="h5">Plan de cobros · cargos</h2>
+  <p class="small text-muted">Cobrado y pendiente se calculan desde los pagos confirmados y sus aplicaciones, descontando las devoluciones. Los borradores todavía no son exigibles.</p>
+  {% if charges %}<div class="table-responsive" tabindex="0" aria-label="Plan de cobros, tabla desplazable"><table class="table align-middle mb-0"><thead><tr><th>Periodo</th><th>Concepto / movimientos</th><th class="text-end">Previsto</th><th class="text-end">Cobrado neto</th><th class="text-end">Pendiente</th><th>Vencimiento</th><th>Estado</th></tr></thead><tbody>
+  {% for charge in charges %}{% set balance = balances[charge.id] %}{% set state = account.states[charge.id] %}
+  <tr id="charge-{{ charge.id }}"{% if state.reopened %} class="table-danger"{% endif %}>
+    <td>{% if charge.service_period_start %}{{ charge.service_period_start.strftime('%d/%m/%Y') }}{% if charge.service_period_end %} – {{ inclusive_period_end(charge.service_period_end).strftime('%d/%m/%Y') }}{% endif %}{% else %}—{% endif %}</td>
+    <td>{{ charge.concept }}{% if charge.type=='security_deposit' %}<span class="badge text-bg-secondary d-block">Fianza · no renta</span>{% endif %}
+      <small class="d-block text-muted">Cargo generado {{ charge.created_at.strftime('%d/%m/%Y') }}{% if charge.corrects_charge_id %} · Corrige cargo #{{ charge.corrects_charge_id }}{% endif %}</small>
+      <details class="mt-1"><summary>Movimientos ({{ account.movements[charge.id]|length }})</summary>
+      {% for payment, allocation in account.movements[charge.id] %}<div class="border-top py-2">
+      {{ payment.effective_date.strftime('%d/%m/%Y') }} · {{ movement_label(payment) }} · <strong>{{ '-' if payment.direction=='refund' else '+' }}{{ '%.2f'|format(allocation.amount) }} €</strong>
+      <small class="d-block">Pago #{{ payment.id }} · {{ {'posted':'Confirmado','draft':'Borrador, no computa','void':'Anulado, no computa'}[payment.lifecycle] }}</small>
+      {% if account.batches.get(payment.id) %}<a href="/collections/{{ account.batches[payment.id] }}">Remesa {{ account.batches[payment.id] }}</a>{% endif %}
+      <small class="d-block text-break">{{ payment.external_reference or '' }} {{ payment.notes or '' }}</small>
+      </div>{% else %}<p class="small mt-2">Sin pagos aplicados.</p>{% endfor %}</details>
+    </td>
+    <td class="text-end text-nowrap">{{ '%.2f'|format(balance.original_amount) }} €</td><td class="text-end text-nowrap">{{ '%.2f'|format(balance.allocated_amount) }} €</td><td class="text-end text-nowrap">{{ '%.2f'|format(balance.outstanding_amount) }} €</td>
+    <td>{{ charge.due_date.strftime('%d/%m/%Y') }}</td><td><span class="badge {{ state.css }}">{{ state.label }}</span>
+    {% if balance.payment_status=='partial' %}<small class="d-block">{{ '! Vencido' if balance.overdue else ('Previsto futuro' if charge.due_date > today else 'Exigible hoy') }}</small>{% endif %}
+    {% if state.returned %}<small class="d-block">{{ '! Reabierto por devolución SEPA' if state.reopened else 'Con devolución SEPA en el histórico' }}</small>{% endif %}</td>
+  </tr>{% endfor %}</tbody></table></div>{% else %}<p class="text-muted mb-0">Todavía no hay cargos.</p>{% endif %}
+</section>

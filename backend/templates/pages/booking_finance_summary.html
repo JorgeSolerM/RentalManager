@@ -1,0 +1,14 @@
+<section class="card card-body mb-4">
+  <h2 class="h5">Resumen económico</h2>
+  <dl class="row g-3 mb-0">
+    <div class="col-sm-6 col-xl-3"><dt>Total previsto del contrato</dt><dd class="fs-5 mb-0">{{ ('%.2f €'|format(total_expected)) if confirmed_terms else 'Sin condiciones confirmadas' }}</dd><small>Según fechas actuales{% if confirmed_terms %}; incluye {{ '%.2f'|format(confirmed_terms.deposit_agreed) }} € de fianza pactada{% endif %}.</small></div>
+    <div class="col-sm-6 col-xl-3"><dt>Cobrado aplicado neto</dt><dd class="fs-5 mb-0">{{ '%.2f'|format(summary.allocated_total) }} €</dd><small>Pagos aplicados menos devoluciones.</small></div>
+    <div class="col-sm-6 col-xl-3"><dt>Pendiente total</dt><dd class="fs-5 mb-0">{{ '%.2f'|format(summary.outstanding_balance) }} €</dd><small>Saldo de cargos contabilizados.</small></div>
+    <div class="col-sm-6 col-xl-3"><dt>Vencido</dt><dd class="fs-5 mb-0">{{ '%.2f'|format(summary.overdue_balance) }} €</dd><small>Vencimiento anterior a hoy.</small></div>
+    <div class="col-sm-6 col-xl-3"><dt>Previsto futuro pendiente</dt><dd class="mb-0">{{ '%.2f'|format(account.future) }} €</dd>{% if account.next_due %}<small>Próximo: {{ account.next_due.strftime('%d/%m/%Y') }}</small>{% endif %}</div>
+    <div class="col-sm-6 col-xl-3"><dt>Exigible hoy</dt><dd class="mb-0">{{ '%.2f'|format(account.due_today) }} €</dd></div>
+    <div class="col-sm-6 col-xl-3"><dt>Total del plan generado</dt><dd class="mb-0">{{ '%.2f'|format(account.planned) }} €</dd><small>De ello, fianza: {{ '%.2f'|format(account.deposit) }} €. Contabilizado: {{ '%.2f'|format(summary.charged_total) }} €.</small></div>
+    <div class="col-sm-6 col-xl-3"><dt>Caja neta recibida</dt><dd class="mb-0">{{ '%.2f'|format(summary.received_total) }} €</dd><small>Sin aplicar: {{ '%.2f'|format(summary.unapplied_balance) }} €.</small></div>
+  </dl>
+  <p class="small text-muted mt-3 mb-0">Futuro, exigible hoy y vencido desglosan el saldo pendiente de los cargos de cobro. Los borradores no son exigibles. La fianza no es renta ordinaria.</p>
+</section>

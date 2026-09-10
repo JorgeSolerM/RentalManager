@@ -10,14 +10,20 @@
   {% if booking.origin != 'manual' %}<span class="badge text-bg-info">Economía gestionada localmente</span>{% endif %}
 </div>
 
+{% if request.query_params.get('plan_error') %}<div class="alert alert-danger" role="alert">{{ request.query_params.get('plan_error') }}</div>{% endif %}
 {% if not tenants and not payers %}
 <div class="alert alert-warning">No hay arrendatario ni responsable de pago clasificados para esta reserva.</div>
 {% elif tenants and not payers %}
 <div class="alert alert-warning">No hay responsable de pago clasificado para esta reserva.</div>
 {% endif %}
 
+{% if payment_methods is defined %}
+<div class="mb-3"><a class="btn btn-primary" href="/bookings/{{ booking.id }}/finance/payments/new">Registrar pago</a></div>
+{% for batch_id,warning in sepa_warnings %}<div class="alert alert-warning" role="alert">{{ warning }} <a href="/collections/{{ batch_id }}">Ver remesa</a></div>{% endfor %}
+{% endif %}
+{% if account is defined %}{% include 'pages/booking_finance_summary.html' %}{% endif %}
 <div class="row g-4">
-  <div class="col-xl-8">
+  <div class="col-12">
     <section class="card card-body mb-4">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
         <h2 class="h5 mb-0">Condiciones económicas</h2>
@@ -52,8 +58,8 @@
     </section>
 
     {% if confirmed_terms %}
-    <section class="card card-body mb-4">
-      <h2 class="h5">Previsualización de mensualidades</h2>
+    <details class="card card-body mb-4"{% if not charges or generation_state.drafts_stale or generation_state.posted_mismatch %} open{% endif %}>
+      <summary class="h5">Previsualización de mensualidades · revisar plan</summary>
       <p class="text-muted">La previsualización no escribe en la base de datos.</p>
       {% if preview_error %}<div class="alert alert-danger">No se puede calcular la previsualización.</div>{% else %}
       <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Periodo</th><th>Vencimiento</th><th class="text-end">Importe</th></tr></thead><tbody>
@@ -62,25 +68,29 @@
       {% if confirmed_terms.deposit_agreed > 0 %}<p class="mb-3"><strong>Fianza disponible para incluir:</strong> {{ '%.2f'|format(confirmed_terms.deposit_agreed) }} € · vencimiento {{ booking.check_in.strftime('%d/%m/%Y') }}</p>{% endif %}
       {% if generation_state.drafts_stale %}<div class="alert alert-warning">Los borradores ya no coinciden con las fechas actuales de la reserva. Regénéralos explícitamente.</div>{% endif %}
       {% if generation_state.posted_mismatch %}<div class="alert alert-danger">Existen cargos contabilizados que no coinciden con las fechas actuales. No se han modificado; la diferencia requiere revisión manual.</div>{% endif %}
-      <form method="post" action="/bookings/{{ booking.id }}/finance/{{ 'regenerate' if generation_state.drafts_stale else 'generate' }}" class="d-flex flex-wrap align-items-center gap-3">
+      <p>Revise todos los vencimientos. Generar el plan contabiliza los cargos, incluidos los futuros, y los hace utilizables en Cobros/Remesas. <strong>No registra ningún pago.</strong> Los cargos contabilizados no se recalculan; cualquier cambio posterior requiere revisión explícita.</p>
+      <form method="post" action="/bookings/{{ booking.id }}/finance/{{ 'regenerate' if generation_state.drafts_stale else 'plan' }}" class="d-flex flex-wrap align-items-center gap-3">
         <input type="hidden" name="terms_id" value="{{ confirmed_terms.id }}">
+        <input type="hidden" name="review_token" value="{{ plan_token }}">
         {% if confirmed_terms.deposit_agreed > 0 %}<div class="form-check"><input class="form-check-input" id="includeDeposit" type="checkbox" name="include_deposit" value="true"{% if deposit_generated %} checked{% endif %}><label class="form-check-label" for="includeDeposit">Incluir cargo de fianza</label></div>{% endif %}
-        <button class="btn btn-primary" type="submit">{{ 'Regenerar borradores' if generation_state.drafts_stale else 'Generar cargos en borrador' }}</button>
+        {% if not generation_state.drafts_stale %}<label class="d-block"><input type="checkbox" name="confirm_plan" value="yes" required> He revisado el calendario y confirmo su contabilización completa.</label>{% endif %}
+        <button class="btn btn-primary" type="submit"{% if generation_state.posted_mismatch or terms_versions|length > 1 %} disabled{% endif %}>{{ 'Regenerar borradores para revisar' if generation_state.drafts_stale else 'Generar plan de cobros' }}</button>
       </form>
       {% endif %}
-    </section>
+    </details>
     {% endif %}
 
-    <section class="card card-body">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><h2 class="h5 mb-0">Cargos</h2>{% if charges|selectattr('lifecycle', 'equalto', 'draft')|list %}<form method="post" action="/bookings/{{ booking.id }}/finance/post" onsubmit="return confirm('¿Contabilizar todos los cargos generados en borrador? Ya no se recalcularán ni editarán silenciosamente.');"><button class="btn btn-success" type="submit">Confirmar cargos</button></form>{% endif %}</div>
-      {% if charges %}<div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Periodo</th><th>Concepto</th><th>Vencimiento</th><th class="text-end">Importe</th><th>Estado</th></tr></thead><tbody>
-      {% for charge in charges %}{% set balance = balances[charge.id] %}<tr><td>{% if charge.service_period_start %}{{ charge.service_period_start.strftime('%d/%m/%Y') }} – {{ inclusive_period_end(charge.service_period_end).strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td><td>{{ charge.concept }}</td><td>{{ charge.due_date.strftime('%d/%m/%Y') }}</td><td class="text-end">{{ '%.2f'|format(charge.amount) }} €</td><td>{% if charge.lifecycle == 'draft' %}<span class="badge text-bg-secondary">Borrador</span>{% elif charge.lifecycle == 'void' %}<span class="badge text-bg-dark">Anulado</span>{% elif balance.payment_status == 'paid' %}<span class="badge text-bg-success">Pagado</span>{% elif balance.payment_status == 'partial' %}<span class="badge text-bg-info">Parcial</span>{% elif balance.overdue %}<span class="badge text-bg-danger">Vencido</span>{% else %}<span class="badge text-bg-warning">Pendiente</span>{% endif %}</td></tr>{% endfor %}
-      </tbody></table></div>{% else %}<p class="text-muted mb-0">Todavía no hay cargos.</p>{% endif %}
-    </section>
+    {% include 'pages/booking_finance_plan.html' %}
+    {% if payment_methods is defined %}
+    <section class="card card-body mt-4"><h2 class="h5">Pagos y devoluciones</h2>
+    <p class="small text-muted">Importes positivos: cobros recibidos. Negativos: devoluciones que reabren el saldo de los cargos.</p>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Fecha</th><th>Movimiento / método</th><th>Importe</th><th>Aplicación / referencia</th></tr></thead><tbody>
+    {% for payment in payments %}<tr{% if payment.direction=='refund' %} class="table-danger"{% endif %}><td>{{ payment.effective_date.strftime('%d/%m/%Y') }}</td><td>{{ movement_label(payment) }} #{{ payment.id }}<small class="d-block">{{ {'posted':'Confirmado','draft':'Borrador','void':'Anulado'}[payment.lifecycle] }}{% if payment.corrects_payment_id %} · Compensa pago #{{ payment.corrects_payment_id }}{% endif %}</small>{% if account.batches.get(payment.id) %}<a href="/collections/{{ account.batches[payment.id] }}">Remesa {{ account.batches[payment.id] }}</a>{% endif %}</td><td class="text-nowrap">{{ '-' if payment.direction=='refund' else '+' }}{{ '%.2f'|format(payment.amount) }} €</td><td><span class="small">Aplicado a:</span>{% for allocation in payment.allocations %}<a class="d-block" href="#charge-{{ allocation.charge_id }}">{{ allocation.charge.concept }}{% if allocation.charge.service_period_start %} · {{ allocation.charge.service_period_start.strftime('%m/%Y') }}{% endif %}: {{ '%.2f'|format(allocation.amount) }} €</a>{% else %}<span class="d-block">Sin asignación a cargos</span>{% endfor %}<small class="text-break">{{ payment.external_reference or '' }} {{ payment.notes or '' }}</small></td></tr>{% else %}<tr><td colspan="4">Sin pagos registrados.</td></tr>{% endfor %}
+    </tbody></table></div><p class="mb-0">Cobrado neto: {{ '%.2f'|format(summary.received_total) }} € · Sin aplicar: {{ '%.2f'|format(summary.unapplied_balance) }} €</p></section>
+    {% endif %}
   </div>
 
-  <aside class="col-xl-4">
-    <section class="card card-body mb-4"><h2 class="h5">Resumen</h2><dl class="row mb-0"><dt class="col-7">Renta pactada</dt><dd class="col-5 text-end">{{ ('%.2f €'|format(confirmed_terms.monthly_rent)) if confirmed_terms else '—' }}</dd><dt class="col-7">Fianza pactada</dt><dd class="col-5 text-end">{{ ('%.2f €'|format(confirmed_terms.deposit_agreed)) if confirmed_terms else '—' }}</dd><dt class="col-7">Total previsto</dt><dd class="col-5 text-end">{{ '%.2f'|format(total_expected) }} €</dd><dt class="col-7">Contabilizado</dt><dd class="col-5 text-end">{{ '%.2f'|format(summary.charged_total) }} €</dd><dt class="col-7">Pendiente</dt><dd class="col-5 text-end">{{ '%.2f'|format(summary.outstanding_balance) }} €</dd><dt class="col-7">Vencido</dt><dd class="col-5 text-end">{{ '%.2f'|format(summary.overdue_balance) }} €</dd></dl></section>
+  <aside class="col-12">
     <section class="card card-body"><h2 class="h5">Personas vinculadas</h2><h3 class="h6 text-muted">Arrendatarios</h3>{% for party in tenants %}<a href="/persons/{{ party.person_id }}">{{ party.person.display_name or party.person.full_name }}</a>{% else %}<p class="text-muted">Sin clasificar</p>{% endfor %}<h3 class="h6 text-muted mt-3">Responsables de pago</h3>{% for party in payers %}<a href="/persons/{{ party.person_id }}">{{ party.person.display_name or party.person.full_name }}</a>{% else %}<p class="text-muted mb-0">Sin clasificar</p>{% endfor %}</section>
   </aside>
 </div>

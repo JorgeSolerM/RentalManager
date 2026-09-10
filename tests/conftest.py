@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -29,8 +30,24 @@ def db_session(tmp_path) -> Session:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=engine)
-        engine.dispose()
+        try:
+            # RESTRICT self-references (SEPA retry_of_id) prevent SQLite's
+            # implicit DELETE during DROP TABLE. Disable FKs only for teardown,
+            # after checking integrity, on this exact disposable pytest DB.
+            assert Path(engine.url.database).resolve() == database_path.resolve()
+            assert database_path.resolve().is_relative_to(tmp_path.resolve())
+            with engine.connect() as connection:
+                assert connection.exec_driver_sql('PRAGMA foreign_key_check').fetchall() == []
+                connection.commit()
+                connection.exec_driver_sql('PRAGMA foreign_keys=OFF')
+                try:
+                    Base.metadata.drop_all(bind=connection)
+                    connection.commit()
+                finally:
+                    connection.exec_driver_sql('PRAGMA foreign_keys=ON')
+                    connection.commit()
+        finally:
+            engine.dispose()
 
 
 @pytest.fixture

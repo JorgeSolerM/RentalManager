@@ -1,0 +1,30 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Registrar pago · RentalManager{% endblock %}
+{% block content %}
+<a href="/bookings/{{ booking.id }}/finance">← Cuenta económica · {{ booking.room.code }}</a>
+<h1 class="h3 mt-3">Registrar pago</h1>
+<p>{{ booking.operational_person_name }} · Reserva {{ booking.id }}</p>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% for batch_id,warning in warnings %}<div class="alert alert-warning">{{ warning }} <a href="/collections/{{ batch_id }}">Ver remesa</a></div>{% endfor %}
+<form class="card card-body" method="post" action="/bookings/{{ booking.id }}/finance/payments/{{ 'register' if rows is not none else 'preview' }}">
+<div class="row g-3">
+<div class="col-sm-4"><label for="paymentAmount" class="form-label">Importe EUR</label><input class="form-control" id="paymentAmount" type="number" name="amount" min="0.01" max="9999999999.99" step="0.01" required value="{{ values.get('amount','') }}"></div>
+<div class="col-sm-4"><label for="paymentDate" class="form-label">Fecha de cobro</label><input class="form-control" id="paymentDate" type="date" name="effective_date" required max="{{ today.isoformat() }}" value="{{ values.get('effective_date') or today.isoformat() }}"></div>
+<div class="col-sm-4"><label for="paymentMethod" class="form-label">Método</label><select class="form-select" name="method" id="paymentMethod">{% for key,label in methods.items() %}<option value="{{ key }}" {% if values.get('method')==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="col-sm-6"><label for="paymentReference" class="form-label">Referencia opcional</label><input class="form-control" name="reference" id="paymentReference" maxlength="255" value="{{ values.get('reference','') }}"></div>
+<div class="col-sm-6"><label for="paymentNotes" class="form-label">Nota opcional</label><textarea class="form-control" name="notes" id="paymentNotes" maxlength="2000">{{ values.get('notes','') }}</textarea></div>
+</div>
+<p class="text-muted small mt-3">El cobro SEPA se registra desde una remesa. No se crea ningún adeudo al registrar este pago.</p>
+{% if rows is not none %}
+<h2 class="h5">Revisar aplicación a cargos</h2>
+<p>Propuesta por vencimiento más antiguo y número de cargo. Puedes cambiar cada importe antes de confirmar. Cambiar el importe del pago no redistribuye automáticamente.</p>
+<input type="hidden" name="request_key" value="{{ request_key }}">
+<div class="table-responsive"><table class="table"><thead><tr><th>Cargo</th><th>Vencimiento</th><th>Pendiente</th><th>Aplicar EUR</th></tr></thead><tbody>
+{% for charge,outstanding,proposed in rows %}<tr><td>{{ charge.concept }}</td><td>{{ charge.due_date.strftime('%d/%m/%Y') }}</td><td>{{ '%.2f'|format(outstanding) }} €</td><td><input class="form-control" aria-label="Aplicar al cargo {{ charge.id }}" name="allocation_{{ charge.id }}" type="number" min="0" step="0.01" max="{{ outstanding }}" value="{{ proposed }}"></td></tr>{% else %}<tr><td colspan="4">No hay cargos contabilizados pendientes.</td></tr>{% endfor %}
+</tbody></table></div>
+<label class="my-3"><input type="checkbox" name="allow_unallocated" value="yes"> Confirmo conservar como saldo sin aplicar cualquier importe no distribuido.</label>
+<p class="small text-muted">Si hay un adeudo SEPA presentado, este pago no lo cancela en el banco. Revisa la remesa para evitar un doble cobro.</p>
+<div><button class="btn btn-primary" type="submit">Confirmar pago y distribución</button></div>
+{% else %}<div><button class="btn btn-primary" type="submit">Proponer distribución</button></div>{% endif %}
+</form>
+{% endblock %}

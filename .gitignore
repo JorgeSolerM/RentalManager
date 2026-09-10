@@ -58,6 +58,9 @@ __pycache__/
 *.swp
 data/runtime/
 data/media/
+data/sepa_reference/
+data/sepa/_reference/
+data/finance/sepa/
 
 # Lanzadores locales
 portafolio.bat

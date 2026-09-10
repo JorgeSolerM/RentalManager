@@ -33,6 +33,9 @@
         <li class="{% if active_section == 'owners' %}active{% endif %}">
             <a href="/owners"{% if active_section == 'owners' %} aria-current="page"{% endif %}>Propietarios</a>
         </li>
+        <li class="{% if path.startswith('/collections') %}active{% endif %}">
+            <a href="/collections"{% if path.startswith('/collections') %} aria-current="page"{% endif %}>Cobros</a>
+        </li>
 
     </ul>
 
