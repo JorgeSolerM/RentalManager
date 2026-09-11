@@ -40,6 +40,9 @@
     </ul>
 
     <ul class="sidebar-menu sidebar-menu-secondary">
+        {% if request.app.state.netfincas_enabled|default(false) %}
+        <li><a href="/reconciliation/netfincas">Reconciliación NetFincas</a></li>
+        {% endif %}
         <li class="{% if active_section == 'settings' %}active{% endif %}">
             <a href="/settings/"{% if active_section == 'settings' %} aria-current="page"{% endif %}>Configuración</a>
         </li>

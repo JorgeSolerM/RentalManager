@@ -15,6 +15,7 @@ from backend.models.room_public_highlight import RoomPublicHighlight
 from backend.models.rental_requirement import RentalRequirement, property_requirements
 from backend.models.payment import Payment
 from backend.models.payment_registration import PaymentRegistration
+from backend.models.migration_audit import MigrationRun, MigrationAction
 from backend.models.payment_allocation import PaymentAllocation
 from backend.models.person import Person
 from backend.models.booking_party import BookingParty

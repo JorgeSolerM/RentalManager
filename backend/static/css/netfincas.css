@@ -1,0 +1,10 @@
+.nf-page { min-width: 0; max-width: 100%; }
+.nf-page .card, .nf-page td, .nf-page p, .nf-page dd { overflow-wrap: anywhere; }
+.nf-page label { max-width: 100%; }
+.nf-page label:has(select), .nf-page label:has(input.form-control) { display: block; width: 100%; }
+.nf-page summary { cursor: pointer; }
+.nf-page [hidden] { display: none !important; }
+.nf-filter { max-width: 24rem; }
+.nf-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .3rem 1rem; margin: .75rem 0 0; }
+.nf-page :focus-visible { outline: 3px solid #1769aa; outline-offset: 2px; }
+@media(max-width: 575px) { .nf-values { grid-template-columns: minmax(0, 1fr); } }
