@@ -181,6 +181,14 @@ class OwnerService:
             db.rollback(); return OperationResult(False, "owner_not_found")
         if owner.bank_accounts or owner.property_ownerships or owner.sepa_creditor_profiles:
             db.rollback(); return OperationResult(False, "owner_has_relations")
+        from sqlalchemy import select
+        from backend.models.owner_settlement import Expense, ExpensePayment, OwnerSettlement, PaymentCustody
+        if any(db.scalar(select(model.id).where(field == owner_id).limit(1)) for model, field in (
+            (Expense, Expense.owner_id), (ExpensePayment, ExpensePayment.paid_by_owner_id),
+            (OwnerSettlement, OwnerSettlement.owner_id), (PaymentCustody, PaymentCustody.owner_id),
+        )):
+            db.rollback()
+            return OperationResult(False, "owner_has_relations")
         db.delete(owner)
         db.commit()
         return OperationResult(True, "owner_deleted")

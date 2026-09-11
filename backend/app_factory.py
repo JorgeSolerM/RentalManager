@@ -23,6 +23,8 @@ from backend.api.routers import (
     sepa,
     collections,
     netfincas,
+    owner_economy,
+    providers,
 )
 from backend.core.jinja_filters import format_date
 from backend.core.logging import configure_sensitive_url_logging
@@ -71,6 +73,8 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(settings.router)
     app.include_router(persons.router)
     app.include_router(owners.router)
+    app.include_router(owner_economy.router)
+    app.include_router(providers.router)
     app.include_router(sepa.router)
     app.include_router(collections.router)
     netfincas.setup(app)

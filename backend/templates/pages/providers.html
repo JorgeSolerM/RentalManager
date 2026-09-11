@@ -1,0 +1,31 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Proveedores · RentalManager{% endblock %}
+{% block main_class %}owner-economy{% endblock %}
+{% block body_class %}owner-economy-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/owner_economy.css') }}">
+<p><a href="/settings/">Configuración</a> · <a href="/expenses">Gastos</a></p>
+{% include 'components/settings_nav.html' %}
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% if mode == 'list' %}
+<div class="d-flex justify-content-between flex-wrap gap-2"><h1 class="h3">Proveedores</h1><a class="btn btn-primary" href="/providers/new">Nuevo proveedor</a></div>
+<form method="get" class="my-3 d-flex gap-2"><input name="q" value="{{ q }}" class="form-control" placeholder="Buscar proveedores" aria-label="Buscar proveedores"><button class="btn btn-outline-primary">Buscar</button></form>
+<div class="table-responsive"><table class="table"><thead><tr><th>Proveedor</th><th>NIF/CIF</th><th>Categoría habitual</th><th>Contacto</th><th>Estado</th></tr></thead><tbody>{% for p in items %}<tr><td><a href="/providers/{{ p.id }}">{{ p.legal_name }}</a></td><td>{{ p.tax_id or '—' }}</td><td>{% for c in categories if c.id == p.default_expense_category_id %}{{ c.name }}{% else %}—{% endfor %}</td><td>{{ p.email or p.phone or '—' }}</td><td><span class="{{ 'text-success' if p.active else 'text-secondary' }}" role="img" aria-label="{{ 'Activo' if p.active else 'Inactivo' }}" title="{{ 'Activo' if p.active else 'Inactivo' }}">●</span></td></tr>{% else %}<tr><td colspan="5">Sin proveedores.</td></tr>{% endfor %}</tbody></table></div>
+{% elif mode == 'form' %}
+<h1 class="h3">{{ 'Editar proveedor' if item else 'Nuevo proveedor' }}</h1>
+<form method="post" class="card card-body">
+<input type="hidden" name="from_expense" value="{{ '1' if from_expense else '0' }}">
+<div class="row g-3">{% for field,label,length in [('legal_name','Nombre / razón social',180),('tax_id','NIF/CIF',40),('address_line','Dirección fiscal',255),('postal_code','Código postal',20),('city','Localidad',120),('province','Provincia',120),('country','País (código de dos letras)',2),('phone','Teléfono',40),('email','Email',254),('iban','IBAN de referencia (opcional)',42)] %}<div class="col-12 col-md-6"><label class="form-label w-100">{{ label }}<input class="form-control" name="{{ field }}" value="{{ values.get(field,'') }}" maxlength="{{ length }}" {% if field == 'legal_name' %}required{% endif %} {% if field == 'email' %}type="email"{% endif %} autocomplete="off"></label></div>{% endfor %}</div>
+<label class="form-label mt-3">Categoría habitual<select class="form-select" name="default_expense_category_id"><option value="">Sin categoría habitual</option>{% for c in categories if c.active or c.id|string == values.get('default_expense_category_id')|string %}<option value="{{ c.id }}" {% if c.id|string == values.get('default_expense_category_id')|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+<label>Observaciones<textarea class="form-control" name="notes" maxlength="4000">{{ values.get('notes','') }}</textarea></label>
+<label class="form-check my-3"><input type="checkbox" class="form-check-input" name="active" value="1" {% if values.get('active','1') == '1' %}checked{% endif %}> Activo</label>
+<div><button class="btn btn-primary">Guardar proveedor</button> <a class="btn btn-outline-secondary" href="{{ '/expenses/new' if from_expense else '/providers' }}">Cancelar</a></div>
+</form>
+{% else %}
+<h1 class="h3">{{ item.legal_name }}</h1><p>{{ 'Activo' if item.active else 'Inactivo' }}</p>
+<dl class="row">{% for field,label in [('tax_id','NIF/CIF'),('address_line','Dirección fiscal'),('postal_code','Código postal'),('city','Localidad'),('province','Provincia'),('country','País'),('phone','Teléfono'),('email','Email'),('masked_iban','IBAN'),('notes','Observaciones')] %}<dt class="col-5 col-md-3">{{ label }}</dt><dd class="col-7 col-md-9 text-break">{{ item[field] or '—' }}</dd>{% endfor %}</dl>
+<p>Categoría habitual: {% for c in categories if c.id == item.default_expense_category_id %}{{ c.name }}{% else %}Sin categoría habitual{% endfor %}</p>
+<div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-primary" href="/providers/{{ item.id }}/edit">Editar</a><form method="post" action="/providers/{{ item.id }}/active"><input type="hidden" name="active" value="{{ '0' if item.active else '1' }}"><button class="btn btn-outline-secondary">{{ 'Desactivar' if item.active else 'Activar' }}</button></form></div>
+<h2 class="h5 mt-4">Gastos relacionados</h2><ul>{% for e in linked %}<li><a href="/expenses/{{ e.id }}">{{ e.expense_date }} · {{ e.concept }}</a></li>{% else %}<li>Sin gastos relacionados.</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

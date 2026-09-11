@@ -1,0 +1,71 @@
+{% macro totals(t) %}
+<dl class="row mb-2">
+{% for field,label in [('income','Cobros atribuibles'),('expenses','Gastos pagados'),('fees','Honorarios'),('period_balance','Resultado del periodo'),('prior_balance','Saldo anterior / compensación'),('economic_balance','Resultado liquidación'),('manager_credit','Saldo a favor del gestor'),('directly_received','Recibido directamente'),('manager_held_funds','Fondos del gestor'),('inter_owner_difference','Diferencia entre propietarios'),('payout_due','A transferir por el gestor')] %}
+<dt class="col-7">{{ label }}</dt><dd class="col-5">{{ t[field] }} €</dd>
+{% endfor %}</dl>
+{% endmacro %}
+{% if mode == 'settlement_new' %}
+<h1 class="h3">Nueva liquidación</h1>
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+<label>Mes de liquidación<input class="form-control" type="month" name="month" value="{{ month }}" form="property-settlement-selection" required></label>
+<button class="btn btn-outline-primary" form="property-settlement-selection" formmethod="get" formaction="/settlements/new">Actualizar fincas</button>
+</div>
+<p class="text-muted">Se incluyen movimientos pendientes anteriores no liquidados hasta el fin del mes. Los propietarios se obtienen de la titularidad aplicable; no necesita seleccionarlos.</p>
+<form method="post" action="/settlements/preview" id="property-settlement-selection">
+<h2 class="h5">Fincas a liquidar · {{ month }}</h2>
+{% if choices|selectattr('state','equalto','ready')|list|length > 1 %}
+<button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="select-ready-properties">Seleccionar todas las listas para liquidar</button>
+{% endif %}
+{% for state,label in [('ready','Listas para liquidar'),('review','Requieren revisión'),('empty','Sin movimientos')] %}
+{% set rows = choices|selectattr('state','equalto',state)|list %}
+{% if rows %}<section class="mb-3" aria-label="{{ label }}">
+{% if state == 'empty' %}<details><summary>{{ label }} ({{ rows|length }})</summary>{% else %}<h3 class="h6">{{ label }}</h3>{% endif %}
+{% for p in rows %}
+<div class="border rounded p-3 mb-2">
+<label class="d-flex gap-2 align-items-start"><input type="checkbox" class="form-check-input flex-shrink-0" name="property_id" value="{{ p.id }}" data-readiness="{{ p.state }}" {% if state == 'empty' %}disabled{% endif %}><strong>{{ p.name }}</strong></label>
+<div class="ms-4">
+{% for o in p.owners %}<div>{{ o.name }} · {{ o.percentage ~ ' %' if o.percentage else 'Titularidad histórica' }}</div>{% else %}<div>No hay titularidad válida configurada.</div>{% endfor %}
+<small class="d-block {{ 'text-danger' if state == 'review' else 'text-muted' }}">{{ '⚠ Requiere revisión' if state == 'review' else 'Sin movimientos pendientes' if state == 'empty' else 'Lista para liquidar' }}</small>
+{% for message in p.errors %}<small class="d-block">{{ message }}</small>{% endfor %}
+</div></div>{% endfor %}
+{% if state == 'empty' %}</details>{% endif %}</section>{% endif %}
+{% endfor %}
+<p>La previsualización no crea borradores ni registra pagos.</p>
+<button class="btn btn-primary">Previsualizar liquidaciones</button>
+</form>
+<script src="{{ url_for('static', path='js/settlement_selection.js') }}" defer></script>
+{% elif mode == 'selection_preview' %}
+<h1 class="h3">Previsualizar liquidaciones · {{ month }}</h1>
+<p><strong>{{ batch.individuals|length }} liquidaciones individuales previstas</strong> para {{ batch.groups|length }} fincas seleccionadas. Todavía no se ha escrito ningún dato.</p>
+<p>Las fincas del mismo propietario se agrupan en una liquidación. El saldo anterior se incorpora una sola vez en el resumen individual.</p>
+{% for error in batch.errors %}<div class="alert alert-danger" role="alert">⚠ {{ error }}</div>{% endfor %}
+{% for p in batch.groups %}
+<section class="card card-body mb-3"><h2 class="h5">{{ p.name }}</h2>
+{% for o in p.owners if o.has_movements %}
+<h3 class="h6 mt-2">{{ o.name }} · {{ o.percentage ~ ' %' if o.percentage else 'Titularidad histórica' }}</h3>
+{% if o.view.totals.prior_balance != '0.00' %}<p class="text-muted">Hay saldo anterior del propietario: consulte el resumen individual para el importe definitivo.</p>{% endif %}
+{{ totals(o.totals) }}
+{% else %}<p>Sin movimientos pendientes.</p>{% endfor %}</section>
+{% endfor %}
+<h2 class="h4">Liquidaciones individuales que se prepararán</h2>
+{% for entry in batch.individuals %}
+<details class="border rounded p-3 mb-3"><summary>{{ entry.name }} · {{ entry.view.property_ids|length }} finca(s) · A transferir {{ entry.view.totals.payout_due }} €</summary>
+{{ totals(entry.view.totals) }}
+<form method="post" action="/settlements/individual-preview">
+<input type="hidden" name="owner_id" value="{{ entry.view.owner_id }}">
+<input type="hidden" name="start" value="{{ batch.start }}"><input type="hidden" name="end" value="{{ batch.end }}">
+{% for p in entry.view.property_ids %}<input type="hidden" name="property_id" value="{{ p }}">{% endfor %}
+<button class="btn btn-outline-secondary btn-sm">Revisar líneas de esta liquidación por separado</button>
+</form></details>{% endfor %}
+<form method="post" action="/settlements/drafts">
+<input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="fingerprint" value="{{ batch.fingerprint }}"><input type="hidden" name="request_key" value="{{ key }}">
+{% for p in batch.property_ids %}<input type="hidden" name="property_id" value="{{ p }}">{% endfor %}
+<a class="btn btn-outline-secondary" href="/settlements/new?month={{ month }}">Cambiar fincas</a>
+<button class="btn btn-primary" {% if batch.errors or not batch.individuals %}disabled{% endif %}>Guardar {{ batch.individuals|length }} borradores</button>
+<p class="text-muted mt-2">Si hay alguna incidencia, se bloquea la creación completa. Guardar no cierra ni paga; cada liquidación se cerrará individualmente.</p>
+</form>
+{% elif mode == 'drafts_created' %}
+<h1 class="h3">Borradores preparados</h1><p>No se ha cerrado ninguna liquidación ni registrado pagos.</p>
+<ul>{% for item in created %}<li><a href="/settlements/{{ item.id }}">Liquidación {{ item.id }} · {% for owner in owners if owner.id == item.owner_id %}{{ owner.name }}{% endfor %}</a></li>{% endfor %}</ul>
+<a href="/settlements">Volver a Liquidaciones</a>
+{% endif %}

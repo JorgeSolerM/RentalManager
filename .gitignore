@@ -61,6 +61,7 @@ data/media/
 data/sepa_reference/
 data/sepa/_reference/
 data/finance/sepa/
+data/finance/settlements/
 
 # Lanzadores locales
 portafolio.bat

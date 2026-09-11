@@ -36,6 +36,8 @@
         <li class="{% if path.startswith('/collections') %}active{% endif %}">
             <a href="/collections"{% if path.startswith('/collections') %} aria-current="page"{% endif %}>Cobros</a>
         </li>
+        <li class="{% if path.startswith('/expenses') %}active{% endif %}"><a href="/expenses">Gastos</a></li>
+        <li class="{% if path.startswith('/settlements') %}active{% endif %}"><a href="/settlements">Liquidaciones</a></li>
 
     </ul>
 

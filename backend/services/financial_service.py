@@ -416,6 +416,11 @@ class FinancialService:
         if payment is None or payment.lifecycle!="posted": return self._fail(db,"payment_not_posted")
         from sqlalchemy import or_, select
         from backend.models.sepa_collection import SepaDebit
+        from backend.models.owner_settlement import OwnerSettlementLine
+        if db.scalar(select(OwnerSettlementLine.id).join(PaymentAllocation,
+                OwnerSettlementLine.payment_allocation_id == PaymentAllocation.id)
+                .where(PaymentAllocation.payment_id == payment_id).limit(1)):
+            return self._fail(db, 'payment_settled_requires_correction')
         if db.scalar(select(SepaDebit.id).where(or_(SepaDebit.payment_id==payment_id, SepaDebit.return_payment_id==payment_id)).limit(1)):
             return self._fail(db,'payment_sepa_requires_audited_operation')
         payment.lifecycle="void"; payment.voided_at=self._now(); payment.notes=notes or payment.notes; db.commit(); return OperationResult(success=True,data=payment)

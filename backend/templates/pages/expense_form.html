@@ -1,0 +1,27 @@
+{% set v = values|default({}) %}
+<h1 class="h3">Nuevo gasto</h1><p>Registrar el gasto no registra su pago ni reduce una liquidación.</p>
+<form method="post" class="card card-body" data-expense-form>
+<div class="row g-3">
+<div class="col-12 col-md-6"><label class="w-100">Finca<select class="form-select" name="property_id" required><option value="">Seleccionar finca</option>{% for p in properties %}<option value="{{ p.id }}" {% if v.get('property_id') == p.id|string %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></label></div>
+<div class="col-12 col-md-6"><label class="w-100">Fecha económica<input class="form-control" type="date" name="expense_date" required value="{{ v.get('expense_date',today) }}"></label></div>
+</div>
+<div class="my-3" data-expense-ownership aria-live="polite">Seleccione finca y fecha para consultar la titularidad.</div>
+<label>Proveedor<select class="form-select" name="provider_id"><option value="">Sin proveedor identificado</option>{% for p in providers %}<option value="{{ p.id }}" data-category="{{ p.default_expense_category_id or '' }}" {% if v.get('provider_id') == p.id|string %}selected{% endif %}>{{ p.legal_name }}</option>{% endfor %}</select></label>
+<div><button type="button" class="btn btn-link btn-sm ps-0" data-bs-toggle="modal" data-bs-target="#newExpenseProvider">+ Nuevo proveedor</button></div>
+<label>Concepto<input class="form-control" name="concept" maxlength="255" value="{{ v.get('concept','') }}" required></label>
+<label>Categoría<select class="form-select" name="category_id" required><option value="">Seleccionar categoría</option>{% for c in categories %}<option value="{{ c.id }}" {% if v.get('category_id') == c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+<div class="d-flex flex-wrap gap-3">{% for name,label in [('base_amount','Base €'),('vat_rate','IVA %'),('withholding_rate','Retención %')] %}<label>{{ label }}<input class="form-control" type="number" step="0.01" min="0" name="{{ name }}" value="{{ v.get(name,'') }}" required></label>{% endfor %}</div>
+<div class="d-flex flex-wrap gap-3 mt-3">
+<label>Quién soporta el gasto<select class="form-select" name="borne_by">{% for key,label in [('owner','Propietarios'),('manager','Gestor'),('tenant','Inquilino'),('other','Otro')] %}<option value="{{ key }}" {% if v.get('borne_by','owner') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label data-imputation-label>Imputación<select class="form-select" name="imputation"><option value="property">A toda la finca</option><option value="owner" {% if v.get('imputation') == 'owner' %}selected{% endif %}>A un propietario concreto</option></select></label>
+<label data-specific-owner hidden>Propietario específico<select class="form-select" name="owner_id" disabled data-selected-owner="{{ v.get('owner_id','') }}"><option value="">Seleccionar</option></select></label>
+</div>
+<p class="small text-muted mt-2">El gasto ordinario se reparte según la titularidad de su fecha económica. Quién lo paga se registra después, en Pagos del gasto.</p>
+<label>Notas<textarea class="form-control" name="notes" maxlength="2000">{{ v.get('notes','') }}</textarea></label><button class="btn btn-primary mt-3">Registrar gasto</button>
+</form>
+<div class="modal fade" id="newExpenseProvider" tabindex="-1" aria-labelledby="newExpenseProviderTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+<form data-quick-provider><div class="modal-header"><h2 id="newExpenseProviderTitle" class="modal-title h5">Nuevo proveedor</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+<div class="modal-body"><p>Podrá completar los datos fiscales y de contacto desde Configuración → Proveedores.</p><div data-provider-error role="alert"></div><label class="w-100">Nombre / razón social<input class="form-control" name="legal_name" maxlength="180" required></label><label class="w-100">Categoría habitual<select class="form-select" name="default_expense_category_id"><option value="">Sin categoría habitual</option>{% for c in categories if c.active %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label></div>
+<div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Crear proveedor</button></div></form>
+</div></div></div>
+<script src="{{ url_for('static',path='js/expense_form.js') }}" defer></script>

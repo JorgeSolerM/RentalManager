@@ -20,8 +20,13 @@ from backend.models.payment_allocation import PaymentAllocation
 from backend.models.person import Person
 from backend.models.booking_party import BookingParty
 from backend.models.owner import Owner
+from backend.models.owner_settlement import (
+    ExpenseCategory, Expense, ExpensePayment, ManagementFeeTerms,
+    SettlementChargePolicy, PaymentCustody, OwnerSettlement, OwnerSettlementLine, OwnerPayout,
+)
 from backend.models.owner_bank_account import OwnerBankAccount
 from backend.models.property_ownership import PropertyOwnership
+from backend.models.provider import Provider
 from backend.models.sepa_creditor_profile import SepaCreditorProfile
 from backend.models.sepa_mandate import SepaMandate
 from backend.models.booking_sepa_mandate import BookingSepaMandate

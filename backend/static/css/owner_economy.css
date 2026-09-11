@@ -1,0 +1,13 @@
+.owner-economy { min-width: 0; }
+.owner-economy label { min-width: 0; max-width: 100%; }
+.owner-economy .d-flex > label { flex: 1 1 12rem; }
+.owner-economy input, .owner-economy select, .owner-economy textarea { max-width: 100%; }
+.owner-economy td, .owner-economy dd, .owner-economy dt { overflow-wrap: anywhere; }
+.owner-economy .table-responsive { max-width: 100%; }
+.owner-economy .table td, .owner-economy .table th { overflow-wrap: normal; }
+.owner-economy .table td:first-child { white-space: nowrap; }
+@media (max-width: 767px) {
+  .owner-economy .d-flex > label { flex-basis: 100%; }
+  .owner-economy-page .sidebar { display: none; }
+  .owner-economy-page .app-shell > main { margin-left: 0; padding: 1rem !important; }
+}
