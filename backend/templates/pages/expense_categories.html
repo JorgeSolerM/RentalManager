@@ -1,0 +1,37 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Categorías de gasto · RentalManager{% endblock %}
+{% block main_class %}owner-economy{% endblock %}
+{% block body_class %}owner-economy-page expense-categories-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/owner_economy.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', path='css/expense_categories.css') }}?v=compact-switch">
+<p><a href="/settings/">Configuración</a> · <a href="/expenses">Gastos</a></p>
+{% include 'components/settings_nav.html' %}
+{% set category_tab = true %}{% include 'components/provider_tabs.html' %}
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% if editing %}
+<h1 class="h3">{{ 'Editar categoría' if item else 'Nueva categoría' }}</h1>
+<form method="post" class="card card-body">
+  <label class="form-label">Nombre<input class="form-control" name="name" maxlength="120" value="{{ values.get('name','') }}" required></label>
+  <label class="form-label">Descripción<textarea class="form-control" name="description" maxlength="2000" rows="3">{{ values.get('description','') }}</textarea></label>
+  <label class="form-label">Orden (opcional)<input class="form-control" type="number" name="sort_order" min="0" max="999999" step="1" value="{{ values.get('sort_order','') }}" aria-describedby="category-order-help"></label>
+  <p id="category-order-help" class="small text-muted">Los números menores aparecen primero. Sin orden, al final por nombre.</p>
+  <div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-primary">Guardar categoría</button><a class="btn btn-outline-secondary" href="/providers/categories">Cancelar</a></div>
+</form>
+{% else %}
+<div class="d-flex justify-content-between flex-wrap gap-2"><h1 class="h3">Categorías de gasto</h1><a class="btn btn-primary" href="/providers/categories/new">+ Nueva categoría</a></div>
+<p class="text-muted mt-2">Catálogo compartido por Gastos y Proveedores. Desactivar no elimina el histórico.</p>
+<div class="table-responsive"><table class="table align-middle expense-category-table">
+<thead><tr><th scope="col">Categoría</th><th scope="col">Orden</th><th scope="col">Activa</th></tr></thead>
+<tbody>{% for c in categories %}<tr data-category-row>
+<td class="text-break"><a class="{% if not c.active %}text-secondary{% endif %}" data-category-name href="/providers/categories/{{ c.id }}/edit">{{ c.name }}</a></td>
+<td data-category-order class="{% if not c.active %}text-secondary{% endif %}">{{ c.sort_order if c.sort_order is not none else '—' }}</td>
+<td><label class="rm-switch">
+<input type="checkbox" class="rm-switch-input" role="switch" data-category-active data-category-name="{{ c.name }}" data-url="/providers/categories/{{ c.id }}/active" aria-checked="{{ 'true' if c.active else 'false' }}" aria-label="{{ 'Desactivar' if c.active else 'Activar' }} categoría {{ c.name }}" {% if c.active %}checked{% endif %}>
+<span class="rm-switch-slider" aria-hidden="true"></span>
+</label></td>
+</tr>{% else %}<tr><td colspan="3">Sin categorías.</td></tr>{% endfor %}</tbody></table></div>
+<p class="visually-hidden" data-category-feedback role="status" aria-live="polite"></p>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='js/provider_settings.js') }}?v=1" defer></script>{% endblock %}

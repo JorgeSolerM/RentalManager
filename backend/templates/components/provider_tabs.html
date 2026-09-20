@@ -1,0 +1,4 @@
+<nav class="nav nav-tabs mb-3" aria-label="Configuración de proveedores">
+  <a class="nav-link{% if not category_tab %} active{% endif %}" href="/providers" {% if not category_tab %}aria-current="page"{% endif %}>Proveedores</a>
+  <a class="nav-link{% if category_tab %} active{% endif %}" href="/providers/categories" {% if category_tab %}aria-current="page"{% endif %}>Categorías de gasto</a>
+</nav>

@@ -1,0 +1,24 @@
+.owner-economy .expense-category-table td:first-child,
+.owner-economy .provider-directory-table td:first-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.expense-categories-page .rm-toast,
+.provider-settings-page .rm-toast { max-width: calc(100vw - 48px); }
+.provider-directory-table { table-layout: fixed; }
+.provider-directory-table th:nth-child(2) { width: 14rem; }
+.provider-directory-table th:nth-child(3) { width: 4.5rem; }
+@media (max-width: 767px) {
+  .expense-category-table { table-layout: fixed; }
+  .owner-economy .expense-category-table th,
+  .owner-economy .expense-category-table td {
+    padding: .5rem .3rem;
+    font-size: .875rem;
+    overflow-wrap: anywhere;
+  }
+  .expense-category-table th:nth-child(2) { width: 3.25rem; white-space: nowrap; }
+  .expense-category-table th:nth-child(3) { width: 4.5rem; }
+  .owner-economy .provider-directory-table th,
+  .owner-economy .provider-directory-table td { padding: .5rem .3rem; font-size: .875rem; overflow-wrap: anywhere; }
+  .provider-directory-table th:nth-child(2) { width: 7.5rem; }
+}

@@ -14,6 +14,10 @@ class ExpenseCategory(Base):
     code: Mapped[str] = mapped_column(String(40), unique=True)
     name: Mapped[str] = mapped_column(String(120))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.current_timestamp())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
 
 
 class Expense(Base):

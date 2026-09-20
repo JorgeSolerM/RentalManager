@@ -3,6 +3,8 @@
   if (!form) return;
   const field = name => form.elements.namedItem(name);
   const panel = form.querySelector('[data-expense-ownership]');
+  // A restored value (e.g. after validation) is a user decision, not a proposal.
+  let categoryEdited = Boolean(field('category_id').value);
   let serial = 0;
   function visibility() {
     const ownersBear = field('borne_by').value === 'owner';
@@ -47,9 +49,14 @@
     }
   }
   function proposeCategory() {
+    if (categoryEdited && field('category_id').value) return;
     const category = field('provider_id').selectedOptions[0]?.dataset.category;
-    if (category && [...field('category_id').options].some(option => option.value === category)) field('category_id').value = category;
+    if (category && [...field('category_id').options].some(option => option.value === category)) {
+      field('category_id').value = category;
+      categoryEdited = false;
+    }
   }
+  field('category_id').addEventListener('change', () => { categoryEdited = true; });
   field('property_id').addEventListener('change', loadOwnership);
   field('expense_date').addEventListener('change', loadOwnership);
   field('imputation').addEventListener('change', visibility);

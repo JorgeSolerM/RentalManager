@@ -16,6 +16,7 @@ from backend.models.payment import Payment
 from backend.models.owner_bank_account import OwnerBankAccount
 from backend.models.owner_settlement import Expense, ExpenseCategory, ManagementFeeTerms, OwnerSettlement, OwnerPayout
 from backend.services.expense_service import ExpenseService
+from backend.services.expense_category_service import ExpenseCategoryService
 from backend.services.owner_settlement_service import OwnerSettlementService
 from backend.services.settlement_selection_service import SettlementSelectionService
 from backend.core.business_time import business_today
@@ -28,6 +29,7 @@ property_selection = SettlementSelectionService()
 
 def page(request, db, mode, **context):
     if mode == 'expense_new':
+        context['categories'] = ExpenseCategoryService().list(db, active_only=True)
         context['providers'] = list(db.scalars(select(Provider).where(Provider.active == True).order_by(Provider.legal_name)))
     if mode == 'expense':
         item = context['item']
@@ -47,7 +49,7 @@ def expense_list(request: Request, db=Depends(get_db)):
 
 @router.get("/expenses/new")
 def expense_new(request: Request, db=Depends(get_db)):
-    return page(request, db, "expense_new", values={'provider_id':request.query_params.get('provider_id','')}, categories=list(db.scalars(select(ExpenseCategory).where(ExpenseCategory.active == True))))
+    return page(request, db, "expense_new", values={'provider_id':request.query_params.get('provider_id','')})
 
 
 def expense_ownership_info(db, property_id, economic_date):
@@ -85,7 +87,7 @@ async def expense_create(request: Request, db=Depends(get_db)):
             provider_id=int(f['provider_id']) if f.get('provider_id') else None)
         return RedirectResponse(f"/expenses/{item.id}", 303)
     except (ValueError, KeyError) as exc:
-        return page(request, db, "expense_new", error=str(exc), values=dict(f), categories=list(db.scalars(select(ExpenseCategory))))
+        return page(request, db, "expense_new", error=str(exc), values=dict(f))
 
 
 @router.get("/expenses/{expense_id}")

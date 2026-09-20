@@ -271,3 +271,16 @@ Antes de comenzar un nuevo desarrollo deberá comprobarse:
 - que no contradice la Visión, el Dominio ni la Arquitectura del proyecto.
 
 El Roadmap será revisado y actualizado al finalizar cada sprint importante.
+
+## Pendiente: informes económicos (sin implementación en Categorías de gasto)
+
+- Gastos: filtros por periodo, finca, propietario, proveedor, categoría y estado
+  de pago. Columnas: fecha, finca, proveedor, concepto, categoría, base, IVA,
+  retención, total, pagado y pendiente. Exportaciones PDF y XLSX.
+- Ingresos: fuente Payment + PaymentAllocation (cobros reales, no rentas teóricas).
+  Filtros por periodo, finca, propietario, inquilino, concepto y método.
+- Combinado: ingresos menos gastos y resultado por finca, propietario y periodo.
+- Excel será XLSX real, con fechas e importes tipados, filtros y totales; nunca
+  un CSV renombrado. No se implementan informes ni exportadores en este bloque.
+- Reconciliación futura: Proveedor NetFincas → Provider → ExpenseCategory.
+  No importar proveedores históricos todavía.
