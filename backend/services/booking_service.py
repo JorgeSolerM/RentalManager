@@ -158,8 +158,12 @@ class BookingService:
         notes: str | None,
         expected_arrival_date: date | None = None,
         expected_departure_date: date | None = None,
+        initial_roles: list[str] | None = None,
     ) -> OperationResult[Booking]:
         try:
+            roles = set(initial_roles if initial_roles is not None else ('tenant', 'payer', 'occupant'))
+            if not roles or not roles <= {'tenant', 'payer', 'occupant'}:
+                return self._rejected(db, 'booking_functions_required')
             stripped_guest_name = guest_name.strip()
             validation_error = self._validate_booking(
                 db,
@@ -185,7 +189,8 @@ class BookingService:
             )
             self.booking_repository.create(db, booking)
             booking.source_guest_name = stripped_guest_name
-            db.add(BookingParty(booking_id=booking.id, person_id=person.id, role="unclassified"))
+            for role in sorted(roles):
+                db.add(BookingParty(booking_id=booking.id, person_id=person.id, role=role))
             db.commit()
             return OperationResult(success=True, data=booking)
         except IntegrityError as error:

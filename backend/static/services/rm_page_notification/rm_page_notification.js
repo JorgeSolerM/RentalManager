@@ -70,6 +70,7 @@ const RMPageNotification = {
         room_archive_has_current_or_future_bookings: "No se puede archivar una habitación con reservas actuales o futuras.",
         room_archived_cannot_be_operational: "Reactiva la habitación antes de ponerla en servicio.",
         booking_guest_required: "Debe introducir el nombre del huésped.",
+        booking_functions_required: "Selecciona al menos una función para el inquilino.",
         booking_invalid_dates: "La fecha de salida debe ser posterior a la fecha de entrada.",
         booking_invalid_price: "El precio mensual debe ser un número mayor o igual que cero.",
         booking_form_invalid: "Revisa los datos de la reserva antes de guardarla.",
@@ -135,6 +136,7 @@ const RMPageNotification = {
         ,requirement_slug_exists: "Ese slug de requisito ya existe."
         ,requirement_inactive: "No se puede asignar un requisito inactivo."
         ,requirement_in_use: "No se puede eliminar un requisito asignado. Desactívalo."
+        ,person_nationality_invalid: "Selecciona una nacionalidad válida del desplegable."
         ,person_has_booking_parties: "No se puede eliminar este inquilino porque está vinculado a una o más reservas. Retira primero sus roles en esas reservas."
         ,person_iban_invalid: "El IBAN indicado no es válido."
         ,financial_terms_immutable: "Las condiciones confirmadas no pueden editarse destructivamente."

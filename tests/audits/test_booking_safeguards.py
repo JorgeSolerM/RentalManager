@@ -80,6 +80,7 @@ def insert_booking(connection, booking_id, room_id, check_in, check_out):
 def test_overlap_triggers_cover_insert_update_contiguous_and_other_rooms(
     tmp_path, monkeypatch
 ):
+    monkeypatch.setattr(database_session, 'business_today', lambda: date(2026, 8, 17))
     path = migrated_database(tmp_path, monkeypatch)
     connection = sqlite_connection(path)
     try:
@@ -110,6 +111,7 @@ def test_overlap_triggers_cover_insert_update_contiguous_and_other_rooms(
 def test_concurrent_conflicting_writes_allow_at_most_one_commit(
     tmp_path, monkeypatch
 ):
+    monkeypatch.setattr(database_session, 'business_today', lambda: date(2026, 8, 17))
     path = migrated_database(tmp_path, monkeypatch, "concurrent.db")
     setup = sqlite_connection(path)
     seed_rooms(setup)
@@ -297,6 +299,8 @@ def test_safeguard_migration_stops_on_historical_overlap(tmp_path, monkeypatch):
 def test_ical_multi_update_swap_is_rejected_atomically_by_real_trigger(
     tmp_path, monkeypatch
 ):
+    monkeypatch.setattr(database_session, 'business_today', lambda: date(2026, 8, 17))
+    monkeypatch.setattr('backend.services.ical_sync_service.business_today', lambda: date(2026, 8, 17))
     path = migrated_database(tmp_path, monkeypatch, "ical_swap.db")
     engine = create_engine(f"sqlite:///{path.as_posix()}")
     session = sessionmaker(bind=engine, autoflush=False)()

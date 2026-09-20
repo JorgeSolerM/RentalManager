@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "components/booking_person_links.html" import booking_names %}
 
 {% block title %}{{ room.code }}{% endblock %}
 
@@ -6,7 +7,7 @@
 
 <div class="page-header">
 
-    <div>
+    <div class="w-100 text-break">
 
         <a href="/rooms/property/{{ property.id }}" class="text-decoration-none">
             ← {{ property.name }}
@@ -17,15 +18,15 @@
             {{ room.code }}
 
             {% if not room.active %}
-            <span class="badge bg-secondary ms-3">
+            <span class="badge bg-secondary ms-3 text-wrap">
                 Archivada
             </span>
             {% elif room.operational_since is none %}
-            <span class="badge bg-warning text-dark ms-3">
+            <span class="badge bg-warning text-dark ms-3 text-wrap">
                 En preparación
             </span>
             {% else %}
-            <span class="badge bg-success ms-3">
+            <span class="badge bg-success ms-3 text-wrap">
                 Operativa desde {{ room.operational_since.strftime('%d.%m.%Y') }}
             </span>
             {% endif %}
@@ -97,7 +98,7 @@
 
             ·
 
-            {{ current_booking.operational_person_name }}
+            {{ booking_names(current_booking) }}
 
             ·
 
@@ -131,7 +132,7 @@
 
             ·
 
-            {{ current_booking.operational_person_name }}
+            {{ booking_names(current_booking) }}
 
             ·
 
@@ -185,7 +186,9 @@
 
                     ·
 
-                    {{ booking.operational_person_name }}
+                </a>
+                    {{ booking_names(booking) }}
+                <a href="#" class="booking-link text-decoration-none" data-booking-id="{{ booking.id }}" aria-label="Editar reserva {{ booking.id }}">
 
                     ·
 
@@ -555,7 +558,7 @@
 
 {% block scripts %}
 
-<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-finance-2"></script>
+<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-functions-1"></script>
 <script src="{{ url_for('static', path='js/master_calendar.js') }}"></script>
 <script src="{{ url_for('static', path='js/room_calendar_actions.js') }}"></script>
 

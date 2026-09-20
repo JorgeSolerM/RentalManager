@@ -101,6 +101,8 @@ def create_booking(
     expected_arrival_date: date | None = Form(None),
 
     expected_departure_date: date | None = Form(None),
+    initial_roles: list[str] | None = Form(None),
+    initial_roles_present: bool = Form(False),
     db: Session = Depends(get_db),
 
 ):
@@ -115,6 +117,7 @@ def create_booking(
         notes,
         expected_arrival_date,
         expected_departure_date,
+        initial_roles=(initial_roles or []) if initial_roles_present else initial_roles,
     )
 
     if not result.success:
@@ -264,3 +267,34 @@ def remove_booking_party(booking_id: int, party_id: int, db: Session = Depends(g
     if not result.success:
         raise HTTPException(422, detail=result.message)
     return {"success": True}
+
+
+@router.get('/{booking_id}/people')
+def booking_people(booking_id: int, db: Session = Depends(get_db)):
+    return party_service.view(db, booking_id)
+
+
+@router.post('/{booking_id}/people')
+def add_booking_person(booking_id: int, person_id: int = Form(...), roles: list[str] = Form([]),
+                       confirm_sepa_review: bool = Form(False), db: Session = Depends(get_db)):
+    return change_booking_functions(db, booking_id, person_id, roles, 'add', confirm_sepa_review)
+
+
+@router.post('/{booking_id}/people/{person_id}/roles')
+def edit_booking_functions(booking_id: int, person_id: int, roles: list[str] = Form([]),
+                           confirm_sepa_review: bool = Form(False), db: Session = Depends(get_db)):
+    return change_booking_functions(db, booking_id, person_id, roles, 'replace', confirm_sepa_review)
+
+
+@router.post('/{booking_id}/people/{person_id}/remove')
+def unlink_booking_person(booking_id: int, person_id: int, confirm_sepa_review: bool = Form(False), db: Session = Depends(get_db)):
+    return change_booking_functions(db, booking_id, person_id, [], 'unlink', confirm_sepa_review)
+
+
+def change_booking_functions(db, booking_id, person_id, roles, mode, confirmed):
+    try:
+        return party_service.change_functions(db, booking_id, person_id, roles, mode=mode, confirm_sepa_review=confirmed)
+    except ValueError as exc:
+        if str(exc) == 'sepa_review_required':
+            raise HTTPException(409, detail='El cambio de responsable de pago requiere revisar el mandato SEPA vinculado. El mandato y sus datos bancarios se conservarán. ¿Continuar y revisarlo en Configuración SEPA?') from None
+        raise HTTPException(422, detail=str(exc)) from None

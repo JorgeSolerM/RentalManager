@@ -6,7 +6,7 @@
 {% block main_class %}gantt-main{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', path='css/gantt.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', path='css/gantt.css') }}?v=person-links-1">
 <section class="gantt-page" aria-label="Reservas por habitación">
  <div class="gantt-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
   <p class="text-muted mb-0">Reservas por habitación.</p>
@@ -32,6 +32,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-finance-2"></script>
-<script src="{{ url_for('static', path='js/gantt.js') }}"></script>
+<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-functions-1"></script>
+<script src="{{ url_for('static', path='js/gantt.js') }}?v=person-links-1"></script>
 {% endblock %}

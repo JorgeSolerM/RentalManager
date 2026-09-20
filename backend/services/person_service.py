@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from backend.core.business_time import business_today
 from backend.core.operation_result import OperationResult
 from backend.core.iban import is_valid_iban, normalize_iban
+from backend.core.countries import normalize_nationality
 from backend.models.person import Person
 from backend.repositories.person_repository import PersonRepository
 
@@ -23,13 +24,13 @@ class PersonService:
         full_name = self._optional(values.get("full_name"))
         if not full_name:
             return "person_full_name_required"
-        birth_date = values.get("birth_date")
+        birth_date = values.get("birth_date", person.birth_date)
         if birth_date and birth_date > business_today():
             return "person_birth_date_future"
         document_type = self._optional(values.get("document_type"))
         if document_type and document_type not in {"dni", "nie", "passport", "other"}:
             return "person_document_type_invalid"
-        verification = values.get("verification_status", "unverified")
+        verification = values.get("verification_status", person.verification_status or "unverified")
         if verification not in {"unverified", "verified"}:
             return "person_verification_invalid"
         person.full_name = full_name
@@ -44,8 +45,13 @@ class PersonService:
         person.document_type = document_type
         document = self._optional(values.get("document_number"))
         person.document_number = document.upper() if document else None
-        for field in ("document_issuer_country", "nationality", "country"):
-            country = self._optional(values.get(field))
+        nationality = self._optional(values.get('nationality'))
+        normalized_nationality = normalize_nationality(nationality)
+        if nationality and normalized_nationality is None and nationality != person.nationality:
+            return 'person_nationality_invalid'
+        person.nationality = normalized_nationality or nationality
+        for field in ("document_issuer_country", "country"):
+            country = self._optional(values.get(field, getattr(person, field)))
             if country and len(country) != 2:
                 return "person_country_code_invalid"
             setattr(person, field, country.upper() if country else None)

@@ -1,4 +1,3 @@
-from datetime import date
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -8,12 +7,14 @@ from sqlalchemy.orm import Session
 
 from backend.database.session import get_db
 from backend.core.business_time import business_today
+from backend.core.countries import nationality_label, nationality_options
 from backend.services.person_service import PersonService
 from backend.services.sepa_service import SepaService
 
 
 router = APIRouter(prefix="/persons")
 templates = Jinja2Templates(directory="backend/templates")
+templates.env.globals.update(nationality_label=nationality_label, nationality_options=nationality_options)
 service = PersonService()
 sepa_service = SepaService()
 
@@ -138,19 +139,19 @@ def edit_person(request: Request, person_id: int, db: Session = Depends(get_db))
     return templates.TemplateResponse(request=request, name="pages/person_form.html", context={"request": request, "person": person})
 
 
-def _save(db, person_id, full_name, display_name, phone, email, iban, document_type, document_number, document_issuer_country, birth_date, nationality, address_line, postal_code, city, province, country, notes, verification_status, active):
-    return service.save(db, person_id, full_name=full_name, display_name=display_name, phone=phone, email=email, iban=iban, document_type=document_type, document_number=document_number, document_issuer_country=document_issuer_country, birth_date=birth_date, nationality=nationality, address_line=address_line, postal_code=postal_code, city=city, province=province, country=country, notes=notes, verification_status=verification_status, active=active)
+def _save(db, person_id, full_name, display_name, phone, email, iban, document_type, document_number, nationality, address_line, postal_code, city, province, country, notes, active):
+    return service.save(db, person_id, full_name=full_name, display_name=display_name, phone=phone, email=email, iban=iban, document_type=document_type, document_number=document_number, nationality=nationality, address_line=address_line, postal_code=postal_code, city=city, province=province, country=country, notes=notes, active=active)
 
 
 @router.post("/create")
-def create_person(full_name: str = Form(...), display_name: str = Form(""), phone: str = Form(""), email: str = Form(""), iban: str = Form(""), document_type: str = Form(""), document_number: str = Form(""), document_issuer_country: str = Form(""), birth_date: date | None = Form(None), nationality: str = Form(""), address_line: str = Form(""), postal_code: str = Form(""), city: str = Form(""), province: str = Form(""), country: str = Form(""), notes: str = Form(""), verification_status: str = Form("unverified"), active: bool = Form(False), db: Session = Depends(get_db)):
-    result = _save(db, None, full_name, display_name, phone, email, iban, document_type, document_number, document_issuer_country, birth_date, nationality, address_line, postal_code, city, province, country, notes, verification_status, active)
+def create_person(full_name: str = Form(...), display_name: str = Form(""), phone: str = Form(""), email: str = Form(""), iban: str = Form(""), document_type: str = Form(""), document_number: str = Form(""), nationality: str = Form(""), address_line: str = Form(""), postal_code: str = Form(""), city: str = Form(""), province: str = Form(""), country: str = Form(""), notes: str = Form(""), active: bool = Form(False), db: Session = Depends(get_db)):
+    result = _save(db, None, full_name, display_name, phone, email, iban, document_type, document_number, nationality, address_line, postal_code, city, province, country, notes, active)
     return RedirectResponse(f"/persons/{result.data.id}" if result.success else f"/persons/new?error={result.message}", 303)
 
 
 @router.post("/{person_id}/update")
-def update_person(person_id: int, full_name: str = Form(...), display_name: str = Form(""), phone: str = Form(""), email: str = Form(""), iban: str = Form(""), document_type: str = Form(""), document_number: str = Form(""), document_issuer_country: str = Form(""), birth_date: date | None = Form(None), nationality: str = Form(""), address_line: str = Form(""), postal_code: str = Form(""), city: str = Form(""), province: str = Form(""), country: str = Form(""), notes: str = Form(""), verification_status: str = Form("unverified"), active: bool = Form(False), db: Session = Depends(get_db)):
-    result = _save(db, person_id, full_name, display_name, phone, email, iban, document_type, document_number, document_issuer_country, birth_date, nationality, address_line, postal_code, city, province, country, notes, verification_status, active)
+def update_person(person_id: int, full_name: str = Form(...), display_name: str = Form(""), phone: str = Form(""), email: str = Form(""), iban: str = Form(""), document_type: str = Form(""), document_number: str = Form(""), nationality: str = Form(""), address_line: str = Form(""), postal_code: str = Form(""), city: str = Form(""), province: str = Form(""), country: str = Form(""), notes: str = Form(""), active: bool = Form(False), db: Session = Depends(get_db)):
+    result = _save(db, person_id, full_name, display_name, phone, email, iban, document_type, document_number, nationality, address_line, postal_code, city, province, country, notes, active)
     return RedirectResponse(f"/persons/{person_id}?{'success=person_saved' if result.success else 'error='+result.message}", 303)
 
 

@@ -88,7 +88,8 @@ def test_booking_create_list_and_get_use_overridden_temporary_database(
     assert booking is not None
     assert booking.guest_id is None
     assert booking.source_guest_name == "Ana Pérez"
-    assert booking.parties[0].role == "unclassified"
+    assert {party.role for party in booking.parties} == {"tenant", "payer", "occupant"}
+    assert len({party.person_id for party in booking.parties}) == 1
     assert booking.parties[0].person.full_name == "Ana Pérez"
     assert booking.check_in == date(2026, 9, 10)
     assert list_response.status_code == 200
@@ -100,11 +101,11 @@ def test_booking_create_list_and_get_use_overridden_temporary_database(
         "guest_name": "Ana Pérez",
         "source_guest_name": "Ana Pérez",
         "parties": [{
-            "id": booking.parties[0].id,
-            "person_id": booking.parties[0].person_id,
+            "id": party.id,
+            "person_id": party.person_id,
             "person_name": "Ana Pérez",
-            "role": "unclassified",
-        }],
+            "role": party.role,
+        } for party in booking.parties],
         "origin": "manual",
         "check_in": "2026-09-10",
         "check_out": "2026-09-15",
@@ -209,7 +210,7 @@ def test_roles_then_manual_update_without_guest_name_are_independent(
     client, db_session
 ):
     room = create_room(db_session)
-    client.post("/bookings/create", data=booking_data(room.id))
+    client.post("/bookings/create", data=booking_data(room.id, initial_roles_present='true', initial_roles=['tenant']))
     booking = db_session.scalar(select(Booking))
     person = booking.parties[0].person
     initial_party = booking.parties[0]
@@ -279,8 +280,9 @@ def test_booking_form_validation_redirects_normal_ui_instead_of_raw_json(
 
 
 def test_deleted_manual_booking_disappears_from_workspace_and_gantt(
-    client, db_session
+    client, db_session, monkeypatch
 ):
+    monkeypatch.setattr('backend.services.booking_service.business_today', lambda: date(2026, 9, 1))
     room = create_room(db_session)
     client.post(
         "/bookings/create",
@@ -403,8 +405,9 @@ def test_booking_is_visible_when_every_request_uses_an_independent_session(tmp_p
 
 
 def test_booking_overlap_uses_error_redirect_and_keeps_original_contract(
-    client, db_session
+    client, db_session, monkeypatch
 ):
+    monkeypatch.setattr('backend.services.booking_service.business_today', lambda: date(2026, 9, 1))
     room = create_room(db_session)
     first = client.post(
         "/bookings/create", data=booking_data(room.id), follow_redirects=False

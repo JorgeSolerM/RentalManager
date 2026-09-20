@@ -73,8 +73,9 @@ def test_new_person_party_and_booking_are_atomic_without_name_deduplication(
     parties = db_session.scalars(select(BookingParty)).all()
     assert len(persons) == 2
     assert [person.full_name for person in persons] == ["Ana Pérez", "Ana Pérez"]
-    assert len(parties) == 2
-    assert {party.role for party in parties} == {"unclassified"}
+    assert len(parties) == 6
+    for booking in (first.data, second.data):
+        assert {party.role for party in parties if party.booking_id == booking.id} == {"tenant", "payer", "occupant"}
     assert first.data.guest_id is None and second.data.guest_id is None
     assert len(db_session.scalars(select(Booking)).all()) == 2
 
@@ -138,9 +139,10 @@ def test_failed_booking_update_leaves_no_person_role_or_partial_changes(
     assert persisted.notes == "Original"
     assert persisted.price == 100
     assert persisted.source_guest_name == "Original"
-    assert [(party.person.full_name, party.role) for party in persisted.parties] == [
-        ("Original", "unclassified")
-    ]
+    assert {(party.person.full_name, party.role) for party in persisted.parties} == {
+        ("Original", "tenant"), ("Original", "payer"), ("Original", "occupant")
+    }
+    assert len(persisted.parties) == 3
     assert db_session.scalar(
         select(Person).where(Person.full_name == "Guest Nuevo")
     ) is None
@@ -158,7 +160,7 @@ def test_failed_entity_update_restores_previous_values(
         call = lambda: service.update_property(
             db_session, entity.id, "Cambiada", None, entity.street,
             entity.street_number, entity.floor, entity.door, entity.city,
-            entity.owner, entity.notes,
+            entity.notes,
         )
         expected = lambda: db_session.get(Property, entity.id).name == "Piso Uno"
     elif service_kind == "room":

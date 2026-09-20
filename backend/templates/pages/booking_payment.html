@@ -1,9 +1,10 @@
+{% from "components/booking_person_links.html" import booking_names %}
 {% extends 'layouts/base.html' %}
 {% block title %}Registrar pago · RentalManager{% endblock %}
 {% block content %}
 <a href="/bookings/{{ booking.id }}/finance">← Cuenta económica · {{ booking.room.code }}</a>
 <h1 class="h3 mt-3">Registrar pago</h1>
-<p>{{ booking.operational_person_name }} · Reserva {{ booking.id }}</p>
+<p>{{ booking_names(booking) }} · Reserva {{ booking.id }}</p>
 {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
 {% for batch_id,warning in warnings %}<div class="alert alert-warning">{{ warning }} <a href="/collections/{{ batch_id }}">Ver remesa</a></div>{% endfor %}
 <form class="card card-body" method="post" action="/bookings/{{ booking.id }}/finance/payments/{{ 'register' if rows is not none else 'preview' }}">

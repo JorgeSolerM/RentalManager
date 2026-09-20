@@ -1,0 +1,4 @@
+{% macro person_names(people, fallback) -%}
+{% if people %}{% for person in people %}{% if not loop.first %}, {% endif %}<a class="booking-person-link" href="/persons/{{ person.id }}">{{ person.name }}</a>{% endfor %}{% else %}{{ fallback }}{% endif %}
+{%- endmacro %}
+{% macro booking_names(booking) -%}{{ person_names(booking.person_links, booking.operational_person_name) }}{%- endmacro %}

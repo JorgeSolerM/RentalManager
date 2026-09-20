@@ -1,7 +1,8 @@
+{% from "components/booking_person_links.html" import booking_names %}
 {% extends "layouts/base.html" %}
 {% block title %}Configuración SEPA · Reserva {{ booking.id }}{% endblock %}
 {% block content %}
-<div class="mb-4"><a href="/rooms/{{ booking.room_id }}">← Volver a la habitación</a><h1 class="h3 mt-2">Configuración SEPA</h1><p class="text-muted mb-0">Reserva {{ booking.id }} · {{ booking.room.property.name }} · {{ booking.operational_person_name }}</p></div>
+<div class="mb-4"><a href="/rooms/{{ booking.room_id }}">← Volver a la habitación</a><h1 class="h3 mt-2">Configuración SEPA</h1><p class="text-muted mb-0">Reserva {{ booking.id }} · {{ booking.room.property.name }} · {{ booking_names(booking) }}</p></div>
 
 <section class="card card-body mb-4"><h2 class="h5">Mandato predeterminado</h2>
 {% if active_link %}<p><strong>{{ active_link.mandate.mandate_reference }}</strong> · {{ active_link.mandate.debtor_name }} · {{ active_link.mandate.creditor_profile.display_name }}</p><form method="post" action="/sepa/bookings/{{ booking.id }}/unlink"><button class="btn btn-outline-danger">Desvincular mandato</button></form>{% else %}<p class="text-muted">No hay un mandato seleccionado para futuros cobros.</p>{% endif %}

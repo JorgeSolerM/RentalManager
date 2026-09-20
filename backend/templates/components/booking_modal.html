@@ -12,7 +12,7 @@
                     Nueva reserva
                 </h5>
 
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar reserva"></button>
 
             </div>
 
@@ -29,9 +29,17 @@
                     </label>
 
                     <input type="text" class="form-control" id="bookingGuestName" name="guest_name" required autofocus>
-                    <div class="form-text" id="bookingGuestNameHelp">En una reserva nueva se creará una persona sin clasificar. Después podrás asignar sus roles.</div>
+                    <div class="form-text" id="bookingGuestNameHelp">Una persona con las funciones que selecciones para esta reserva.</div>
 
                 </div>
+
+                <fieldset id="bookingInitialFunctions" class="mb-3">
+                    <legend class="fs-6">Funciones en la reserva</legend>
+                    <input type="hidden" name="initial_roles_present" value="true">
+                    {% for role,label in [('tenant','Arrendatario'),('payer','Responsable de pago'),('occupant','Ocupante')] %}
+                    <label class="d-block py-1"><input class="form-check-input me-2" type="checkbox" name="initial_roles" value="{{ role }}" checked> {{ label }}</label>
+                    {% endfor %}
+                </fieldset>
 
                 <div class="row">
 
@@ -58,12 +66,13 @@
                 </div>
 
                 <fieldset class="mt-3 border rounded p-3 d-none" id="bookingPartiesSection">
-                    <legend class="float-none w-auto px-1 fs-6 mb-2">Personas y roles</legend>
+                    <legend class="float-none w-auto px-1 fs-6 mb-2">Personas y funciones</legend>
+                    <div id="bookingPartyWarning" class="alert alert-warning d-none" role="status"></div>
                     <div id="bookingPartiesList" class="mb-3" aria-live="polite"></div>
                     <div class="row g-2 align-items-end">
                         <div class="col-md-7"><label class="form-label" for="bookingPartyPerson">Persona</label><select class="form-select" id="bookingPartyPerson"><option value="">Selecciona una persona</option></select></div>
-                        <div class="col-md-3"><label class="form-label" for="bookingPartyRole">Rol</label><select class="form-select" id="bookingPartyRole"><option value="tenant">Arrendatario</option><option value="occupant">Ocupante</option><option value="payer">Responsable de pago</option><option value="guarantor">Avalista</option><option value="unclassified">Sin clasificar</option></select></div>
-                        <div class="col-md-2"><button class="btn btn-outline-primary w-100" id="bookingPartyAdd" type="button">Añadir</button></div>
+                        <div class="col-12"><fieldset id="bookingPartyFunctions"><legend class="fs-6">Funciones en la reserva</legend>{% for role,label in [('tenant','Arrendatario'),('payer','Responsable de pago'),('occupant','Ocupante'),('guarantor','Avalista')] %}<label class="d-block py-1"><input class="form-check-input me-2" type="checkbox" value="{{ role }}"> {{ label }}</label>{% endfor %}</fieldset></div>
+                        <div class="col-12"><button class="btn btn-outline-primary" id="bookingPartyAdd" type="button">Añadir persona</button></div>
                     </div>
                     <a class="small d-inline-block mt-2" href="/persons/new" target="_blank" rel="noopener">Crear inquilino</a>
                 </fieldset>

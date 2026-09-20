@@ -12,7 +12,6 @@ from backend.models.room import Room
 from backend.models.room_calendar import RoomCalendar
 from backend.repositories.booking_repository import BookingRepository
 from backend.services.booking_service import BookingService
-from backend.core.business_time import business_today
 
 
 def make_room(db_session, code="H01", active=True):
@@ -53,7 +52,8 @@ def create_manual(
     ],
     ids=["exact", "partial_left", "partial_right", "contained", "contains"],
 )
-def test_overlap_shapes_are_rejected_cleanly(db_session, check_in, check_out):
+def test_overlap_shapes_are_rejected_cleanly(db_session, check_in, check_out, monkeypatch):
+    monkeypatch.setattr('backend.services.booking_service.business_today', lambda: date(2026, 9, 1))
     room = make_room(db_session)
     service = BookingService()
     create_manual(
@@ -71,7 +71,8 @@ def test_overlap_shapes_are_rejected_cleanly(db_session, check_in, check_out):
     assert len(db_session.scalars(select(Booking)).all()) == 1
 
 
-def test_expected_dates_do_not_change_contractual_overlap_rules(db_session):
+def test_expected_dates_do_not_change_contractual_overlap_rules(db_session, monkeypatch):
+    monkeypatch.setattr('backend.services.booking_service.business_today', lambda: date(2026, 9, 1))
     room = make_room(db_session)
     service = BookingService()
     existing = create_manual(
@@ -139,11 +140,11 @@ def test_repository_excludes_booking_during_overlap_check(db_session):
     repository = BookingRepository()
     assert repository.has_overlap(
         db_session, room.id, booking.check_in, booking.check_out,
-        business_today(),
+        date(2026, 9, 1),
     )
     assert not repository.has_overlap(
         db_session, room.id, booking.check_in, booking.check_out,
-        business_today(),
+        date(2026, 9, 1),
         exclude_booking_id=booking.id,
     )
 
@@ -255,7 +256,8 @@ def test_edit_does_not_conflict_with_itself(db_session):
     assert result.success
 
 
-def test_edit_invading_another_booking_is_rejected_without_partial_changes(db_session):
+def test_edit_invading_another_booking_is_rejected_without_partial_changes(db_session, monkeypatch):
+    monkeypatch.setattr('backend.services.booking_service.business_today', lambda: date(2026, 9, 1))
     room = make_room(db_session)
     service = BookingService()
     first = create_manual(

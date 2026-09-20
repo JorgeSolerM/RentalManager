@@ -16,7 +16,7 @@ from backend.schemas.dashboard_schema import (
     DashboardSummary,
 )
 from backend.services.room_calendar_sync_runner import RoomCalendarSyncRunner
-from backend.core.booking_person_name import booking_person_name
+from backend.core.booking_person_name import booking_person_name, booking_person_links
 
 
 MOVEMENT_DAYS = 14
@@ -59,6 +59,7 @@ class DashboardService:
             date=movement_date,
             days_remaining=max(0, (movement_date - today).days),
             guest_name=booking_person_name(booking),
+            people=booking_person_links(booking),
             origin_name=name,
             origin_slug=slug,
             favicon=favicon,

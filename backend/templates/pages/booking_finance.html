@@ -1,3 +1,4 @@
+{% from "components/booking_person_links.html" import booking_names %}
 {% extends "layouts/base.html" %}
 {% block title %}Cuenta económica · {{ booking.operational_person_name }} · RentalManager{% endblock %}
 {% block content %}
@@ -5,7 +6,7 @@
   <div>
     <a class="small" href="/rooms/{{ booking.room_id }}">← Volver a {{ booking.room.code }}</a>
     <h1 class="h3 mt-2 mb-1">Cuenta económica</h1>
-    <p class="text-muted mb-0">{{ booking.operational_person_name }} · {{ booking.check_in.strftime('%d/%m/%Y') }} – {{ booking.check_out.strftime('%d/%m/%Y') }}</p>
+    <p class="text-muted mb-0">{{ booking_names(booking) }} · {{ booking.check_in.strftime('%d/%m/%Y') }} – {{ booking.check_out.strftime('%d/%m/%Y') }}</p>
   </div>
   {% if booking.origin != 'manual' %}<span class="badge text-bg-info">Economía gestionada localmente</span>{% endif %}
 </div>

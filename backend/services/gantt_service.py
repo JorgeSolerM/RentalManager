@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from backend.core.business_time import business_today
 from backend.core.booking_overlap import intervals_overlap, is_operational_overlap
 from backend.repositories.gantt_repository import GanttRepository
-from backend.core.booking_person_name import booking_person_name
+from backend.core.booking_person_name import booking_person_name, booking_person_links
 from backend.schemas.gantt_schema import (
     GanttBooking,
     GanttData,
@@ -173,6 +173,7 @@ class GanttService:
                         check_in=booking.check_in,
                         check_out=booking.check_out,
                         guest_name=booking_person_name(booking),
+                        people=booking_person_links(booking),
                         origin=GanttOrigin(
                             slug=slug,
                             name=name,

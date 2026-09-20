@@ -78,19 +78,26 @@ const RMGantt = {
         const timeline=document.createElement("div");timeline.className="gantt-timeline gantt-room-timeline";timeline.style.cssText=`width:${width}px;height:${height}px`;this.addMonthBoundaries(timeline);for(const booking of room.bookings)timeline.append(this.bookingBar(booking));this.addTodayLine(timeline);row.append(label,timeline);return row;
     },
     bookingBar(booking){
-        const bar=document.createElement("button");bar.type="button";bar.className="gantt-booking";if(booking.overlap_kind)bar.classList.add(`gantt-overlap-${booking.overlap_kind}`);
+        const bar=document.createElement("div");bar.className="gantt-booking";const opener=document.createElement("button");opener.type="button";opener.className="gantt-booking-open";bar.append(opener);if(booking.overlap_kind)bar.classList.add(`gantt-overlap-${booking.overlap_kind}`);
         const hue=[...booking.origin.color_key].reduce((v,c)=>(v*31+c.charCodeAt(0))%360,17),visibleStart=booking.check_in<this.data.window.start?this.data.window.start:booking.check_in,visibleEnd=booking.check_out>this.data.window.end?this.data.window.end:booking.check_out,left=this.datePosition(visibleStart),width=this.datePosition(visibleEnd)-left,paintedWidth=Math.max(2,width),inset=Math.min(1,paintedWidth/4),leftInset=booking.check_in<this.data.window.start?0:inset,rightInset=booking.check_out>this.data.window.end?0:inset;
         bar.style.cssText=`left:${left}px;width:${paintedWidth}px;top:${booking.lane*34+2}px`;
         const visual=document.createElement("span");visual.className="gantt-booking-visual";visual.classList.add(booking.origin.slug==="manual"?"gantt-origin-manual":"gantt-origin-platform");visual.style.cssText=`--origin-hue:${hue};--booking-inset-left:${leftInset}px;--booking-inset-right:${rightInset}px`;
         this.fillBookingContent(visual,booking,Math.max(0,paintedWidth-leftInset-rightInset));bar.append(visual);
-        const overlap=booking.overlap_kind==="historical"?" Coincidencia histórica.":booking.overlap_kind==="operational"?" Anomalía de solapamiento.":"",detail=`${booking.guest_name}. Entrada: ${this.formatDate(booking.check_in)}. Salida: ${this.formatDate(booking.check_out)}. Origen: ${booking.origin.name}. ${booking.editable?"Manual":"Importada, solo lectura"}.${overlap}`;bar.title=detail;bar.setAttribute("aria-label",detail);bar.addEventListener("click",event=>{event.stopPropagation();BookingUI.openEditModal(booking.id,!booking.editable);});return bar;
+        const overlap=booking.overlap_kind==="historical"?" Coincidencia histórica.":booking.overlap_kind==="operational"?" Anomalía de solapamiento.":"",detail=`${booking.guest_name}. Entrada: ${this.formatDate(booking.check_in)}. Salida: ${this.formatDate(booking.check_out)}. Origen: ${booking.origin.name}. ${booking.editable?"Manual":"Importada, solo lectura"}.${overlap}`;bar.title=detail;opener.setAttribute("aria-label",detail);bar.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest(".booking-person-link"))return;BookingUI.openEditModal(booking.id,!booking.editable);});return bar;
     },
     fillBookingContent(bar,booking,width){
         const fullRange=`${this.formatHumanDate(booking.check_in,true)} – ${this.formatHumanDate(booking.check_out,true)}`,shortRange=`${this.formatHumanDate(booking.check_in,false)}–${this.formatHumanDate(booking.check_out,false)}`;
-        if(width>=220){bar.classList.add("gantt-booking-full");bar.append(this.bookingLine(`${booking.guest_name} · ${booking.origin.name}`,"gantt-booking-primary"),this.bookingLine(fullRange,"gantt-booking-dates"));}
-        else if(width>=130){bar.classList.add("gantt-booking-medium");bar.append(this.bookingLine(booking.guest_name,"gantt-booking-primary"),this.bookingLine(shortRange,"gantt-booking-dates"));}
+        if(width>=220){bar.classList.add("gantt-booking-full");bar.append(this.bookingPeople(booking,true),this.bookingLine(fullRange,"gantt-booking-dates"));}
+        else if(width>=130){bar.classList.add("gantt-booking-medium");bar.append(this.bookingPeople(booking,false),this.bookingLine(shortRange,"gantt-booking-dates"));}
         else if(width>=65){bar.classList.add("gantt-booking-short");bar.append(this.bookingLine(shortRange,"gantt-booking-dates"));}
         else{bar.classList.add("gantt-booking-minimal");bar.textContent="•";}
+    },
+    bookingPeople(booking,includeOrigin){
+        const line=document.createElement("span");line.className="gantt-booking-primary";
+        if(booking.people?.length){booking.people.forEach((person,index)=>{if(index)line.append(document.createTextNode(", "));const link=document.createElement("a");link.className="booking-person-link";link.href=`/persons/${person.id}`;link.textContent=person.name;line.append(link);});}
+        else line.textContent=booking.guest_name;
+        if(includeOrigin)line.append(document.createTextNode(` · ${booking.origin.name}`));
+        return line;
     },
     bookingLine(text,className){const line=document.createElement("span");line.className=className;line.textContent=text;return line;},
     addMonthBoundaries(timeline){

@@ -96,6 +96,11 @@ class Booking(Base):
     )
 
     @property
+    def person_links(self):
+        from backend.core.booking_person_name import booking_person_links
+        return booking_person_links(self)
+
+    @property
     def operational_person_name(self) -> str:
         role_order = {"tenant": 0, "occupant": 1, "unclassified": 2, "payer": 3, "guarantor": 4}
         seen = set()

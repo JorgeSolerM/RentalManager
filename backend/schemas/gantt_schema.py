@@ -1,6 +1,7 @@
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from backend.schemas.booking_person_link import BookingPersonLink
 
 
 class GanttWindow(BaseModel):
@@ -22,6 +23,7 @@ class GanttBooking(BaseModel):
     check_in: date
     check_out: date
     guest_name: str
+    people: list[BookingPersonLink] = Field(default_factory=list)
     origin: GanttOrigin
     editable: bool
     historical: bool
@@ -58,4 +60,3 @@ class GanttData(BaseModel):
     schema_version: int = 1
     window: GanttWindow
     properties: list[GanttProperty]
-

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from backend.schemas.booking_person_link import BookingPersonLink
 
 
 class DashboardSummary(BaseModel):
@@ -21,6 +22,7 @@ class DashboardMovement(BaseModel):
     date: date
     days_remaining: int
     guest_name: str
+    people: list[BookingPersonLink] = Field(default_factory=list)
     origin_name: str
     origin_slug: str
     favicon: str | None = None

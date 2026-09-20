@@ -1,3 +1,4 @@
+{% from "components/booking_person_links.html" import person_names %}
 {% extends "layouts/base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
@@ -20,7 +21,7 @@
   <section class="dashboard-card" aria-labelledby="movementTitle{{ loop.index }}">
    <div class="dashboard-card-header"><h3 id="movementTitle{{ loop.index }}">{{ title }}</h3><span>14 días</span></div>
    {% if items %}<div class="dashboard-list">{% for item in items %}
-    <div class="dashboard-movement-row"><span class="dashboard-days-remaining">{% if item.days_remaining == 0 %}Hoy{% elif item.days_remaining == 1 %}Mañana{% else %}{{ item.days_remaining }} días{% endif %}</span><div class="dashboard-movement-main"><a class="rm-object-link" href="/rooms/{{ item.room_id }}">{{ item.room_code }}</a><span>{{ item.property_name }}</span></div><div class="dashboard-booking-main"><a href="#bookingModal" class="booking-link dashboard-booking-link" data-booking-id="{{ item.booking_id }}">{{ item.guest_name }}</a><time datetime="{{ item.date }}">{{ item.date.strftime('%d-%m-%Y') }}</time></div><span class="dashboard-origin">{% if item.favicon %}<img src="{{ item.favicon }}" alt="" class="dashboard-platform-icon">{% endif %}{{ item.origin_name }}</span></div>
+    <div class="dashboard-movement-row"><span class="dashboard-days-remaining">{% if item.days_remaining == 0 %}Hoy{% elif item.days_remaining == 1 %}Mañana{% else %}{{ item.days_remaining }} días{% endif %}</span><div class="dashboard-movement-main"><a class="rm-object-link" href="/rooms/{{ item.room_id }}">{{ item.room_code }}</a><span>{{ item.property_name }}</span></div><div class="dashboard-booking-main"><span>{{ person_names(item.people, item.guest_name) }}</span><a href="#bookingModal" class="booking-link dashboard-booking-link" data-booking-id="{{ item.booking_id }}" aria-label="Abrir reserva {{ item.booking_id }}"><time datetime="{{ item.date }}">{{ item.date.strftime('%d-%m-%Y') }}</time></a></div><span class="dashboard-origin">{% if item.favicon %}<img src="{{ item.favicon }}" alt="" class="dashboard-platform-icon">{% endif %}{{ item.origin_name }}</span></div>
    {% endfor %}</div>{% else %}<p class="dashboard-empty">{{ empty_text }}</p>{% endif %}
   </section>
  {% endfor %}
@@ -38,4 +39,4 @@
 </section>
 {% include "components/booking_modal.html" %}
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-finance-2"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-functions-1"></script>{% endblock %}

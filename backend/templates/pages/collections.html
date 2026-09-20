@@ -1,3 +1,4 @@
+{% from "components/booking_person_links.html" import booking_names %}
 {% extends "layouts/base.html" %}
 {% block title %}Cobros · RentalManager{% endblock %}
 {% block content %}
@@ -42,7 +43,7 @@
 {% for id in property_ids %}<input type="hidden" name="property_ids" value="{{ id }}">{% endfor %}
 <div class="card table-responsive mb-3"><table class="table table-sm align-middle mb-0"><thead><tr><th><input type="checkbox" data-select-all="charge_ids" aria-label="Seleccionar cargos elegibles"></th><th>Inquilino</th><th>Finca / habitación</th><th>Concepto</th><th>Vencimiento</th><th>Pendiente</th><th>Acreedor</th><th>Mandato / IBAN</th><th>Elegibilidad</th></tr></thead><tbody>
 {% for row in rows %}<tr><td><input type="checkbox" name="charge_ids" value="{{ row.charge.id }}" aria-label="Seleccionar cargo {{ row.charge.id }}" {% if row.eligible %}checked{% else %}disabled{% endif %}></td>
-<td>{{ row.booking.operational_person_name }}</td><td>{{ row.booking.room.property.name }}<small class="d-block">{{ row.booking.room.code }}</small></td>
+<td>{{ booking_names(row.booking) }}</td><td>{{ row.booking.room.property.name }}<small class="d-block">{{ row.booking.room.code }}</small></td>
 <td><a href="/bookings/{{ row.booking.id }}/finance">{{ row.charge.concept }}</a></td><td>{{ row.charge.due_date.strftime('%d/%m/%Y') }}</td><td class="text-nowrap">{{ '%.2f'|format(row.amount) }} €</td><td>{{ row.profile.display_name if row.profile else '—' }}</td><td>{{ row.mandate.mandate_reference if row.mandate else '—' }}<small class="d-block text-nowrap">{{ row.masked_iban }}</small></td><td>{{ row.reason }}</td></tr>
 {% else %}<tr><td colspan="9" class="p-4 text-muted">No hay cargos contabilizados para este periodo.</td></tr>{% endfor %}
 </tbody></table></div>

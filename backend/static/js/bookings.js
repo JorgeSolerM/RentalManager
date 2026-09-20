@@ -35,7 +35,9 @@ const BookingUI = {
         this.partiesSection = document.getElementById("bookingPartiesSection");
         this.partiesList = document.getElementById("bookingPartiesList");
         this.partyPerson = document.getElementById("bookingPartyPerson");
-        this.partyRole = document.getElementById("bookingPartyRole");
+        this.initialFunctions = document.getElementById("bookingInitialFunctions");
+        this.partyFunctions = document.getElementById("bookingPartyFunctions");
+        this.partyWarning = document.getElementById("bookingPartyWarning");
         this.partyAdd = document.getElementById("bookingPartyAdd");
 
         this.checkIn = document.getElementById("bookingCheckIn");
@@ -134,7 +136,7 @@ const BookingUI = {
 
             this.fillForm(booking);
             await this.loadPersonOptions();
-            this.renderParties(booking.parties || []);
+            await this.reloadParties();
             this.partiesSection.classList.remove("d-none");
 
             const imported = readOnly || booking.editable === false;
@@ -164,6 +166,8 @@ const BookingUI = {
         this.importedGuestMode = readOnly;
 
         const creating = this.form.action.endsWith("/bookings/create");
+        this.initialFunctions.classList.toggle('d-none', !creating);
+        this.initialFunctions.disabled = !creating;
 
         this.guestNameGroup.classList.toggle("d-none", !creating && !readOnly);
         this.guestName.disabled = !creating && !readOnly;
@@ -193,7 +197,7 @@ const BookingUI = {
         this.guestNameLabel.textContent = readOnly ? "Nombre recibido de la plataforma" : "Inquilino inicial";
         this.guestNameHelp.textContent = readOnly
             ? "Este texto procede de la plataforma y no puede modificarse aquí."
-            : "Se creará una persona sin clasificar. Después podrás asignar sus roles.";
+            : "Una persona con las funciones que selecciones para esta reserva.";
 
         this.title.textContent = readOnly
             ? "Detalle de reserva importada"
@@ -272,38 +276,92 @@ const BookingUI = {
             this.partiesList.innerHTML = '<p class="text-muted small mb-0">No hay personas vinculadas.</p>';
             return;
         }
-        const groups = ["tenant", "occupant", "payer", "guarantor", "unclassified"];
-        groups.forEach(group => {
-          const groupedParties = parties.filter(party => party.role === group);
-          if (!groupedParties.length) return;
-          const heading = document.createElement("h6");
-          heading.className = "small text-muted mt-2 mb-1";
-          heading.textContent = this.roleLabel(group);
-          this.partiesList.append(heading);
-          groupedParties.forEach(party => {
-            const row = document.createElement("div");
-            row.className = "d-flex justify-content-between align-items-center gap-2 border rounded p-2 mb-2";
-            const copy = document.createElement("div");
-            const link = document.createElement("a"); link.href = `/persons/${party.person_id}`; link.textContent = party.person_name; link.target = "_blank"; link.rel = "noopener";
-            copy.append(link);
-            const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn btn-sm btn-outline-danger"; remove.textContent = "Retirar rol"; remove.addEventListener("click", () => this.removeParty(party.id));
-            row.append(copy, remove); this.partiesList.append(row);
-          });
+        const people = new Map();
+        parties.forEach(party => {
+            if (!people.has(party.person_id)) people.set(party.person_id, { ...party, roles: [] });
+            people.get(party.person_id).roles.push(party.role);
         });
+        people.forEach(party => {
+            const order = ['tenant', 'payer', 'occupant', 'guarantor', 'unclassified'];
+            party.roles.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+            const row = document.createElement("div");
+            row.className = "border rounded p-2 mb-2";
+            row.dataset.personId = party.person_id;
+            const copy = document.createElement("div");
+            const link = document.createElement("a"); link.className = 'text-break'; link.href = `/persons/${party.person_id}`; link.textContent = party.person_name; link.target = "_blank"; link.rel = "noopener";
+            copy.append(link);
+            const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-link btn-sm'; edit.textContent = '✎'; edit.title = 'Editar funciones'; edit.setAttribute('aria-label', `Editar funciones de ${party.person_name}`);
+            edit.addEventListener('click', () => this.editFunctions(row, party, edit)); copy.append(edit);
+            const badges = document.createElement('div'); badges.className = 'd-flex flex-wrap gap-1 my-1';
+            party.roles.forEach(role => { const badge = document.createElement('span'); badge.className = 'badge text-bg-light'; badge.textContent = this.roleLabel(role); badges.append(badge); });
+            const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn btn-sm btn-link text-danger px-0"; remove.textContent = "Desvincular persona";
+            remove.addEventListener('click', () => {
+                if (RMConfirm.ask('¿Desvincular esta persona y todas sus funciones de la reserva? No se elimina su ficha.')) this.mutatePerson(party.person_id, 'remove', [], remove);
+            });
+            row.append(copy, badges, remove); this.partiesList.append(row);
+        });
+    },
+
+    async reloadParties() {
+        const response = await fetch(`/bookings/${this.bookingId}/people`);
+        if (!response.ok) throw new Error('No se pudieron cargar las funciones.');
+        this.showParties(await response.json());
+    },
+
+    showParties(data) {
+        this.renderParties(data.parties);
+        this.partyWarning.textContent = data.warning || '';
+        this.partyWarning.classList.toggle('d-none', !data.warning);
+    },
+
+    editFunctions(row, party, trigger) {
+        if (row.querySelector('fieldset')) return;
+        trigger.disabled = true;
+        const editor = document.createElement('fieldset'); editor.className = 'mt-2';
+        const legend = document.createElement('legend'); legend.className = 'fs-6'; legend.textContent = 'Funciones en la reserva'; editor.append(legend);
+        const roles = ['tenant', 'payer', 'occupant', 'guarantor'];
+        if (party.roles.includes('unclassified')) roles.push('unclassified');
+        roles.forEach(role => {
+            const label = document.createElement('label'); label.className = 'd-block py-1';
+            const input = document.createElement('input'); input.type = 'checkbox'; input.value = role; input.checked = party.roles.includes(role); input.className = 'form-check-input me-2';
+            input.addEventListener('change', () => {
+                if (input.checked) editor.querySelectorAll('input').forEach(other => { if (other !== input && (role === 'unclassified' || other.value === 'unclassified')) other.checked = false; });
+            });
+            label.append(input, document.createTextNode(this.roleLabel(role))); editor.append(label);
+        });
+        const save = document.createElement('button'); save.type = 'button'; save.className = 'btn btn-primary btn-sm me-2'; save.textContent = 'Guardar funciones';
+        save.addEventListener('click', () => this.mutatePerson(party.person_id, 'roles', [...editor.querySelectorAll('input:checked')].map(i => i.value), save));
+        const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn btn-outline-secondary btn-sm'; cancel.textContent = 'Cancelar';
+        const close = () => { editor.remove(); trigger.disabled = false; trigger.focus(); };
+        cancel.addEventListener('click', close);
+        editor.addEventListener('keydown', event => {
+            if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
+            if (event.key === 'Enter' && event.target.tagName === 'INPUT') { event.preventDefault(); save.click(); }
+        });
+        editor.append(save, cancel); row.append(editor); editor.querySelector('input').focus();
     },
 
     async addParty() {
         if (!this.bookingId || !this.partyPerson.value) return;
-        const body = new FormData(); body.set("person_id", this.partyPerson.value); body.set("role", this.partyRole.value);
-        const response = await fetch(`/bookings/${this.bookingId}/parties`, {method: "POST", body});
-        if (!response.ok) { RMNotification.error("No se ha podido vincular la persona o el rol ya existe."); return; }
-        const party = await response.json(); this.renderParties([...this.currentParties, party]);
+        await this.mutatePerson(this.partyPerson.value, 'add', [...this.partyFunctions.querySelectorAll('input:checked')].map(i => i.value), this.partyAdd);
     },
 
-    async removeParty(partyId) {
-        const response = await fetch(`/bookings/${this.bookingId}/parties/${partyId}/remove`, {method: "POST"});
-        if (!response.ok) { RMNotification.error("No se ha podido retirar el rol."); return; }
-        this.renderParties(this.currentParties.filter(party => party.id !== partyId));
+    async mutatePerson(personId, action, roles, button) {
+        if (action !== 'remove' && !roles.length) { RMNotification.error('Selecciona al menos una función para el inquilino.'); return; }
+        const body = new FormData(); body.set('person_id', personId); roles.forEach(role => body.append('roles', role));
+        const url = `/bookings/${this.bookingId}/people` + (action === 'add' ? '' : `/${personId}/${action}`);
+        button.disabled = true;
+        try {
+            let response = await fetch(url, {method:'POST',body});
+            let data = await response.json();
+            if (response.status === 409) {
+                if (!RMConfirm.ask(data.detail)) return;
+                body.set('confirm_sepa_review','true'); response = await fetch(url,{method:'POST',body}); data = await response.json();
+            }
+            if (!response.ok) { RMNotification.error(typeof data.detail === 'string' ? data.detail : 'No se pudieron guardar las funciones.'); return; }
+            this.showParties(data); this.partyPerson.focus();
+        } catch (error) { RMNotification.error('No se pudieron guardar las funciones. Revisa la conexión e inténtalo de nuevo.'); }
+        finally { button.disabled = false; }
     },
 
     resetModalState() {
@@ -332,7 +390,11 @@ const BookingUI = {
 
         this.title.textContent = "Nueva reserva";
         this.guestNameLabel.textContent = "Inquilino inicial";
-        this.guestNameHelp.textContent = "En una reserva nueva se creará una persona sin clasificar. Después podrás asignar sus roles.";
+        this.guestNameHelp.textContent = "Una persona con las funciones que selecciones para esta reserva.";
+        this.initialFunctions.disabled = false;
+        this.initialFunctions.classList.remove('d-none');
+        this.partyFunctions.querySelectorAll('input').forEach(input => input.checked = false);
+        this.partyWarning.classList.add('d-none');
 
         this.submitButton.textContent = "Guardar";
 
@@ -358,6 +420,11 @@ const BookingUI = {
         const validator = new RMValidator();
 
         if (this.form.action.endsWith("/bookings/create")) {
+            if (!this.initialFunctions.querySelector('input[type=checkbox]:checked')) {
+                RMNotification.error('Selecciona al menos una función para el inquilino.');
+                this.initialFunctions.querySelector('input[type=checkbox]').focus();
+                return false;
+            }
             validator.addRule(
                 this.guestName,
                 value => value.trim() !== "",
