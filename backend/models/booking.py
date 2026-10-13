@@ -155,6 +155,20 @@ class Booking(Base):
     def effective_departure_date(self) -> date:
         return self.expected_departure_date or self.check_out
 
+    early_termination: Mapped['BookingEarlyTermination | None'] = relationship(uselist=False, back_populates='booking')
+
+    @property
+    def economic_check_out(self) -> date:
+        from backend.core.early_termination import economic_end_exclusive
+        return economic_end_exclusive(self.early_termination.economic_last_day) if self.early_termination else self.check_out
+
+    @property
+    def early_termination_label(self):
+        from backend.core.business_time import business_today
+        if not self.early_termination:
+            return None
+        return 'Salida anticipada programada' if self.check_out > business_today() else 'Finalizada anticipadamente'
+
     __table_args__ = (
         Index(
             "uq_bookings_calendar_external_reference",

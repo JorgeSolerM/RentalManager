@@ -129,6 +129,12 @@ const BookingUI = {
             this.resetModalState();
 
             this.bookingId = booking.id;
+            const terminationLink = document.getElementById('bookingEarlyTerminationButton');
+            if (terminationLink) {
+                terminationLink.href = `/bookings/${booking.id}/early-termination`;
+                terminationLink.textContent = booking.early_termination_label || 'Finalizar anticipadamente';
+                terminationLink.classList.toggle('d-none', !booking.early_termination_available && !booking.early_termination_label);
+            }
             this.financeButton.href = `/bookings/${booking.id}/finance`;
             this.financeButton.classList.remove("d-none");
             this.sepaButton.href = `/sepa/bookings/${booking.id}`;
@@ -402,6 +408,7 @@ const BookingUI = {
 
         this.deleteButton.classList.add("d-none");
         this.financeButton.classList.add("d-none");
+        document.getElementById('bookingEarlyTerminationButton')?.classList.add('d-none');
         this.financeButton.href = "#";
         this.sepaButton.classList.add("d-none");
         this.sepaButton.href = "#";

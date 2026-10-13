@@ -8,8 +8,11 @@ from backend.database.session import get_db
 from backend.schemas.booking_schema import BookingResponse
 from backend.services.booking_service import BookingService
 from backend.services.booking_party_service import BookingPartyService
+from backend.core.business_time import business_today
 
 router = APIRouter(prefix="/bookings")
+from backend.api.routers.booking_early_termination import router as early_termination_router
+router.include_router(early_termination_router)
 
 booking_service = BookingService()
 party_service = BookingPartyService()
@@ -79,6 +82,9 @@ def get_booking(
         editable=booking_service.is_manual_booking(booking),
 
         external_block_deletable=booking_service.can_delete_imported_block(booking),
+
+        early_termination_label=booking.early_termination_label,
+        early_termination_available=(booking.check_in <= business_today() < booking.check_out),
 
     )
 

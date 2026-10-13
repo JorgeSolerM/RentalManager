@@ -32,6 +32,8 @@ class BookingResponse(BaseModel):
     editable: bool
 
     external_block_deletable: bool = False
+    early_termination_label: str | None = None
+    early_termination_available: bool = False
 
     model_config = ConfigDict(
         from_attributes=True,

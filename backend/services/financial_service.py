@@ -130,7 +130,7 @@ class FinancialService:
             raise ValueError("financial_terms_not_confirmed")
         rows = cls.preview_monthly_rent(
             check_in=booking.check_in,
-            check_out=booking.check_out,
+            check_out=booking.economic_check_out,
             monthly_rent=terms.monthly_rent,
             usual_due_day=terms.usual_due_day,
             terms_id=terms.id,
@@ -346,7 +346,10 @@ class FinancialService:
         valid = {"rent","security_deposit","reservation_deposit","utilities","extraordinary","discount","deposit_retention"}
         direction = direction or ("credit" if type == "discount" else "debit")
         if type not in valid or direction != ("credit" if type == "discount" else "debit"): return self._fail(db, "charge_invalid_type_or_direction")
-        if db.get(Booking, booking_id) is None: return self._fail(db, "booking_not_found")
+        booking = db.get(Booking, booking_id)
+        if booking is None: return self._fail(db, "booking_not_found")
+        if type == 'rent' and booking.early_termination and (service_period_start is None or service_period_end is None or service_period_end > booking.economic_check_out):
+            return self._fail(db, 'La renta debe indicar un periodo dentro del fin económico aprobado.')
         terms = self.repository.get_terms(db, financial_terms_id) if financial_terms_id else None
         if terms and (terms.booking_id != booking_id or terms.currency != currency): return self._fail(db, "charge_terms_mismatch")
         corrected = self.repository.get_charge(db, corrects_charge_id) if corrects_charge_id else None

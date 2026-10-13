@@ -95,7 +95,9 @@ class MasterCalendarService:
             event.add("uid", f"{booking.ical_uid}@rentalmanager")
             event.add("dtstamp", timestamp)
             event.add("dtstart", booking.check_in)
-            event.add("dtend", booking.check_out + timedelta(days=1))
+            # Legacy exports intentionally add one day (DEC-019). An explicit
+            # administrative early departure instead releases its stated day.
+            event.add("dtend", booking.check_out if booking.early_termination else booking.check_out + timedelta(days=1))
             event.add("summary", "Reserved")
             event.add("status", "CONFIRMED")
             event.add("transp", "OPAQUE")

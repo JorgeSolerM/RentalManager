@@ -28,10 +28,11 @@ class IcalSyncReport:
     cancelled: int
     disappeared: int
     ignored_echoes: int = 0
+    early_termination_conflicts: int = 0
 
     @property
     def has_warnings(self) -> bool:
-        return bool(self.cancelled or self.disappeared)
+        return bool(self.cancelled or self.disappeared or self.early_termination_conflicts)
 
 
 class IcalSyncService:
@@ -90,6 +91,9 @@ class IcalSyncService:
                 final_intervals[key] = (booking.check_in, booking.check_out)
             else:
                 existing_references.add(booking.external_reference)
+                if booking.early_termination:
+                    final_intervals[key] = (booking.check_in, booking.check_out)
+                    continue
                 final_intervals[key] = (event.check_in, event.check_out)
                 if (
                     booking.check_in != event.check_in
@@ -167,7 +171,7 @@ class IcalSyncService:
                 db.rollback()
                 return OperationResult(success=False, message="room_calendar_sync_overlap")
 
-            created = updated = unchanged = 0
+            created = updated = unchanged = termination_conflicts = 0
             sync_at = self.now_factory()
             for uid, event in active_events.items():
                 booking = existing_by_reference.get(uid)
@@ -194,6 +198,11 @@ class IcalSyncService:
                 else:
                     changed = False
                     booking.last_seen_in_feed_at = sync_at
+                    if booking.early_termination:
+                        from backend.services.booking_early_termination_service import protect_imported_dates
+                        termination_conflicts += int(protect_imported_dates(db, booking, event.check_in, event.check_out, sync_at))
+                        unchanged += 1
+                        continue
                     if (
                         booking.check_in != event.check_in
                         or booking.check_out != event.check_out
@@ -240,6 +249,7 @@ class IcalSyncService:
                 cancelled=cancelled,
                 disappeared=disappeared,
                 ignored_echoes=ignored_echoes,
+                early_termination_conflicts=termination_conflicts,
             )
             message = (
                 "room_calendar_sync_completed_with_warnings"

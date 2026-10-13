@@ -251,6 +251,9 @@ class BookingService:
             if not self._is_manual(booking):
                 return self._rejected(db, "booking_imported_read_only", booking)
 
+            if booking.early_termination and (check_in != booking.check_in or check_out != booking.check_out or expected_departure_date not in (None, booking.check_out)):
+                return self._rejected(db, 'Las fechas de una finalización anticipada están protegidas; consulte su historial.', booking)
+
             validation_error = self._validate_booking(
                 db,
                 booking.room_id,
@@ -301,6 +304,9 @@ class BookingService:
             if not self.is_imported_booking(booking):
                 return self._rejected(db, "booking_not_imported", booking)
 
+            if booking.early_termination and expected_departure_date not in (None, booking.check_out):
+                return self._rejected(db, 'La salida anticipada administrativa no se sustituye por una fecha prevista.', booking)
+
             booking.expected_arrival_date = expected_arrival_date
             booking.expected_departure_date = expected_departure_date
 
@@ -338,6 +344,11 @@ class BookingService:
             booking = self.booking_repository.get_by_external_reference(
                 db, calendar.id, reference
             )
+            if booking is not None and booking.early_termination:
+                from backend.services.booking_early_termination_service import protect_imported_dates
+                conflict = protect_imported_dates(db, booking, check_in, check_out)
+                db.commit()
+                return OperationResult(success=True, message='room_calendar_sync_completed_with_warnings' if conflict else 'room_calendar_sync_completed', data=booking)
             validation_error = self._validate_booking(
                 db,
                 calendar.room_id,
@@ -386,6 +397,8 @@ class BookingService:
         db: Session,
         booking: Booking,
     ) -> OperationResult[None]:
+        if booking.early_termination:
+            return self._rejected(db, 'No se puede eliminar una reserva con historial de finalización anticipada.', booking)
         if self.financial_repository.has_posted_activity(db, booking.id):
             return self._rejected(db, "booking_has_posted_financial_activity", booking)
         if self.financial_repository.has_any_records(db, booking.id):

@@ -2,6 +2,7 @@
 {% extends "layouts/base.html" %}
 {% block title %}Cuenta económica · {{ booking.operational_person_name }} · RentalManager{% endblock %}
 {% block content %}
+<div class="mb-3"><a href="/bookings/{{ booking.id }}/early-termination">{{ booking.early_termination_label or 'Finalizar anticipadamente' }}</a>{% if booking.early_termination %}<p class="small mt-2">Salida efectiva: {{ booking.check_out.strftime('%d/%m/%Y') }} · Último día a cargo (incluido): {{ booking.early_termination.economic_last_day.strftime('%d/%m/%Y') }}</p>{% endif %}</div>
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
   <div>
     <a class="small" href="/rooms/{{ booking.room_id }}">← Volver a {{ booking.room.code }}</a>

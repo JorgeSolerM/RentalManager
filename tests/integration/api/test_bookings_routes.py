@@ -8,6 +8,7 @@ from icalendar import Calendar
 from datetime import datetime
 
 from backend.app_factory import create_app
+from backend.core.business_time import business_today
 from backend.database.base import Base
 from backend.database.session import get_db
 from backend.models.booking import Booking
@@ -115,6 +116,8 @@ def test_booking_create_list_and_get_use_overridden_temporary_database(
         "notes": "Reserva de prueba",
         "editable": True,
         "external_block_deletable": False,
+        "early_termination_label": None,
+        "early_termination_available": booking.check_in <= business_today() < booking.check_out,
     }
 
 

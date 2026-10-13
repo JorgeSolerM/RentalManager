@@ -1,0 +1,82 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Finalización anticipada · RentalManager{% endblock %}
+{% block body_class %}owner-economy-page{% endblock %}
+{% block main_class %}owner-economy{% endblock %}
+{% macro proration_control() %}
+  <div class="form-check mt-3">
+    <input class="form-check-input" type="checkbox" id="acceptProration" name="accept_proration" value="yes" form="earlyTerminationForm" {% if form.get('accept_proration') == 'yes' %}checked{% endif %}>
+    <label class="form-check-label" for="acceptProration">He revisado y acepto el prorrateo: renta mensual × días a cargo / días naturales del mes.</label>
+  </div>
+  <button class="btn btn-primary mt-3" type="submit" form="earlyTerminationForm">Volver a revisar</button>
+  <p class="small mt-2 mb-0">Solo actualiza la revisión. No confirma la salida ni guarda cambios.</p>
+{% endmacro %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/owner_economy.css') }}">
+<div class="mx-auto" style="max-width:960px;overflow-wrap:anywhere">
+  <a href="/rooms/{{ booking.room_id }}">← Volver a {{ booking.room.code }}</a>
+  <h1 class="h3 mt-3">{{ booking.early_termination_label or 'Finalizar anticipadamente' }}</h1>
+  <p>Reserva {{ booking.id }} · {{ booking.operational_person_name }} · {{ booking.room.property.name }} / {{ booking.room.code }}</p>
+  <p class="text-muted">Acorta la ocupación sin cancelar la reserva ni borrar su historial. No cancela órdenes bancarias ni devuelve cobros.</p>
+  <a href="/bookings/{{ booking.id }}/finance">Cuenta económica</a> · <a href="/sepa/bookings/{{ booking.id }}">Mandatos SEPA</a>
+  {% if error %}<div class="alert alert-danger mt-3" role="alert">{{ error }}</div>{% endif %}
+  {% if booking.early_termination %}
+    {% set t=booking.early_termination %}
+    <section class="card card-body mt-3"><h2 class="h5">Historial conservado</h2>
+      <dl class="row mb-0">
+        <dt class="col-sm-6">Salida contratada originalmente</dt><dd class="col-sm-6">{{ t.original_check_out.strftime('%d/%m/%Y') }}</dd>
+        <dt class="col-sm-6">Salida efectiva / habitación libre desde</dt><dd class="col-sm-6">{{ t.effective_departure.strftime('%d/%m/%Y') }}</dd>
+        <dt class="col-sm-6">Último día a cargo, incluido</dt><dd class="col-sm-6">{{ t.economic_last_day.strftime('%d/%m/%Y') }}</dd>
+        <dt class="col-sm-6">Registrado</dt><dd class="col-sm-6">{{ t.created_at }} UTC · Acción administrativa</dd>
+        <dt class="col-sm-6">Motivo</dt><dd class="col-sm-6">{{ t.reason or 'No informado' }}</dd>
+        <dt class="col-sm-6">Observaciones</dt><dd class="col-sm-6">{{ t.notes or 'No informadas' }}</dd>
+      </dl>
+      <p class="small mb-0">La fecha original se conserva. No se ha cancelado la Booking ni modificado su economía.</p>
+    </section>
+    {% if t.source_state and (t.source_state.source_check_in != booking.check_in or t.source_state.source_check_out != booking.check_out) %}
+    <div class="alert alert-warning mt-3" role="alert"><strong>Conflicto con la plataforma.</strong> El último feed sigue indicando {{ t.source_state.source_check_in.strftime('%d/%m/%Y') }} – {{ t.source_state.source_check_out.strftime('%d/%m/%Y') }}. Se conserva la salida administrativa. Revise la plataforma: no se ha enviado allí ninguna cancelación ni cambio.</div>
+    {% endif %}
+  {% else %}
+    <form method="post" action="/bookings/{{ booking.id }}/early-termination/preview" class="card card-body mt-3" id="earlyTerminationForm">
+      <p>Salida contratada originalmente: <strong>{{ booking.check_out.strftime('%d/%m/%Y') }}</strong> (día de salida no ocupado).</p>
+      <input type="hidden" name="request_key" value="{{ key }}">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label" for="effectiveDeparture">Fecha de salida efectiva</label><input class="form-control" type="date" id="effectiveDeparture" name="effective_departure" value="{{ form.get('effective_departure','') }}" required><div class="form-text">La habitación queda libre ese día.</div></div>
+        <div class="col-md-6"><label class="form-label" for="economicLastDay">Último día de obligación de pago (incluido)</label><input class="form-control" type="date" id="economicLastDay" name="economic_last_day" value="{{ form.get('economic_last_day','') }}" required><div class="form-text">Se cobra también este día, aunque la habitación ya esté libre.</div></div>
+        <div class="col-12"><label class="form-label" for="departureReason">Motivo (opcional)</label><input class="form-control" id="departureReason" name="reason" maxlength="500" value="{{ form.get('reason','') }}"></div>
+        <div class="col-12"><label class="form-label" for="departureNotes">Observaciones (opcional)</label><textarea class="form-control" id="departureNotes" name="notes" maxlength="4000" rows="2">{{ form.get('notes','') }}</textarea></div>
+      </div>
+      <div class="mt-3"><button class="btn btn-primary" type="submit">Revisar finalización</button></div>
+      <p class="small text-muted mt-2 mb-0">Revisar no guarda ningún cambio. Si ya existen cargos incompatibles, habrá que resolverlos antes.</p>
+    </form>
+    {% if view %}
+    <section class="card card-body mt-3" aria-labelledby="impactTitle"><h2 class="h5" id="impactTitle">Revisión previa</h2>
+      <dl class="row"><dt class="col-sm-6">Salida original</dt><dd class="col-sm-6">{{ view.original_departure.strftime('%d/%m/%Y') }}</dd><dt class="col-sm-6">Nueva salida efectiva</dt><dd class="col-sm-6">{{ view.request.effective_departure }}</dd><dt class="col-sm-6">Último día a cargo, incluido</dt><dd class="col-sm-6">{{ view.request.economic_last_day }}</dd><dt class="col-sm-6">Días de ocupación liberados</dt><dd class="col-sm-6">{{ view.released_days }}</dd></dl>
+      <p>Disponible desde la salida efectiva, sujeto a otras reservas y requisitos comerciales de la habitación.</p>
+      {% if booking.room_calendar_id %}<div class="alert alert-warning">Reserva importada. La decisión local prevalecerá; si el feed mantiene otras fechas, se mostrará un conflicto. Debe revisar también la plataforma.</div>{% endif %}
+      <p>Reservas coincidentes con el intervalo original: {{ view.nearby|length }}. Conflictos que permanecen: {{ view.conflicts|length }}.</p>
+      {% for item in view.nearby %}<p class="small mb-1">Reserva {{ item.id }}: {{ item.check_in }} – {{ item.check_out }}{% if item.id in view.conflicts %} · Conflicto{% endif %}</p>{% endfor %}
+      <h3 class="h6 mt-3">Cargos existentes (se conservan)</h3>
+      <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Cargo</th><th>Periodo</th><th>Estado</th><th>Importe</th><th>Revisión</th></tr></thead><tbody>{% for c in view.charges %}<tr><td>{{ c.id }} · {{ c.concept }}</td><td>{{ c.service_period_start or 'Sin periodo' }} / {{ c.service_period_end or '—' }}<small class="d-block">Fin exclusivo</small></td><td>{{ c.state }}</td><td>{{ '%.2f'|format(c.amount) }} €</td><td>{{ 'Incompatible: resolver antes' if c.affected else 'Se conserva' }}</td></tr>{% else %}<tr><td colspan="5">Sin cargos</td></tr>{% endfor %}</tbody></table></div>
+      <h3 class="h6 mt-3">Pagos y órdenes bancarias</h3>
+      {% for p in view.payments %}<p class="small">Pago {{ p.id }} · {{ p.effective_date }} · {{ '%.2f'|format(p.amount) }} € · {{ p.direction }} / {{ p.lifecycle }}. Sin cambios.</p>{% else %}<p>Sin pagos.</p>{% endfor %}
+      {% for d in view.debits %}<p class="small">Adeudo {{ d.id }} · {{ d.status }} · {{ '%.2f'|format(d.amount) }} €{% if d.id in view.affected_debits %} · Incompatible: revisión bancaria obligatoria{% endif %}</p>{% endfor %}
+      {% for b in view.batches %}<p class="small"><a href="/collections/{{ b.id }}">Remesa {{ b.id }}</a> · {{ b.status }} · {{ b.requested_collection_date }}. XML y estado se conservan.</p>{% endfor %}
+      <p>Mandatos vinculados: {{ view.mandates|length }}. No se eliminan ni modifican.</p>
+      <h3 class="h6 mt-3">Liquidaciones y facturas</h3>
+      <p>{{ view.settlements|length }} liquidaciones y {{ view.invoices|length }} facturas relacionadas con estos cobros. No se recalculan ni se rectifican aquí. Cualquier corrección económica requiere su flujo específico.</p>
+      <h3 class="h6 mt-3">Plan futuro propuesto (no se genera ahora)</h3>
+      {% for row in view.plan %}<p class="small mb-1">{{ row.concept }} · {{ row.service_period_start }} / {{ row.service_period_end }} (fin exclusivo) · {{ '%.2f'|format(row.amount) }} € · Vence {{ row.due_date }}</p>{% else %}<p>Sin condiciones confirmadas para calcular mensualidades.</p>{% endfor %}
+      {% for warning in view.blockers %}<div class="alert alert-warning mt-3" role="alert">{{ warning }}{% if 'prorrateo' in warning %}{{ proration_control() }}{% endif %}</div>{% endfor %}
+      {% if view.partial_month and form.get('accept_proration') == 'yes' %}<div class="alert alert-info mt-3"><strong>Prorrateo revisado.</strong>{{ proration_control() }}</div>{% endif %}
+      {% if not view.blockers %}<p id="earlyTerminationStaleNotice" class="alert alert-warning" role="status" hidden>Has cambiado el formulario. Pulsa «Revisar finalización» de nuevo antes de confirmar.</p><form id="earlyTerminationConfirmation" method="post" action="/bookings/{{ booking.id }}/early-termination/confirm" class="mt-3" onsubmit="return confirm('¿Confirmar la salida anticipada y conservar íntegramente el historial económico?')">
+        <input type="hidden" name="request_key" value="{{ key }}"><input type="hidden" name="fingerprint" value="{{ view.fingerprint }}">
+        {% for name,value in view.request.items() %}<input type="hidden" name="{{ name }}" value="{{ ('yes' if value else '') if name == 'accept_proration' else value }}">{% endfor %}
+        <label class="d-block mb-3"><input type="checkbox" name="confirmed" value="yes" required> Confirmo las fechas revisadas. No se cancela la reserva ni se modifica su economía.</label>
+        <button class="btn btn-primary" type="submit">Confirmar finalización anticipada</button>
+      </form>{% endif %}
+    </section>
+    {% endif %}
+  {% endif %}
+</div>
+<script src="/static/js/booking_early_termination.js?v=20261013-proration" defer></script>
+{% endblock %}

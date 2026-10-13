@@ -1,4 +1,5 @@
 from backend.models.booking import Booking
+from backend.models.booking_early_termination import BookingEarlyTermination, BookingEarlyTerminationSourceState
 from backend.models.booking_financial_terms import BookingFinancialTerms
 from backend.models.booking_charge import BookingCharge
 from backend.models.feature import Feature, property_features, room_features
