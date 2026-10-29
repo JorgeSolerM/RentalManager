@@ -157,7 +157,9 @@ async def settlement_preview(request: Request, db=Depends(get_db)):
     f = await request.form()
     try:
         month, start, end = selection_period(f)
-        result = property_selection.preview(db, start, end, f.getlist('property_id'))
+        result = property_selection.preview(db, start, end, f.getlist('property_id'),
+            {k[7:]:v for k,v in f.items() if k.startswith('assign_')},
+            {k[10:]:v for k,v in f.items() if k.startswith('operation_') and v})
         return page(request, db, 'selection_preview', batch=result, month=month)
     except (ValueError, KeyError) as exc:
         return selection_page(request, db, f, str(exc))
@@ -169,7 +171,9 @@ async def settlement_drafts(request: Request, db=Depends(get_db)):
     try:
         _, start, end = selection_period(f)
         items = property_selection.save_drafts(db, start, end, f.getlist('property_id'),
-                                               f['fingerprint'], f['request_key'])
+                                               f['fingerprint'], f['request_key'],
+            {k[7:]:v for k,v in f.items() if k.startswith('assign_')},
+            {k[10:]:v for k,v in f.items() if k.startswith('operation_') and v})
         return page(request, db, 'drafts_created', created=items)
     except (ValueError, KeyError) as exc:
         return selection_page(request, db, f, str(exc))
@@ -246,10 +250,14 @@ async def custody_save(request: Request, db=Depends(get_db)):
 
 
 def detail(request, db, item, error=None):
+    fee_summary = None
+    if item.selection.get('billing'):
+        from backend.services.fee_invoice_service import FeeInvoiceService
+        fee_summary = FeeInvoiceService().summary(db, item.id)
     payouts = list(db.scalars(select(OwnerPayout).where(OwnerPayout.settlement_id == item.id)))
     paid = sum((p.amount for p in payouts), Decimal("0.00"))
     due = Decimal(item.snapshot["totals"]["payout_due"])
-    return page(request, db, "settlement", item=item, view=item.snapshot, error=error, payouts=payouts,
+    return page(request, db, "settlement", item=item, view=item.snapshot, error=error, payouts=payouts, fee_summary=fee_summary,
         paid=paid, remaining=max(Decimal("0.00"), due-paid),
         payment_status="Saldo a favor del gestor" if Decimal(item.snapshot['totals']['carry_forward']) < 0 else "Sin transferencia del gestor" if due == 0 else "Pagada" if paid == due else "Parcialmente pagada" if paid > 0 else "Pendiente de pago",
         accounts=list(db.scalars(select(OwnerBankAccount).where(OwnerBankAccount.owner_id == item.owner_id,

@@ -334,6 +334,8 @@ class SepaCollectionService:
                     currency="EUR", direction="receipt", method="sepa_direct_debit", lifecycle="posted",
                     posted_at=now(), external_reference=debit.end_to_end_id)
                 db.add(payment); db.flush()
+                from backend.services.payment_custody_service import record_manager_receipt
+                record_manager_receipt(db, payment)
                 for allocation in debit.allocations:
                     db.add(PaymentAllocation(payment_id=payment.id, charge_id=allocation.charge_id, amount=allocation.amount))
                 debit.payment_id = payment.id

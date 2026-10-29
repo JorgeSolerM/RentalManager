@@ -72,6 +72,8 @@ class ManualPaymentService:
                 effective_date=effective_date, method=method, direction='receipt',
                 lifecycle='posted', posted_at=self.finance._now(), external_reference=reference, notes=notes)
             db.add(payment); db.flush()
+            from backend.services.payment_custody_service import record_manager_receipt
+            record_manager_receipt(db, payment)
             for charge_id, value in pairs:
                 db.add(PaymentAllocation(payment_id=payment.id, charge_id=charge_id, amount=value))
             db.add(PaymentRegistration(request_key=key, fingerprint=fingerprint, payment_id=payment.id))

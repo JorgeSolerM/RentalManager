@@ -1,0 +1,33 @@
+<h1 class="h3">Liquidaciones por condiciones de honorarios · {{ month }}</h1>
+<p>{{ batch.individuals|length }} liquidaciones previstas. Solo se agrupan fincas del mismo propietario con condiciones económicas y fiscales iguales.</p>
+{% for message in batch.errors %}<p class="alert alert-danger" role="alert">{{ message }}</p>{% endfor %}
+{% if batch.date_requests %}<form method="post" action="/settlements/preview" class="card card-body mb-3">
+<h2 class="h5">Fecha fiscal de operación</h2><p>El criterio configurado exige una fecha explícita. No se infiere del periodo de alquiler.</p>
+<input type="hidden" name="month" value="{{ month }}">{% for p in batch.property_ids %}<input type="hidden" name="property_id" value="{{ p }}">{% endfor %}
+{% for field,value in batch.assignments.items() %}<input type="hidden" name="assign_{{ field }}" value="{{ value }}">{% endfor %}
+{% for field,value in batch.operation_dates.items() %}<input type="hidden" name="operation_{{ field }}" value="{{ value }}">{% endfor %}
+{% for r in batch.date_requests %}<label class="mb-2">{{ r.concept }} · cobro {{ r.receipt_date }}<input type="date" class="form-control" name="operation_{{ r.key }}" required></label>{% endfor %}
+<button class="btn btn-outline-primary">Revisar fechas</button></form>{% endif %}
+{% if batch.issues %}
+<form method="post" action="/settlements/preview" class="card card-body mb-3">
+<h2 class="h5">Gastos que requieren elección</h2>
+<p>Esta finca tiene movimientos con distintas condiciones de honorarios. Elige en qué liquidación incluir el gasto.</p>
+<input type="hidden" name="month" value="{{ month }}">{% for p in batch.property_ids %}<input type="hidden" name="property_id" value="{{ p }}">{% endfor %}
+{% for field,value in batch.assignments.items() %}<input type="hidden" name="assign_{{ field }}" value="{{ value }}">{% endfor %}
+{% for field,value in batch.operation_dates.items() %}<input type="hidden" name="operation_{{ field }}" value="{{ value }}">{% endfor %}
+{% for issue in batch.issues %}<label class="mb-3">{{ issue.source.concept }} · {{ issue.source.amount }} €<select class="form-select" name="assign_{{ issue.field }}" required><option value="">Elegir liquidación</option>{% for c in issue.candidates %}<option value="{{ c.key }}">{{ c.label }}</option>{% endfor %}</select></label>{% endfor %}
+<button class="btn btn-outline-primary">Revisar asignación</button></form>{% endif %}
+{% for entry in batch.individuals %}{% set v=entry.view %}
+<section class="card card-body mb-3"><h2 class="h5">{{ entry.name }} · Honorarios {{ v.fee_signature.fields.percentage }} %</h2>
+<p>{{ v.property_ids|length }} finca(s) · {{ {'subject_taxable':'IVA repercutido','exempt':'Exenta','not_subject_location':'No sujeta por localización','not_subject_other':'No sujeta por otra causa','reverse_charge':'Inversión del sujeto pasivo'}[v.fee_signature.fields.tax_treatment] }} · IVA {{ v.fee_signature.fields.vat_rate }} % · Retención {{ v.fee_signature.fields.withholding_rate }} %</p>
+<ul>{% for r in v.rows %}<li>{% for p in properties if p.id == r.property_id %}{{ p.name }}{% endfor %} · {{ r.concept }} · {{ r.amount }} €{% if r.fiscal_snapshot %} · honorarios {{ r.fiscal_snapshot.fee_base }} €{% endif %}</li>{% endfor %}</ul>
+<dl class="row">{% for key,label in [('fees','Honorarios generados'),('prior_balance','Compensación de saldo anterior'),('pending_expense','Gastos pendientes de recuperar'),('pending_fee','Honorarios pendientes de compensar'),('payout_due','A transferir')] %}<dt class="col-8">{{ label }}</dt><dd class="col-4">{{ v.totals[key] }} €</dd>{% endfor %}</dl>
+<details><summary>Aplicaciones propuestas · {{ v.applications|length }}</summary><ul>{% for a in v.applications %}<li>{{ a.obligation_key }}: {{ a.amount }} €</li>{% endfor %}</ul></details>
+</section>{% endfor %}
+<form method="post" action="/settlements/drafts">
+<input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="fingerprint" value="{{ batch.fingerprint }}"><input type="hidden" name="request_key" value="{{ key }}">
+{% for p in batch.property_ids %}<input type="hidden" name="property_id" value="{{ p }}">{% endfor %}
+{% for field,value in batch.assignments.items() %}<input type="hidden" name="assign_{{ field }}" value="{{ value }}">{% endfor %}
+{% for field,value in batch.operation_dates.items() %}<input type="hidden" name="operation_{{ field }}" value="{{ value }}">{% endfor %}
+<button class="btn btn-primary" {% if batch.errors or batch.issues or not batch.individuals %}disabled{% endif %}>Guardar {{ batch.individuals|length }} borradores</button>
+<p class="text-muted mt-2">No se cierra ni se paga automáticamente. Cierra los borradores en el orden propuesto; cualquier cambio concurrente exigirá revisión.</p></form>

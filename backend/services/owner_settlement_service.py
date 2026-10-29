@@ -130,7 +130,7 @@ class OwnerSettlementService:
             if payment is None or payment.direction != "receipt" or payment.lifecycle != "posted":
                 raise ValueError("Cobro no disponible.")
             if db.scalar(select(SepaDebit.id).where(SepaDebit.payment_id == payment_id)):
-                raise ValueError("La cuenta receptora SEPA determina la custodia; no se sustituye manualmente.")
+                raise ValueError("La custodia del cobro SEPA se conserva según su registro de origen; no se sustituye manualmente.")
             if db.scalar(select(OwnerSettlementLine.id).join(PaymentAllocation,
                     OwnerSettlementLine.payment_allocation_id == PaymentAllocation.id).where(PaymentAllocation.payment_id == payment_id)):
                 raise ValueError("La custodia ya está congelada en una liquidación.")
@@ -302,6 +302,9 @@ class OwnerSettlementService:
         return {**payload, "fingerprint": fingerprint(payload)}
 
     def save_draft(self, db, *, owner_id, start, end, property_ids, excluded, expected, request_key):
+        from backend.core.invoicing_config import invoicing_config
+        if invoicing_config().enabled:
+            raise ValueError('Utilice la selección por fincas y condiciones fiscales para crear estos borradores.')
         key = request_id(request_key)
         with financial_transaction(db):
             previous = db.scalar(select(OwnerSettlement).where(OwnerSettlement.request_key == key))
@@ -319,6 +322,10 @@ class OwnerSettlementService:
         return draft
 
     def close(self, db, settlement_id, expected):
+        existing = db.get(OwnerSettlement, settlement_id)
+        if existing and existing.selection.get('billing'):
+            from backend.services.billing_settlement_service import BillingSettlementService
+            return BillingSettlementService().close(db, settlement_id, expected)
         with financial_transaction(db):
             draft = db.get(OwnerSettlement, settlement_id)
             if draft is None:

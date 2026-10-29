@@ -35,6 +35,7 @@
 </form>
 <script src="{{ url_for('static', path='js/settlement_selection.js') }}" defer></script>
 {% elif mode == 'selection_preview' %}
+{% if batch.issues is defined %}{% include 'pages/billing_selection_preview.html' %}{% else %}
 <h1 class="h3">Previsualizar liquidaciones · {{ month }}</h1>
 <p><strong>{{ batch.individuals|length }} liquidaciones individuales previstas</strong> para {{ batch.groups|length }} fincas seleccionadas. Todavía no se ha escrito ningún dato.</p>
 <p>Las fincas del mismo propietario se agrupan en una liquidación. El saldo anterior se incorpora una sola vez en el resumen individual.</p>
@@ -64,6 +65,7 @@
 <button class="btn btn-primary" {% if batch.errors or not batch.individuals %}disabled{% endif %}>Guardar {{ batch.individuals|length }} borradores</button>
 <p class="text-muted mt-2">Si hay alguna incidencia, se bloquea la creación completa. Guardar no cierra ni paga; cada liquidación se cerrará individualmente.</p>
 </form>
+{% endif %}
 {% elif mode == 'drafts_created' %}
 <h1 class="h3">Borradores preparados</h1><p>No se ha cerrado ninguna liquidación ni registrado pagos.</p>
 <ul>{% for item in created %}<li><a href="/settlements/{{ item.id }}">Liquidación {{ item.id }} · {% for owner in owners if owner.id == item.owner_id %}{{ owner.name }}{% endfor %}</a></li>{% endfor %}</ul>

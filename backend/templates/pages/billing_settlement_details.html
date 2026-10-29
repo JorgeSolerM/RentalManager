@@ -1,0 +1,11 @@
+<section class="card card-body mb-3" aria-label="Honorarios y compensaciones">
+<h2 class="h5">Honorarios y compensaciones</h2>
+<p class="text-muted">Situación actual, incluidas las compensaciones de liquidaciones posteriores. Los importes del cierre histórico permanecen congelados debajo.</p>
+{% if fee_summary %}<dl class="row">{% for k,label in [('generated','Generados'),('compensated','Compensados'),('pending','Pendientes de compensar'),('invoiced','Facturados (neto)')] %}<dt class="col-8">{{ label }}</dt><dd class="col-4">{{ fee_summary[k] }} €</dd>{% endfor %}</dl>
+{% if fee_summary.rectification_pending %}<p class="alert alert-warning">⚠ Pendiente de rectificación. La factura original permanece intacta.</p>{% endif %}
+{% if fee_summary.invoice %}<a href="/invoices/{{ fee_summary.invoice.id }}">Ver factura {{ fee_summary.invoice.number or '(borrador sin número)' }}</a>
+{% elif item.status == 'closed' %}<a class="btn btn-outline-primary align-self-start" href="/settlements/{{ item.id }}/invoice">Generar factura de honorarios</a>{% endif %}{% endif %}
+<details><summary>Distribución de fondos y obligaciones</summary>
+<ul>{% for r in view.obligations_after %}<li>{{ {'management_fee':'Honorarios','expense_advance':'Gasto adelantado','other_adjustment':'Ajuste por devolución'}[r.kind] }} · {{ r.date }} · generado {{ r.generated }} € · compensado {{ r.compensated }} €<small class="d-block text-muted">Origen: {{ r.key }}</small></li>{% endfor %}</ul>
+<ul>{% for a in view.applications %}<li>Aplicado a {{ a.obligation_key }}: {{ a.amount }} €</li>{% endfor %}</ul>
+</details></section>

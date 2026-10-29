@@ -410,9 +410,19 @@ class FinancialService:
         except ValueError as error: return self._fail(db, str(error))
 
     def post_payment(self, db, payment_id):
-        payment=self.repository.get_payment(db,payment_id)
-        if payment is None or payment.lifecycle!="draft": return self._fail(db,"payment_not_draft")
-        payment.lifecycle="posted"; payment.posted_at=self._now(); db.commit(); return OperationResult(success=True,data=payment)
+        from backend.services.financial_transaction import financial_transaction
+        from backend.services.payment_custody_service import record_manager_receipt
+        try:
+            with financial_transaction(db):
+                payment = self.repository.get_payment(db, payment_id)
+                if payment is None or payment.lifecycle != "draft":
+                    raise ValueError("payment_not_draft")
+                payment.lifecycle = "posted"
+                payment.posted_at = self._now()
+                record_manager_receipt(db, payment)
+        except ValueError as exc:
+            return self._fail(db, str(exc))
+        return OperationResult(success=True, data=payment)
 
     def void_payment(self, db, payment_id, notes=None):
         payment=self.repository.get_payment(db,payment_id)

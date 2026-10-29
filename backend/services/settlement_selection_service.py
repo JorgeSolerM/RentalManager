@@ -14,10 +14,19 @@ from backend.services.owner_settlement_service import OwnerSettlementService
 
 
 class SettlementSelectionService:
-    def __init__(self):
+    def __init__(self, legacy=False):
         self.individual = OwnerSettlementService()
+        self.legacy = legacy
+
+    def _billing(self):
+        from backend.core.invoicing_config import invoicing_config
+        if not self.legacy and invoicing_config().enabled:
+            from backend.services.billing_settlement_service import BillingSettlementService
+            return BillingSettlementService()
 
     def catalog(self, db, start, end, property_ids=None):
+        if service := self._billing():
+            return service.catalog(db, start, end, property_ids)
         if start >= end:
             raise ValueError('Revise el periodo de liquidación.')
         query = select(Property).order_by(Property.name, Property.id)
@@ -59,7 +68,9 @@ class SettlementSelectionService:
                                errors=list(dict.fromkeys(errors)), state=state))
         return result
 
-    def preview(self, db, start, end, property_ids):
+    def preview(self, db, start, end, property_ids, assignments=None, operation_dates=None):
+        if service := self._billing():
+            return service.preview(db, start, end, property_ids, assignments, operation_dates)
         property_ids = sorted(set(int(v) for v in property_ids))
         if not property_ids:
             raise ValueError('Seleccione al menos una finca.')
@@ -82,7 +93,9 @@ class SettlementSelectionService:
                        groups=groups, individuals=views, errors=list(dict.fromkeys(errors)))
         return {**payload, 'fingerprint': fingerprint(payload)}
 
-    def save_drafts(self, db, start, end, property_ids, expected, request_key):
+    def save_drafts(self, db, start, end, property_ids, expected, request_key, assignments=None, operation_dates=None):
+        if service := self._billing():
+            return service.save_drafts(db, start, end, property_ids, expected, request_key, assignments, operation_dates)
         batch_key = str(UUID(request_key))
         with financial_transaction(db):
             # Stored batch fingerprint enables idempotent retries even after a

@@ -25,6 +25,7 @@ from backend.api.routers import (
     netfincas,
     owner_economy,
     providers,
+    fee_invoicing,
 )
 from backend.core.jinja_filters import format_date
 from backend.core.logging import configure_sensitive_url_logging
@@ -44,6 +45,8 @@ def create_app(initialize_database: bool = False) -> FastAPI:
         title="RentalManager - HSI Rents",
         version=APP_VERSION,
     )
+    from backend.core.invoicing_config import invoicing_config
+    app.state.invoicing_enabled = invoicing_config().enabled
 
     @app.exception_handler(RequestValidationError)
     async def booking_form_validation_error(request, exc):
@@ -75,6 +78,7 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(owners.router)
     app.include_router(owner_economy.router)
     app.include_router(providers.router)
+    app.include_router(fee_invoicing.router)
     app.include_router(sepa.router)
     app.include_router(collections.router)
     netfincas.setup(app)

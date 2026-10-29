@@ -84,9 +84,13 @@ Ejemplo 500, 50/50 y A recibe todo: derecho 250 cada uno, directo A 500/B 0,
 diferencia A +250/B -250, fondos del gestor 0 y payout por esos fondos 0.
 Los honorarios se calculan sobre la parte económica de cada propietario.
 
-Los cobros manuales se clasifican explícitamente en Custodia de cobros. SEPA usa
-la cuenta receptora del grupo y comprueba que coincide con el snapshot bancario.
-No se infiere por método. Si falta identificación se informa y no se cierra.
+Los nuevos cobros ordinarios, manuales y SEPA, registran explícitamente custodia
+del gestor en la transacción del cobro. La titularidad de la cuenta acreedora no
+determina la custodia operativa. No se realiza backfill ni reinterpretación del
+histórico. Para cobros legacy sin custodia explícita se conserva el camino
+anterior: SEPA contrasta cuenta del grupo y snapshot bancario, y los manuales
+requieren clasificación. Custodia de cobros queda para revisión histórica o
+excepcional. Si falta identificación se informa y no se cierra.
 
 ## Honorarios, versiones y devoluciones
 

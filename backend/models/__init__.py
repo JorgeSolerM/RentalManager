@@ -28,6 +28,12 @@ from backend.models.owner_settlement import (
 from backend.models.owner_bank_account import OwnerBankAccount
 from backend.models.property_ownership import PropertyOwnership
 from backend.models.provider import Provider
+from backend.models.fee_billing import (
+    FeeTaxConfiguration, InvoiceIssuerProfile, OwnerFiscalIdentity, InvoiceSeries,
+    FeeObligation, FeeObligationAdjustment, FeeFund, FeeCompensation, FeeCompensationRun,
+    ManagementFeeInvoice, ManagementFeeInvoiceLine, ManagementFeeInvoiceSource,
+    FiscalChainState, InvoiceFiscalRecord, FiscalSubmission, FiscalSubmissionAttempt,
+)
 from backend.models.sepa_creditor_profile import SepaCreditorProfile
 from backend.models.sepa_mandate import SepaMandate
 from backend.models.booking_sepa_mandate import BookingSepaMandate
