@@ -6,6 +6,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from backend.core.config import get_public_site_allowed_hosts, get_public_site_name
 from backend.core.media_storage import MediaFileStore
 from backend.public.router import router
+from backend.public.collaborator_calendar import router as collaborator_router, PREFIX as COLLABORATOR_PREFIX
 
 
 def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
@@ -38,7 +39,14 @@ def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
             "img-src 'self'; object-src 'none'; base-uri 'self'; "
             "frame-ancestors 'none'; form-action 'self'"
         )
+        if request.url.path.startswith(COLLABORATOR_PREFIX):
+            response.headers['Referrer-Policy'] = 'no-referrer'
+            response.headers['Cache-Control'] = 'private, no-store, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
+            response.headers['Vary'] = 'Authorization'
         return response
 
     app.include_router(router)
+    app.include_router(collaborator_router)
     return app

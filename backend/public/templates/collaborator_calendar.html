@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive"><meta name="referrer" content="no-referrer">
+  <title>Disponibilidad para colaboradores | HSI Rents</title>
+  <link rel="stylesheet" href="{{ url_for('public_static', path='public.css') }}">
+  <link rel="stylesheet" href="{{ url_for('public_static', path='collaborator-calendar.css') }}">
+  <script src="{{ url_for('public_static', path='collaborator-calendar.js') }}" defer></script>
+</head>
+<body class="collaborator-page">
+  <header class="collaborator-brand"><strong>HSI <span>Rents</span></strong><small>Consulta para colaboradores</small></header>
+  <main class="collaborator-main">
+    <h1>Disponibilidad de habitaciones</h1>
+    <p>Disponibles desde la última ocupación conocida. Información orientativa, sujeta a confirmación.</p>
+    <p id="calendar-period"></p>
+    <ul class="calendar-legend" aria-label="Leyenda">
+      <li><span class="legend-mark occupied">×</span> Ocupación conocida</li>
+      <li><span class="legend-mark available">✓</span> Disponible desde la fecha indicada</li>
+      <li><span class="legend-mark gap">·</span> Hueco previo: no se ofrece</li>
+    </ul>
+    <p id="calendar-status" role="status" aria-live="polite">Verificando acceso…</p>
+    <div id="calendar-scroll" class="calendar-scroll" role="region" aria-label="Calendario diario de seis meses, desplazable horizontalmente" tabindex="0" hidden></div>
+    <noscript>Necesitas JavaScript y el enlace privado facilitado para consultar este calendario.</noscript>
+    <p class="calendar-note">El día de salida ya está libre. Solo se ofrecen fechas sin otra ocupación posterior registrada. La consulta se actualiza cada minuto; no permite reservar ni editar.</p>
+  </main>
+</body>
+</html>

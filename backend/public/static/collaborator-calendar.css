@@ -1,0 +1,31 @@
+.collaborator-page { margin:0; color:#14231d; background:#f6f8f7; }
+.collaborator-brand { display:flex; align-items:center; gap:1rem; padding:1rem 1.5rem; background:white; border-bottom:1px solid #d9e3de; }
+.collaborator-brand strong { font-size:1.5rem; font-weight:800; white-space:nowrap; }
+.collaborator-brand span { color:#20754c; }
+.collaborator-brand small { color:#52645b; }
+.collaborator-main { max-width:1500px; margin:auto; padding:1.25rem 1.5rem; min-width:0; }
+.collaborator-main h1 { font-size:1.65rem; margin:0 0 .5rem; }
+.collaborator-main p { margin:.5rem 0; }
+.calendar-legend { display:flex; flex-wrap:wrap; gap:.7rem 1.3rem; list-style:none; padding:0; font-size:.85rem; }
+.legend-mark { display:inline-block; width:1.4rem; text-align:center; border-radius:3px; }
+.calendar-scroll { max-width:100%; overflow:auto; max-height:70vh; border:1px solid #d6e1da; border-radius:8px; background:white; }
+.calendar-scroll:focus-visible,.calendar-label a:focus-visible { outline:3px solid #256c4b; outline-offset:-3px; }
+.availability-table { border-collapse:separate; border-spacing:0; width:max-content; table-layout:fixed; font-size:.75rem; }
+.availability-table th,.availability-table td { box-sizing:border-box; border-right:1px solid #e0e7e2; border-bottom:1px solid #e0e7e2; text-align:center; }
+.availability-table thead th { position:sticky; top:0; height:32px; background:#e9f0ec; z-index:3; font-weight:700; }
+.availability-table thead tr:nth-child(2) th { top:32px; }
+.availability-table .calendar-label { width:220px; min-width:220px; max-width:220px; position:sticky; left:0; z-index:2; background:white; padding:.55rem .7rem; text-align:left; overflow-wrap:anywhere; }
+.availability-table thead .calendar-label { z-index:5; background:#e9f0ec; }
+.calendar-label a { display:block; color:#176b45; font-weight:700; text-decoration:underline; }
+.calendar-label strong,.calendar-label small { display:block; margin-top:.15rem; }
+.calendar-label small { color:#52645b; font-weight:500; }
+.availability-table .day { width:23px; min-width:23px; max-width:23px; }
+.availability-table td { height:64px; }
+.availability-table .property-divider th { height:28px; background:#e9f0ec; color:#31513e; }
+.availability-table .property-divider .calendar-label { background:#e9f0ec; }
+.occupied { color:#fff; background:#596b78; }
+.available { color:#185333; background:#d6eddf; }
+.gap { color:#626967; background:repeating-linear-gradient(135deg,#f1f2f1 0 4px,#e6eae7 4px 6px); }
+.calendar-note { color:#52645b; font-size:.8rem; }
+@media(max-width:768px) { .collaborator-main { padding:1rem; } .availability-table .calendar-label { width:175px; min-width:175px; max-width:175px; } }
+@media(max-width:430px) { .collaborator-brand { padding:.8rem; gap:.65rem; } .collaborator-brand small { font-size:.7rem; } .collaborator-main { padding:.8rem; } .collaborator-main h1 { font-size:1.3rem; } .availability-table .calendar-label { width:145px; min-width:145px; max-width:145px; } .calendar-legend { display:grid; gap:.35rem; } }

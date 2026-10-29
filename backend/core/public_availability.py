@@ -11,6 +11,21 @@ def add_calendar_months(value: date, months: int) -> date:
     return date(year, month, day)
 
 
+def terminal_available_from(intervals: Iterable[tuple[date, date]], today: date) -> date | None:
+    """Availability after ALL known occupancy, never an intermediate gap.
+
+    Input must not be truncated to a display horizon. Checkout is exclusive,
+    just as in Gantt/booking_overlap; confirmed early departures already update
+    Booking.check_out. Invalid intervals fail closed rather than advertise space.
+    """
+    result = today
+    for start, end in intervals:
+        if end <= start:
+            return None
+        result = max(result, end)
+    return result
+
+
 def stay_within_calendar_month_limits(
     check_in: date,
     check_out: date,
