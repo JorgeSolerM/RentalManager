@@ -19,6 +19,7 @@ from backend.core.public_phone import phone_link_values, whatsapp_url
 from backend.models.media_asset import MediaAsset
 from backend.public.database import get_public_db
 from backend.public.service import PublicRoomService
+from backend.public.map_locations import catalog_map, map_enabled
 
 
 router = APIRouter()
@@ -88,6 +89,7 @@ def public_catalog(request: Request, db: Session = Depends(get_public_db)):
             "request": request,
             "site_name": get_public_site_name(),
             "rooms": rooms,
+            "map_data": catalog_map(db, rooms),
             "base_url": base_url,
             "filter_features": available_features,
             "selected_features": set(selected_features),
@@ -138,6 +140,7 @@ def _render_legal_page(
         request=request,
         name=template_name,
         context={
+            "map_enabled": map_enabled(),
             "request": request,
             "site_name": get_public_site_name(),
             "template_title": template_title,

@@ -17,6 +17,7 @@ from backend.schemas.dashboard_schema import (
 )
 from backend.services.room_calendar_sync_runner import RoomCalendarSyncRunner
 from backend.core.booking_person_name import booking_person_name, booking_person_links
+from backend.services.geolocation_incident_service import geolocation_incidents
 
 
 MOVEMENT_DAYS = 14
@@ -249,6 +250,7 @@ class DashboardService:
                 booking_id=booking.id,
             ))
 
+        incidents.extend(geolocation_incidents(db))
         incidents.sort(key=lambda item: (
             INCIDENT_PRIORITY[item.severity], item.title, item.room_code, item.key
         ))

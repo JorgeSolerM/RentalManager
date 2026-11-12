@@ -2,6 +2,7 @@
 {% block title %}Habitaciones en alquiler en Elche | {{ site_name }}{% endblock %}
 {% block meta_description %}Habitaciones en alquiler mensual en Elche, con fotografías, precio, características y disponibilidad actualizada.{% endblock %}
 {% block seo %}
+{% if map_data is not none %}<link rel="stylesheet" href="{{ url_for('public_static', path='catalog-map.css') }}?v=1">{% endif %}
 {% if page_url %}<link rel="canonical" href="{{ page_url }}">{% endif %}
 <meta property="og:type" content="website">
 <meta property="og:locale" content="es_ES">
@@ -77,6 +78,7 @@
 </section>
 <div class="catalog-results-toolbar" id="habitaciones">
     <p class="catalog-result-count" aria-live="polite">{{ rooms|length }} {% if rooms|length == 1 %}habitación disponible{% else %}habitaciones disponibles{% endif %}</p>
+    {% if map_data is not none %}<button type="button" class="map-open" data-map-open aria-haspopup="dialog">Ver mapa</button>{% endif %}
     <form class="catalog-sort" method="get" action="{{ url_for('public_catalog') }}">
         {% if check_in %}<input type="hidden" name="check_in" value="{{ check_in }}">{% endif %}
         {% if check_out %}<input type="hidden" name="check_out" value="{{ check_out }}">{% endif %}
@@ -118,5 +120,13 @@
 {% else %}
 <section class="empty-state">{% if filters_active %}<h2>No hay habitaciones que cumplan estos filtros</h2><p><a href="{{ url_for('public_catalog') }}">Limpiar filtros</a></p>{% else %}<h2>No hay habitaciones publicadas en este momento</h2><p>Vuelve a consultarlo próximamente.</p>{% endif %}</section>
 {% endif %}
+{% if map_data is not none %}
+<dialog class="catalog-map-dialog" aria-labelledby="map-title" data-catalog-map data-map-payload="{{ map_data|tojson|forceescape }}">
+    <header class="map-heading"><h2 id="map-title">Habitaciones en el mapa</h2><button type="button" data-map-close aria-label="Cerrar mapa">×</button></header>
+    <p class="map-notice">Se muestran los resultados de tus filtros con ubicación verificada. Al abrir el mapa se solicita cartografía a OpenStreetMap. <a href="/privacidad">Privacidad</a>.</p>
+    <p class="map-status" data-map-status role="status"></p>
+    <div class="catalog-map-canvas" data-map-canvas aria-label="Mapa interactivo de habitaciones"></div>
+</dialog>
+{% endif %}
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('public_static', path='catalog-filters.js') }}?v=9" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('public_static', path='catalog-filters.js') }}?v=9" defer></script>{% if map_data is not none %}<script src="{{ url_for('public_static', path='catalog-map.js') }}?v=1" defer></script>{% endif %}{% endblock %}

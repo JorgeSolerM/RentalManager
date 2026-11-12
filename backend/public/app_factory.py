@@ -7,6 +7,9 @@ from backend.core.config import get_public_site_allowed_hosts, get_public_site_n
 from backend.core.media_storage import MediaFileStore
 from backend.public.router import router
 from backend.public.collaborator_calendar import router as collaborator_router, PREFIX as COLLABORATOR_PREFIX
+from backend.public.map_locations import map_enabled, tile_url
+from backend.public.map_worker import lifespan
+from urllib.parse import urlsplit
 
 
 def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
@@ -16,6 +19,7 @@ def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
         redoc_url=None,
         openapi_url=None,
         debug=False,
+        lifespan=lifespan,
     )
     app.state.public_media_store = media_store or MediaFileStore()
     app.add_middleware(
@@ -39,6 +43,12 @@ def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
             "img-src 'self'; object-src 'none'; base-uri 'self'; "
             "frame-ancestors 'none'; form-action 'self'"
         )
+        if request.url.path == "/" and map_enabled():
+            tiles = urlsplit(tile_url())
+            origin = f"{tiles.scheme}://{tiles.netloc}"
+            response.headers["Content-Security-Policy"] = response.headers["Content-Security-Policy"].replace(
+                "img-src 'self'", f"img-src 'self' {origin}"
+            )
         if request.url.path.startswith(COLLABORATOR_PREFIX):
             response.headers['Referrer-Policy'] = 'no-referrer'
             response.headers['Cache-Control'] = 'private, no-store, max-age=0'

@@ -35,8 +35,8 @@ class DashboardIncident(BaseModel):
     severity: str
     title: str
     detail: str
-    room_id: int
-    room_code: str
+    room_id: int | None = None
+    room_code: str = ""
     platform_name: str | None = None
     booking_id: int | None = None
     target_url: str | None = None
