@@ -119,6 +119,7 @@ class LocationCache:
     def read_many(self, keys):
         if not self.path.exists() or not keys:
             return {}
+
         try:
             with sqlite3.connect(self.path.as_uri() + "?mode=ro", uri=True, timeout=1) as db:
                 db.row_factory = sqlite3.Row
@@ -128,47 +129,14 @@ class LocationCache:
             log.warning("Geocoding cache unavailable; map locations omitted")
             return {}
 
+    def resolve_progressive(self, address, *, client, manual=False, clock=time.time, sleep=time.sleep):
+        from backend.services.geocoding_queries import resolve
+        return resolve(self, address, client=client, manual=manual, clock=clock, sleep=sleep)
+
     def resolve(self, address, *, client, clock=time.time, sleep=time.sleep):
-        """Serialize requests across workers; WAL catalog readers remain unblocked."""
-        key = address.key
-        with sqlite3.connect(self.path, timeout=40) as db:
-            db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT status,attempts,retry_at FROM locations WHERE address_key=?", (key,)).fetchone()
-            now = clock()
-            if row and (row[0] != "error" or row[1] >= 3 or row[2] > now):
-                return row[0]
-            if not all((address.street, address.number, address.city)):
-                db.execute("INSERT OR REPLACE INTO locations VALUES (?,?,?,?,?,?,?,?)", (key,"review",None,None,"incomplete_address",now,0,0))
-                return "review"
-            next_request = db.execute("SELECT next_request FROM throttle WHERE id=1").fetchone()[0]
-            if next_request - now > 16.1:
-                return "error"  # Provider cooldown, never sleep for a whole day.
-            if next_request > now:
-                sleep(next_request - now)
-            attempts = row[1] + 1 if row else 1
-            db.execute("UPDATE throttle SET next_request=? WHERE id=1", (clock()+16,))
-            db.execute("INSERT OR REPLACE INTO locations VALUES (?,?,?,?,?,?,?,?)", (key,"error",None,None,"interrupted",clock(),attempts,clock()+86400))
-            try:
-                response = client.get(geocoder_url(), params={
-                    "street": f"{address.number} {address.street}", "city": address.city,
-                    "format": "jsonv2", "addressdetails": 1, "limit": 10,
-                    "accept-language": "es",
-                })
-                response.raise_for_status()
-                status, point, reason = verified_result(address, response.json())
-                db.execute("UPDATE throttle SET next_request=? WHERE id=1", (clock()+16,))
-            except (httpx.HTTPError, ValueError) as error:
-                reason = (f"http_{error.response.status_code}" if isinstance(error, httpx.HTTPStatusError)
-                          else "timeout" if isinstance(error, httpx.TimeoutException)
-                          else "connection_error" if isinstance(error, httpx.NetworkError)
-                          else "invalid_response")
-                status, point = "error", None
-                # Provider-wide cooldown; never hammer 403/429/5xx or timeouts.
-                db.execute("UPDATE throttle SET next_request=? WHERE id=1", (clock()+86400,))
-            db.execute("UPDATE locations SET status=?,latitude=?,longitude=?,reason=?,checked_at=?,retry_at=? WHERE address_key=?", (
-                status, point[0] if point else None, point[1] if point else None, reason,
-                clock(), clock()+86400 if status == "error" else 0, key))
-            return status
+        """Compatibility entry point; all callers share the progressive policy."""
+        result = self.resolve_progressive(address, client=client, clock=clock, sleep=sleep)
+        return {"paused": "error", "exhausted": "error", "cached": "review", "incomplete": "review"}.get(result, result)
 
 
 def refresh_locations(db, cache=None, client=None, stop=None):
@@ -188,7 +156,14 @@ def refresh_locations(db, cache=None, client=None, stop=None):
         for prop in properties:
             if stop and stop.is_set():
                 break
-            status = cache.resolve(Address.of(prop), client=client)
+            status = cache.resolve_progressive(Address.of(prop), client=client)
+            if status == 'paused':
+                break
+            if status == 'exhausted':
+                counts['error'] += 1
+                continue
+            if status in {'cached', 'incomplete'}:
+                status = 'review'
             counts[status] += 1
             if status != "verified":
                 log.warning("Map location: property_id=%s status=%s (see private cache reason)", prop.id, status)

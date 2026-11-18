@@ -34,7 +34,7 @@ def test_pending_review_provider_error_and_auto_resolution(db_session,tmp_path,m
         current=geolocation_incidents(db_session)
         assert len(current)==1 and current[0].key==initial[0].key
         assert label in current[0].title and "Último intento:" in current[0].detail
-        assert current[0].target_url==f"/properties/{p.id}"
+        assert current[0].target_url==f"/properties/{p.id}/geolocation"
     entry(cache,p,"verified")
     assert geolocation_incidents(db_session)==[]
     p.street_number="11";db_session.commit()

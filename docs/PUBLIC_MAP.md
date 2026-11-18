@@ -1,6 +1,98 @@
 # Mapa del catálogo público
 
+## Variantes y revisión administrativa
+
+Actualización manual desde Fincas: el editor de una finca existente incluye
+«Actualizar ubicación», incluso sin incidencias abiertas. Consulta la pantalla
+de revisión para obtener el formulario protegido y envía el mismo POST de
+reintento; no introduce una segunda implementación del geocodificador.
+Si calle, número o municipio tienen cambios sin guardar, pide guardarlos y
+reabrir el editor primero. El resultado se muestra en la pantalla de revisión.
+Esta nueva entrada desde el editor está pendiente de despliegue.
+
+Cambiar nombre administrativo, nombre público, planta o puerta no cambia la
+clave geográfica del edificio. Calle, número y municipio sí la cambian tras su
+normalización: la coordenada antigua deja de usarse hasta verificar la nueva.
+El mapa obtiene el nombre público actual de la BD, no de la caché geográfica.
+La actualización se observa al volver a cargar el catálogo; un mapa ya abierto
+conserva los datos de la página que cargó. No se ejecutan consultas al guardar.
+
+El código incorpora `/properties/{id}/geolocation` exclusivamente en
+administración. «Revisar» abre esta pantalla, no la respuesta JSON de la finca.
+Muestra dirección, estado, motivo, último intento, variante y hasta veinte intentos.
+Reutiliza el modal y el servicio existente de fincas para editar; el guardado vuelve
+a la revisión. Google Maps es un enlace de búsqueda, sin API ni coordenadas manuales.
+
+Las acciones exigen acceso local, Host local, formulario firmado con caducidad,
+cookie HttpOnly/SameSite y comprobación de origen. La firma se vincula a la dirección:
+si cambia en otra ventana hay que recargar. La aplicación pública no registra estas
+rutas. El botón queda deshabilitado por defecto: requiere
+`PUBLIC_GEOCODING_ADMIN_RETRY_ENABLED=1` y un User-Agent identificativo.
+No se eleva Windows desde una petición HTTP ni se cambian ACL automáticamente.
+
+CLI, worker opcional y reintento usan la misma búsqueda progresiva: original,
+tipo de vía castellano y tipo de vía valenciano/localidad Elx. Las denominaciones
+propias no se traducen libremente. Gerona/Girona se consulta como candidata, pero
+NO se acepta como equivalencia demostrada. El callejero puede contener ambas vías.
+Para una equivalencia comprobada se admite un archivo privado configurado mediante
+`PUBLIC_GEOCODING_ALIASES`, con una lista de objetos `city`, `original`, `translated`
+y `evidence`. La evidencia debe comprobarse por un responsable antes de incorporarla;
+rellenar el campo no verifica por sí mismo una equivalencia. No se ha configurado
+un alias general Gerona/Girona. La ubicación concreta de Gerona 5 fue confirmada
+por el titular y conservada en la caché privada; esto no autoriza equivalencias
+para otras direcciones. Pruebas usan únicamente equivalencias sintéticas.
+
+Se conservan las claves y las ocho columnas de `locations`, compatibles con el
+lector desplegado. Dos tablas adicionales **solo en la caché**, `geocoding_queries`
+y `geocoding_attempts`, conservan variantes, estado, HTTP, motivo y fechas.
+No hay migración Alembic ni cambios en la BD de negocio. Los diagnósticos antiguos
+sin variante se muestran como no conservados; no se inventa un historial.
+
+Los aciertos se reutilizan sin HTTP. Los fallos de red activan pausa global de
+24 horas; separación mínima de 16 segundos y bloqueo SQLite compartido. Una reserva
+persistente del proveedor evita consultas inmediatas si el proceso se interrumpe.
+Un reintento manual no repite la misma variante antes de 24 horas ni supera tres
+intentos por variante. La ambigüedad detiene las alternativas: no se escoge un punto
+por descarte. Se mantiene el límite previo de errores agotados en la caché antigua.
+
+Estado de entrega: revisión y variantes desplegadas de forma controlada el
+18/11/2026, con reintentos habilitados y permisos de caché para administración.
+El worker sigue apagado. La validación manual fue aprobada por el usuario.
+El acceso adicional «Actualizar ubicación» desde el editor se incorpora a este
+checkpoint, pero no se despliega durante su cierre. La previsualización utiliza
+una BD y un proveedor simulado independientes. VERI*FACTU no forma parte de este bloque.
+
+Validación de este bloque: batería consolidada Python de geolocalización, Dashboard,
+reservas, iCal y web pública: 168 passed; JavaScript de mapa/editor: 7 passed.
+Tras los últimos casos de caché, se repite la batería unitaria específica (resultados
+solapados, no sumar). Los tests usan MockTransport, nunca Nominatim real.
+La previsualización HTTP sintética funciona; el controlador visual devolvió
+«Acceso denegado», por lo que no se afirma validación visual ni de consola real.
+
+Revalidación del 18/11/2026: 113 tests de geocodificación, incidencias, rutas de
+revisión, integración pública, disponibilidad y calendarios maestros; otros 100
+tests de Dashboard, reglas de reservas, sincronización/parser iCal y caché
+compartida. Ambas baterías superadas, con aviso preexistente Starlette/httpx.
+Los 6 tests de rutas de revisión se repitieron tras reforzar la invalidación de
+una ubicación verificada al editar la dirección (solapados, no sumar).
+JavaScript: 7 tests superados. Revisión sintética HTTP 200. Integridad en lectura:
+BD de negocio y caché con quick_check=ok y sin infracciones de claves foráneas.
+
 ## Incidencias administrativas
+
+### Estado comprobado el 18/11/2026
+
+Lectura de la caché compartida: ocho fincas publicadas verificadas, ninguna
+pendiente. Las cuatro incidencias anteriores (Gerona 5, San Vicente 16,
+Bisbe Winibal 7 y Clemente Gonzálvez Valls 37) están resueltas. La confirmación
+de Gerona 5 corresponde a la ubicación concreta aprobada por el titular; no es
+una traducción automática general. No se realizaron nuevas consultas al proveedor
+para esta comprobación y las direcciones de negocio permanecieron intactas.
+
+Al guardar una dirección diferente desde la revisión, su clave de caché cambia:
+la coordenada anterior deja de aplicarse y aparece una incidencia pendiente.
+El resultado anterior se conserva como historial. Una verificación posterior
+retira automáticamente la incidencia abierta, sin editar estados manualmente.
 
 El Dashboard integra las ubicaciones no verificadas como tipo `geolocation`,
 una por finca (`geolocation:{property_id}`), con finca, dirección registrada,

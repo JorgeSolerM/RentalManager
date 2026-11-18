@@ -14,6 +14,7 @@ from backend.api.routers import (
     master_calendars,
     photos,
     properties,
+    geolocation,
     room_calendars,
     rooms,
     settings,
@@ -72,6 +73,7 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(gantt.router)
     app.include_router(properties.router)
+    app.include_router(geolocation.router)
     app.include_router(rooms.router)
     app.include_router(settings.router)
     app.include_router(persons.router)

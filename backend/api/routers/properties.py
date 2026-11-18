@@ -55,6 +55,7 @@ def list_properties(
             "request": request,
             "current_page": "properties",
             "properties": properties_data,
+            "manual_location_update_enabled": True,
         },
     )
 

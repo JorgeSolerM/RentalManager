@@ -67,7 +67,7 @@ def test_global_throttle_and_permanent_review_cache(tmp_path):
     with httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200,json=[]))) as client:
         for address in (ADDRESS, Address('Otra','1','Elche'), ADDRESS):
             assert cache.resolve(address,client=client,clock=lambda:now[0],sleep=sleep) == 'review'
-    assert sleeps == [16]
+    assert sleeps == [16, 16, 16, 16]
 
 
 def test_catalog_map_exact_selection_privacy_and_address_change(public_context, db_session, tmp_path, monkeypatch):
@@ -91,6 +91,13 @@ def test_catalog_map_exact_selection_privacy_and_address_change(public_context, 
     assert 'https://tile.openstreetmap.org' in response.headers['content-security-policy']
     assert 'https://tile.openstreetmap.org' not in client.get('/contacto').headers['content-security-policy']
     assert catalog_map(db_session, [])['properties'] == []
+    prop.name = 'Nombre administrativo nuevo'
+    prop.public_title = 'Nombre público nuevo'
+    db_session.commit()
+    assert Address.of(prop).key == address.key
+    renamed = catalog_map(db_session, PublicRoomService().list_rooms(db_session,today=TODAY))
+    assert renamed['properties'][0]['name'] == 'Nombre público nuevo'
+    assert renamed['properties'][0]['latitude'] == payload['properties'][0]['latitude']
     prop.street_number = '999'; db_session.commit()
     rooms = PublicRoomService().list_rooms(db_session,today=TODAY)
     assert catalog_map(db_session,rooms)['omitted'] == 1

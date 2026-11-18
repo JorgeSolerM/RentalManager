@@ -11,6 +11,8 @@ from backend.schemas.dashboard_schema import DashboardIncident
 
 
 REASONS = {
+    "exact_street_number_city": "Calle, número y municipio verificados.",
+    "exact_number_city_owner_confirmed_street_equivalence": "Número y municipio verificados; equivalencia de la vía confirmada por el titular.",
     "ambiguous": "Se encontraron varias ubicaciones posibles.",
     "no_exact_street_number_city": "No se pudo verificar conjuntamente calle, número y ciudad.",
     "incomplete_address": "Faltan calle, número o ciudad en la dirección registrada.",
@@ -19,6 +21,7 @@ REASONS = {
     "connection_error": "No se pudo conectar con el proveedor.",
     "invalid_response": "El proveedor devolvió una respuesta no válida.",
     "interrupted": "El intento anterior no llegó a completarse.",
+    "unverified_street_equivalence": "La variante tiene una ubicación, pero no está verificado que corresponda a la misma vía.",
 }
 
 
@@ -52,6 +55,6 @@ def geolocation_incidents(db, cache=None):
             key=f"geolocation:{prop.id}", kind="geolocation", severity="attention",
             title=f"Geolocalización · {label}",
             detail=f"{prop.name} · {registered} · {explanation} · {attempted}",
-            target_url=f"/properties/{prop.id}",
+            target_url=f"/properties/{prop.id}/geolocation",
         ))
     return incidents

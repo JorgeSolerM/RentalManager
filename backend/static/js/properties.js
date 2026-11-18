@@ -43,6 +43,8 @@ function closePropertyModal() {
 
 function clearPropertyForm() {
 
+    document.getElementById("property-location-button")?.classList.add("hidden");
+
     document
         .getElementById("property-form")
         .reset();
@@ -57,6 +59,15 @@ function clearPropertyForm() {
 
 
 function fillPropertyForm(property) {
+
+    const locationButton = document.getElementById("property-location-button");
+    if (locationButton) {
+        locationButton.dataset.propertyId = property.id;
+        locationButton.dataset.address = JSON.stringify(
+            [property.street, property.street_number, property.city].map(value => (value ?? "").trim())
+        );
+        locationButton.classList.remove("hidden");
+    }
 
     document.getElementById("name").value =
         property.name ?? "";
@@ -156,6 +167,37 @@ async function editProperty(propertyId) {
 
 }
 
+
+async function updatePropertyLocation() {
+    const button = document.getElementById("property-location-button");
+    if (!button?.dataset.propertyId || button.disabled) return;
+    const address = JSON.stringify(["street", "street_number", "city"].map(
+        id => document.getElementById(id).value.trim()
+    ));
+    if (address !== button.dataset.address) {
+        RMNotification.error("Guarda primero los cambios de dirección y vuelve a abrir la finca para actualizar su ubicación.");
+        return;
+    }
+    button.disabled = true;
+    try {
+        const url = `/properties/${button.dataset.propertyId}/geolocation`;
+        const response = await fetch(url, { credentials: "same-origin" });
+        if (!response.ok) throw new Error("review_unavailable");
+        const page = new DOMParser().parseFromString(await response.text(), "text/html");
+        const token = page.querySelector('input[name="csrf"]')?.value;
+        if (!token) throw new Error("review_token_missing");
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = `${url}/retry`;
+        const csrf = document.createElement("input");
+        csrf.type = "hidden"; csrf.name = "csrf"; csrf.value = token;
+        form.append(csrf); document.body.append(form);
+        form.submit();
+    } catch (_error) {
+        RMNotification.error("No se ha podido abrir la actualización de ubicación. Inténtalo de nuevo.");
+        button.disabled = false;
+    }
+}
 
 function deleteProperty() {
 

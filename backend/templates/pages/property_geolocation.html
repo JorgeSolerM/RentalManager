@@ -1,0 +1,27 @@
+{% extends "layouts/base.html" %}
+{% block title %}Geolocalización · {{ property.name }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><a href="/">← Incidencias del Dashboard</a><h1 class="mt-2">Geolocalización · {{ property.name }}</h1></div></div>
+{% if notice %}<div class="alert alert-info" role="status">{{ notice }}</div>{% endif %}
+<section class="card"><div class="card-body">
+<h2 class="h5">{{ status }}</h2>
+<dl><dt>Dirección registrada</dt><dd>{{ registered }}</dd><dt>Motivo</dt><dd>{{ reason }}</dd><dt>Última consulta (Madrid)</dt><dd>{{ attempted }}</dd>
+<dt>Última variante consultada</dt><dd>{{ attempts[0].address if attempts else 'No conservada en la caché anterior' }}</dd></dl>
+{% if pause_until %}<p class="alert alert-warning">Próxima consulta permitida a partir de {{ pause_until }} (Madrid). El botón no evita esta pausa.</p>{% endif %}
+<div class="d-flex flex-wrap gap-2">
+<button type="button" class="btn-secondary" data-geo-edit="{{ property.id }}" data-geo-csrf="{{ csrf }}">Editar dirección</button>
+<a class="btn-secondary" href="{{ maps_url }}" target="_blank" rel="noopener noreferrer">Ver dirección en Google Maps</a>
+<form method="post" action="/properties/{{ property.id }}/geolocation/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn-primary" type="submit" {% if not retry_enabled or pause_until %}disabled{% endif %}>Reintentar geolocalización</button></form>
+</div>
+{% if not retry_enabled %}<p class="text-muted mt-3">Los reintentos administrativos están deshabilitados hasta configurar el acceso de escritura a la caché. El worker periódico permanece independiente.</p>{% endif %}
+<p class="text-muted mt-3">La búsqueda puede tardar hasta dos minutos: las variantes se consultan secuencialmente. No se introducen coordenadas manualmente.</p>
+</div></section>
+{% if attempts %}<section class="card mt-3"><div class="card-body"><h2 class="h5">Últimos intentos para esta dirección</h2>
+<ul>{% for attempt in attempts %}<li class="mb-2"><strong>{{ attempt.address }}</strong> · {{ when(attempt.checked_at) }}<br>{{ attempt.label }} · {{ attempt.status }} · {{ attempt.reason }}{% if attempt.http_status %} · HTTP {{ attempt.http_status }}{% endif %}</li>{% endfor %}</ul>
+</div></section>{% endif %}
+{% include "components/property_modal.html" %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static',path='js/properties.js') }}"></script>
+<script src="{{ url_for('static',path='js/property-geolocation.js') }}"></script>
+{% endblock %}

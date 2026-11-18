@@ -1,5 +1,34 @@
 # Activación de geolocalización e incidencias
 
+## Reintento administrativo: activación realizada
+
+La pantalla de revisión y las variantes se desplegaron con autorización el
+18/11/2026. Administración dispone de escritura en la caché privada y el flag
+`PUBLIC_GEOCODING_ADMIN_RETRY_ENABLED` está habilitado en su adaptador privado;
+el valor por defecto del código continúa deshabilitado. Se validó un reintento
+servido desde caché sin consultas al proveedor ni cambios de negocio.
+Solo se reinició administración; la entrega pública y el calendario permanecieron
+intactos. Se conservaron snapshot consistente, ACL y adaptador de reversión.
+El acceso adicional desde el editor de fincas requiere un despliegue posterior.
+
+Para repetir la activación en otro entorno, hace falta autorización para desplegar y dar al proceso
+administrativo capacidad de escritura **solo en el directorio privado de caché y
+SQLite/WAL/SHM**, conservando los demás límites, o implementar posteriormente un
+escritor separado autorizado. No se promete separación NTFS entre una ruta de lectura
+y otra de escritura dentro de la misma identidad Windows. No se cambia ahora ninguna
+ACL. Ante falta de permisos el reintento muestra un aviso y no solicita elevación.
+
+Procedimiento futuro: backup consistente de caché y arranques/ACL, validar en copia
+la creación aditiva de `geocoding_queries` y `geocoding_attempts`, instalar candidato,
+configurar User-Agent y flag administrativo, reiniciar únicamente servicios autorizados
+y comprobar lectura pública/reintento/pausa. El worker periódico seguirá a cero.
+El lector antiguo ignora las tablas adicionales; rollback de código no requiere
+borrarlas ni restaurar coordenadas anteriores ni eliminar el historial.
+
+Para aliases documentados, `PUBLIC_GEOCODING_ALIASES` apunta a un archivo privado
+revisado, compartido por los escritores. Nunca habilitar Gerona/Girona únicamente
+porque los nombres son traducciones: verificar que sea la misma calle y número.
+
 Ambas aplicaciones comparten una única caché SQLite privada. No se requiere
 migración de negocio. Las rutas, cuentas, acciones de tareas, ACL y copias de
 seguridad concretas pertenecen al runtime local y no deben versionarse.

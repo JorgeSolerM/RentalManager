@@ -98,6 +98,12 @@
 
             <div class="rm-modal-actions">
 
+                {% if manual_location_update_enabled|default(false) %}
+                <button id="property-location-button" type="button" class="btn-secondary hidden" onclick="updatePropertyLocation()">
+                    Actualizar ubicación
+                </button>
+                {% endif %}
+
                 <button type="button" class="btn-secondary" onclick="closePropertyModal()">
 
                     Cancelar
