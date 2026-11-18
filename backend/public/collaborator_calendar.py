@@ -1,12 +1,6 @@
 """Read-only collaborator projection; no administrative DTOs or booking IDs."""
 from datetime import timedelta
-from hashlib import sha256
-from hmac import compare_digest
-import os
-import re
-from pathlib import Path
-
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -18,27 +12,6 @@ from backend.public.service import PublicRoomService
 PREFIX = '/colaboradores/disponibilidad'
 router = APIRouter()
 templates = Jinja2Templates(directory='backend/public/templates')
-
-
-def configured_digest():
-    # Absence is the feature flag: fail closed, no migration or secret in Git.
-    value = os.getenv('COLLABORATOR_CALENDAR_TOKEN_SHA256', '')
-    private_file = os.getenv('COLLABORATOR_CALENDAR_TOKEN_HASH_FILE', '')
-    if private_file:
-        try:
-            value = Path(private_file).read_text(encoding='utf-8').strip()
-        except (OSError, UnicodeError):
-            raise HTTPException(404, 'No disponible') from None
-    if not re.fullmatch(r'[a-f0-9]{64}', value):
-        raise HTTPException(404, 'No disponible')
-    return value
-
-
-def authorize(authorization: str | None = Header(default=None)):
-    expected = configured_digest()
-    token = authorization[7:] if authorization and authorization.startswith('Bearer ') else ''
-    if not re.fullmatch(r'[A-Za-z0-9_-]{43}', token) or not compare_digest(sha256(token.encode()).hexdigest(), expected):
-        raise HTTPException(401, 'Enlace no válido o revocado')
 
 
 def calendar_data(db, *, today, listing_path):
@@ -64,8 +37,12 @@ def calendar_data(db, *, today, listing_path):
             else:
                 occupied.append((start, finish))
         group = groups.setdefault(room.property_id, {'name': room.property.public_title.strip(), 'rooms': []})
+        primary = service._primary_photo(room)
         group['rooms'].append({
             'name': room.public_title.strip(), 'listing_url': listing_path(room.public_slug),
+            'slug': room.public_slug,
+            'price_monthly': str(room.base_price) if room.base_price is not None else None,
+            'thumbnail_url': service._image(primary, service._photo_source(room, primary)).url_320 if primary else None,
             'available_from': available.isoformat(),
             'occupied': [{'start': start.isoformat(), 'end': finish.isoformat()} for start, finish in occupied],
         })
@@ -75,13 +52,11 @@ def calendar_data(db, *, today, listing_path):
 
 @router.get(PREFIX, name='collaborator_calendar')
 def calendar_page(request: Request):
-    configured_digest()
-    # This public shell contains no availability. Secret lives in URL fragment,
-    # never query/path/server HTML; authenticated data uses an Authorization header.
+    # Explicitly public, read-only projection; no administrative routes.
     return templates.TemplateResponse(request=request, name='collaborator_calendar.html', context={'request': request})
 
 
-@router.get(PREFIX + '/data', dependencies=[Depends(authorize)])
+@router.get(PREFIX + '/data')
 def calendar_response(request: Request, db: Session = Depends(get_public_db)):
     return calendar_data(db, today=business_today(),
                          listing_path=lambda slug: str(request.app.url_path_for('public_room_detail', slug=slug)))

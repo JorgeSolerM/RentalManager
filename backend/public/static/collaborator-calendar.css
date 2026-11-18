@@ -1,4 +1,4 @@
-.collaborator-page { margin:0; color:#14231d; background:#f6f8f7; }
+.collaborator-page { margin:0; color:#152342; background:#f4f6fa; }
 .collaborator-brand { display:flex; align-items:center; gap:1rem; padding:1rem 1.5rem; background:white; border-bottom:1px solid #d9e3de; }
 .collaborator-brand strong { font-size:1.5rem; font-weight:800; white-space:nowrap; }
 .collaborator-brand span { color:#20754c; }
@@ -7,25 +7,92 @@
 .collaborator-main h1 { font-size:1.65rem; margin:0 0 .5rem; }
 .collaborator-main p { margin:.5rem 0; }
 .calendar-legend { display:flex; flex-wrap:wrap; gap:.7rem 1.3rem; list-style:none; padding:0; font-size:.85rem; }
-.legend-mark { display:inline-block; width:1.4rem; text-align:center; border-radius:3px; }
+.legend-mark { display:inline-block; width:1rem; height:1rem; vertical-align:middle; border-radius:3px; }
 .calendar-scroll { max-width:100%; overflow:auto; max-height:70vh; border:1px solid #d6e1da; border-radius:8px; background:white; }
 .calendar-scroll:focus-visible,.calendar-label a:focus-visible { outline:3px solid #256c4b; outline-offset:-3px; }
-.availability-table { border-collapse:separate; border-spacing:0; width:max-content; table-layout:fixed; font-size:.75rem; }
+.availability-table { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; font-size:.75rem; }
 .availability-table th,.availability-table td { box-sizing:border-box; border-right:1px solid #e0e7e2; border-bottom:1px solid #e0e7e2; text-align:center; }
-.availability-table thead th { position:sticky; top:0; height:32px; background:#e9f0ec; z-index:3; font-weight:700; }
-.availability-table thead tr:nth-child(2) th { top:32px; }
+.availability-table thead th { position:sticky; top:0; height:40px; background:#e9f0ec; z-index:3; font-weight:700; }
+.availability-table thead tr:nth-child(2) th { top:40px; }
 .availability-table .calendar-label { width:220px; min-width:220px; max-width:220px; position:sticky; left:0; z-index:2; background:white; padding:.55rem .7rem; text-align:left; overflow-wrap:anywhere; }
 .availability-table thead .calendar-label { z-index:5; background:#e9f0ec; }
-.calendar-label a { display:block; color:#176b45; font-weight:700; text-decoration:underline; }
+.calendar-label a { display:block; color:#1856b0; font-weight:700; text-decoration:underline; }
+.calendar-label .room-link { display:flex; align-items:center; gap:.5rem; }
+.room-thumbnail { flex:0 0 64px; width:64px; height:48px; border-radius:5px; overflow:hidden; background:#e9eeeb; }
+.room-thumbnail img { display:block; width:100%; height:100%; object-fit:cover; }
 .calendar-label strong,.calendar-label small { display:block; margin-top:.15rem; }
 .calendar-label small { color:#52645b; font-weight:500; }
-.availability-table .day { width:23px; min-width:23px; max-width:23px; }
+.calendar-label .room-price { color:#394b60; font-size:.8rem; font-weight:600; }
+@media(min-width:769px) {
+  .calendar-label .room-link { display:block; }
+  .calendar-label .room-thumbnail { float:left; margin-right:.5rem; }
+  .calendar-label .room-price { margin-left:calc(64px + .5rem); }
+  .calendar-label .room-price + small { clear:both; }
+}
+.availability-table .week { min-width:34px; font-size:.65rem; overflow-wrap:normal; }
+.availability-table .month-start { border-left:2px solid #a9bcb0; }
+.availability-table { min-width:1860px; }
 .availability-table td { height:64px; }
 .availability-table .property-divider th { height:28px; background:#e9f0ec; color:#31513e; }
 .availability-table .property-divider .calendar-label { background:#e9f0ec; }
-.occupied { color:#fff; background:#596b78; }
-.available { color:#185333; background:#d6eddf; }
-.gap { color:#626967; background:repeating-linear-gradient(135deg,#f1f2f1 0 4px,#e6eae7 4px 6px); }
+.occupied { background:#ed8289; }
+.available { background:#8cdbab; }
+.day-unavailable { fill:#ed8289; }
+.day-available { fill:#8cdbab; }
+.week-block { display:block; width:100%; height:48px; margin:auto; border-radius:4px; overflow:hidden; shape-rendering:crispEdges; }
+.availability-table td.week { padding:4px; }
+.calendar-navigation { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:.8rem 0; padding:.3rem; background:#eef2f8; border-radius:6px; }
+.calendar-navigation[hidden] { display:none; }
+.calendar-navigation span { min-width:12rem; text-align:center; font-weight:700; text-transform:capitalize; }
+.calendar-navigation button { width:40px; height:40px; border:1px solid #c4d4ca; border-radius:6px; background:white; color:#176b45; font-size:1.6rem; cursor:pointer; }
+.calendar-navigation button:disabled { opacity:.35; cursor:default; }
+.calendar-navigation button:focus-visible { outline:3px solid #256c4b; outline-offset:2px; }
 .calendar-note { color:#52645b; font-size:.8rem; }
+.calendar-mobile-weeks { display:none; }
+.calendar-view { overflow-anchor:none; }
+.calendar-header[hidden] { display:none; }
+.calendar-sort { display:flex; padding:4px; gap:4px; background:#eef2f8; border-radius:6px; }
+.calendar-sort button { flex:1; min-width:0; min-height:36px; border:0; border-radius:4px; background:#e3eaf4; color:#152342; font:inherit; font-size:.85rem; font-weight:600; cursor:pointer; }
+.calendar-sort button[aria-pressed="true"] { background:#1856b0; color:white; }
+.calendar-sort button:focus-visible { outline:3px solid #152342; outline-offset:1px; }
 @media(max-width:768px) { .collaborator-main { padding:1rem; } .availability-table .calendar-label { width:175px; min-width:175px; max-width:175px; } }
 @media(max-width:430px) { .collaborator-brand { padding:.8rem; gap:.65rem; } .collaborator-brand small { font-size:.7rem; } .collaborator-main { padding:.8rem; } .collaborator-main h1 { font-size:1.3rem; } .availability-table .calendar-label { width:145px; min-width:145px; max-width:145px; } .calendar-legend { display:grid; gap:.35rem; } }
+@media(max-width:768px) { .room-thumbnail { flex-basis:40px; width:40px; height:32px; } .calendar-label .room-link { gap:.35rem; } }
+@media(max-width:768px) {
+  .calendar-legend { display:flex; gap:.6rem 1rem; }
+  #calendar-period,#calendar-status { font-size:.8rem; }
+  .calendar-scroll { max-height:none; overflow:visible; border-radius:6px; }
+  .availability-table { display:block; min-width:0; width:100%; font-size:.875rem; }
+  .availability-table caption { display:none; }
+  .availability-table thead,.availability-table tbody { display:block; }
+  .availability-table thead { display:none; }
+  /* The brand header is not fixed. One sticky container owns all three rows. */
+  .calendar-header { position:sticky; top:0; z-index:6; background:#eef2f8; border-bottom:1px solid #c9d5ce; box-shadow:0 2px 3px #15234212; }
+  .calendar-header .calendar-navigation { margin:0; height:52px; box-sizing:border-box; }
+  .calendar-mobile-weeks { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:center; height:48px; box-sizing:border-box; padding:0 .4rem 0 76px; background:#e9f0ec; font-size:.75rem; font-weight:700; text-align:center; }
+  .calendar-mobile-weeks[data-week-count="1"] { grid-template-columns:repeat(1,minmax(0,1fr)); }
+  .calendar-mobile-weeks[data-week-count="2"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .calendar-mobile-weeks[data-week-count="3"] { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .calendar-mobile-weeks[data-week-count="4"] { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .calendar-mobile-weeks span { padding:0 .1rem; overflow-wrap:anywhere; }
+  .availability-table thead tr:first-child { display:none; }
+  .availability-table tr { display:grid; position:relative; grid-template-columns:repeat(5,minmax(0,1fr)); padding:0 .4rem .5rem 76px; border-bottom:1px solid #d6e1da; }
+  .availability-table[data-week-count="1"] tr { grid-template-columns:repeat(1,minmax(0,1fr)); }
+  .availability-table[data-week-count="2"] tr { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .availability-table[data-week-count="3"] tr { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .availability-table[data-week-count="4"] tr { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .availability-table th,.availability-table td { border:0; }
+  .availability-table .calendar-label { grid-column:1/-1; position:static; width:auto; min-width:0; max-width:none; padding:.5rem 0 .3rem; }
+  .calendar-label .room-link { gap:0; font-size:.9rem; }
+  .room-thumbnail { position:absolute; left:8px; top:12px; width:60px; height:48px; }
+  .calendar-label small { margin-left:0; font-size:.75rem; }
+  .availability-table .week { display:none; min-width:0; }
+  .availability-table .selected-week { display:table-cell; }
+  .availability-table thead tr:nth-child(2) th { position:static; height:auto; padding:.65rem .1rem .15rem; font-size:.75rem; }
+  .availability-table td.week { height:30px; padding:0 2px; }
+  .week-block { width:100%; height:28px; }
+  .availability-table .month-start { border:0; }
+  .availability-table .property-divider { display:block; padding:0 .6rem; background:#e9f0ec; }
+  .availability-table .property-divider th { display:block; height:auto; padding:.4rem 0; }
+  .availability-table .property-divider th:last-child { display:none; }
+}

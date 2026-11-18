@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-from hashlib import sha256
 from uuid import uuid4
 
 import pytest
@@ -16,13 +15,13 @@ from tests.integration.public.test_public_storefront import add_public_room
 
 TODAY = date(2026, 11, 1)
 TOKEN = 'synthetic-test-only-' + 'x' * 23
-AUTH = {'Authorization': 'Bearer ' + TOKEN}
+AUTH = {}  # All calendar requests must work anonymously.
 
 
 @pytest.fixture
 def context(db_session, tmp_path, monkeypatch):
     monkeypatch.delenv('COLLABORATOR_CALENDAR_TOKEN_HASH_FILE',raising=False)
-    monkeypatch.setenv('COLLABORATOR_CALENDAR_TOKEN_SHA256', sha256(TOKEN.encode()).hexdigest())
+    monkeypatch.delenv('COLLABORATOR_CALENDAR_TOKEN_SHA256',raising=False)
     monkeypatch.setattr('backend.public.collaborator_calendar.business_today', lambda: TODAY)
     store = MediaFileStore(MediaStoragePaths.from_root(tmp_path/'media'))
     prop, room = add_public_room(db_session, store)
@@ -37,6 +36,34 @@ def context(db_session, tmp_path, monkeypatch):
 def booking(db, room, start, end, **kwargs):
     item = Booking(room_id=room.id, check_in=date.fromisoformat(start), check_out=date.fromisoformat(end), **kwargs)
     db.add(item); db.commit(); return item
+
+
+def test_thumbnail_reuses_primary_and_property_fallback(context, db_session):
+    client, prop, room = context
+    row = client.get(PREFIX+'/data').json()['properties'][0]['rooms'][0]
+    assert row['thumbnail_url'] == '/media/' + 'a'*32 + '/320.webp'
+    room.photos[0].is_primary = False
+    db_session.commit()
+    row = client.get(PREFIX+'/data').json()['properties'][0]['rooms'][0]
+    assert row['thumbnail_url'] == '/media/' + 'b'*32 + '/320.webp'
+    prop.photos[0].is_primary = False
+    db_session.commit()
+    # Existing publicability still requires a cover: no new exposure without it.
+    assert client.get(PREFIX+'/data').json()['properties'] == []
+
+
+@pytest.mark.parametrize('price', ['395.00', '350.50'])
+def test_calendar_price_matches_public_listing_source(context, db_session, price):
+    from decimal import Decimal
+    from backend.public.service import PublicRoomService
+    client, _, room = context
+    room.base_price = Decimal(price)
+    db_session.commit()
+    booking(db_session, room, '2026-10-01', '2026-12-01', price=9876)
+    row = client.get(PREFIX+'/data').json()['properties'][0]['rooms'][0]
+    assert Decimal(row['price_monthly']) == Decimal(price)
+    assert Decimal(row['price_monthly']) == PublicRoomService()._card(room, TODAY).price_monthly
+    assert client.get(row['listing_url']).status_code == 200
 
 
 @pytest.mark.parametrize('intervals,expected', [
@@ -90,7 +117,13 @@ def test_privacy_read_only_links_security_and_no_discovery(context,db_session):
     response=client.get(PREFIX+'/data',headers=AUTH)
     assert response.status_code==200
     row=response.json()['properties'][0]['rooms'][0]
-    assert set(row)=={'name','listing_url','available_from','occupied'}
+    assert set(row)=={'name','slug','listing_url','thumbnail_url','available_from','occupied','price_monthly'}
+    assert row['slug'] == room.public_slug
+    from backend.public.service import PublicRoomService
+    service = PublicRoomService()
+    primary = service._primary_photo(room)
+    assert row['thumbnail_url'] == service._image(primary, service._photo_source(room, primary)).url_320
+    assert client.get(row['thumbnail_url']).status_code == 200
     assert set(row['occupied'][0])=={'start','end'}
     assert row['listing_url']==f'/habitaciones/{room.public_slug}'
     assert client.get(row['listing_url']).status_code==200
@@ -102,6 +135,8 @@ def test_privacy_read_only_links_security_and_no_discovery(context,db_session):
         assert 'no-store' in r.headers['cache-control'] and 'noindex' in r.headers['x-robots-tag']
         assert 'set-cookie' not in r.headers
         assert client.post(path,headers=AUTH).status_code==405
+        for method in ['PUT','PATCH','DELETE']:
+            assert client.request(method,path).status_code==405
     shell=client.get(PREFIX).text
     assert room.public_title not in shell and TOKEN not in shell
     assert '<form' not in shell
@@ -113,30 +148,23 @@ def test_privacy_read_only_links_security_and_no_discovery(context,db_session):
     assert b.check_out==date(2026,12,1) and db_session.query(Booking).count()==1
 
 
-def test_missing_wrong_revoked_and_disabled_token(context,monkeypatch):
+def test_anonymous_access_without_cookie_session_or_authorization(context,monkeypatch):
     client,_,_=context
-    assert client.get(PREFIX+'/data').status_code==401
-    assert client.get(PREFIX+'/data',headers={'Authorization':TOKEN}).status_code==401
-    assert client.get(PREFIX+'/data?token='+TOKEN).status_code==401
-    assert client.get(PREFIX+'/data',headers={'Authorization':'Bearer '+('z'*43)}).status_code==401
-    assert client.get(PREFIX+'/data',headers=AUTH).status_code==200
-    monkeypatch.setenv('COLLABORATOR_CALENDAR_TOKEN_SHA256',sha256(b'revoked').hexdigest())
-    r=client.get(PREFIX+'/data',headers=AUTH)
-    assert r.status_code==401 and TOKEN not in r.text and 'no-store' in r.headers['cache-control']
-    monkeypatch.delenv('COLLABORATOR_CALENDAR_TOKEN_SHA256')
-    assert client.get(PREFIX).status_code==404
-    assert client.get(PREFIX+'/data',headers=AUTH).status_code==404
+    assert client.get(PREFIX).status_code==200
+    r=client.get(PREFIX+'/data')
+    assert r.status_code==200 and 'no-store' in r.headers['cache-control']
+    assert 'set-cookie' not in r.headers
+    assert client.get(PREFIX+'/data',headers={'Authorization':'invalid'}).json()==r.json()
+    monkeypatch.setenv('COLLABORATOR_CALENDAR_TOKEN_SHA256','obsolete')
+    monkeypatch.setenv('COLLABORATOR_CALENDAR_TOKEN_HASH_FILE','does-not-exist')
+    assert client.get(PREFIX+'/data').json()==r.json()
 
 
-def test_private_digest_file_rotation_without_restart(context,monkeypatch,tmp_path):
+def test_legacy_token_is_not_needed_or_reflected(context):
     client,_,_=context
-    path=tmp_path/'token.sha256'; path.write_text(sha256(TOKEN.encode()).hexdigest())
-    monkeypatch.setenv('COLLABORATOR_CALENDAR_TOKEN_HASH_FILE',str(path))
-    assert client.get(PREFIX+'/data',headers=AUTH).status_code==200
-    path.write_text(sha256(b'new-secret').hexdigest())
-    assert client.get(PREFIX+'/data',headers=AUTH).status_code==401
-    path.unlink()
-    assert client.get(PREFIX+'/data',headers=AUTH).status_code==404
+    for path in [PREFIX,PREFIX+'/data']:
+        r=client.get(path,headers={'Authorization':'Bearer '+TOKEN})
+        assert r.status_code==200 and TOKEN not in r.text
 
 
 @pytest.mark.parametrize('departure',[date(2026,11,1),date(2026,12,1)])

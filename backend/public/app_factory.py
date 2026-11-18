@@ -54,7 +54,6 @@ def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
             response.headers['Cache-Control'] = 'private, no-store, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
-            response.headers['Vary'] = 'Authorization'
         return response
 
     app.include_router(router)

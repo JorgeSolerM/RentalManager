@@ -1,117 +1,169 @@
-# Calendario de colaboradores
+# Calendario público de colaboradores
 
-Implementado en la aplicación pública separada. Validación funcional y visual
-aprobada el 29/10/2026; despliegue pendiente de autorización independiente.
-No modifica reservas, facturación, liquidaciones ni sincronización.
-No necesita tablas ni migraciones. Deshabilitado sin configuración de acceso.
+## Acceso aprobado
 
-## Selección aprobada
+El 29/10/2026 se autoriza sustituir el enlace secreto por acceso completamente
+público. `/colaboradores/disponibilidad` y su endpoint GET `/data` funcionan sin
+token, sesión, cookie ni contraseña. Las variables antiguas
+COLLABORATOR_CALENDAR_TOKEN_SHA256 y COLLABORATOR_CALENDAR_TOKEN_HASH_FILE ya no
+intervienen. El fragmento de los enlaces antiguos no se lee ni envía.
+Compartir únicamente la URL sin fragmento.
 
-- Ventana diaria `[hoy, hoy + seis meses naturales)`, fecha de negocio Madrid.
-- Se reutiliza el cargador público: todas las reservas con salida posterior a hoy,
-  **sin límite superior**. No se utiliza la consulta acotada del Gantt administrativo.
+## Selección (sin cambios)
+
+- Horizonte `[hoy, hoy + seis meses naturales)`, fecha Europe/Madrid.
+- Todas las reservas con salida posterior a hoy, sin límite superior.
 - `available_from = max(hoy, salidas efectivas de todas esas reservas)`.
-- Solo aparece una habitación si esa fecha está dentro de la ventana.
-- Se respetan publicación efectiva, Room activa/puesta en servicio y requisitos de
-  finca/gestor del catálogo. No basta con is_published.
-- Una habitación libre hoy con reserva futura no se ofrece desde hoy: solo desde
-  la última salida conocida, si cae dentro de la ventana.
-- Reservas posteriores a la ventana también excluyen habitaciones. No se ofrecen
-  huecos intermedios; se dibujan neutros y se identifican como no ofrecidos.
-- Ocupación `[check_in, check_out)`, como Gantt. El día de salida está libre.
-  Una finalización anticipada confirmada actualiza check_out; no se sustituye por
-  la fecha económica ni por una mera previsión de salida.
-- Los bloqueos representados como Booking usan el mismo criterio que Gantt. No
-  se inventan estados ni un segundo calendario de ocupación.
+- Incluir solo si available_from pertenece al horizonte. Nunca ofrecer huecos
+  intermedios; los días anteriores a la disponibilidad terminal se representan
+  en rojo como disponibilidad no ofrecida, aunque existan huecos entre reservas.
+- Ocupación `[check_in, check_out)`: el día de salida ya está libre.
+- Finalizaciones anticipadas confirmadas usan check_out efectivo, no fin
+  económico ni mera previsión de salida. Reservas iCal cuentan igualmente.
+- Publicabilidad efectiva de Room, Finca y gestor; no basta is_published.
+- El número es dinámico; 21 corresponde a la comprobación del despliegue,
+  no es un límite ni un valor fijado en código.
 
-La definición comercial existente de huecos del catálogo no se cambia. El helper
-terminal está separado y probado para impedir regresiones entre ambos criterios.
+## Arquitectura y privacidad
 
-## Interfaz y privacidad
+Aplicación pública separada; repositorio público existente y helper terminal.
+No se cambia la lógica de huecos del catálogo ordinario. Sin tablas, migraciones
+ni dependencias nuevas. Conexión pública SQLite mode=ro y rutas exclusivamente
+GET; POST/PUT/PATCH/DELETE devuelven 405. No se monta administración ni API interna.
+Solo nombres públicos, slugs, fechas, precio mensual anunciado, portada pública
+y URL real del anuncio: no personas, IDs de reservas, notas, contratos, importes
+contractuales ni configuración interna. Las fechas de ocupación
+pasan a ser consultables por cualquiera por decisión expresa del titular.
 
-Solo nombres públicos, fechas de ocupación y enlaces oficiales de anuncios.
-No se serializan IDs de reservas, personas, teléfonos, notas ni datos económicos.
-El nombre de finca en **cada fila** abre el anuncio de esa habitación; aprobado
-expresamente porque no existe ficha pública de finca. Texto accesible: «Ver anuncio
-de esta habitación». No se inventan rutas de finca.
+Sin cookies, almacenamiento del navegador ni analítica. Se conserva no-store,
+no-referrer, CSP, nosniff, protección de frames y noindex/nofollow/noarchive.
+Sin sitemap/menús. Noindex no es una protección de acceso ni evita copias de
+información pública por terceros.
 
-Tabla diaria agrupada por finca, etiquetas fijas, desplazamiento interno por
-teclado/táctil, símbolos y texto además del color. No acciones de reserva/edición.
-Lectura con conexión SQLite mode=ro. Actualización cada 60 segundos. Si falla la
-actualización o se revoca acceso, se retiran los datos previos de la vista.
+## Interfaz
 
-## Acceso revocable (despliegue futuro, no aplicado en producción)
+Tabla semanal agrupada por finca, etiquetas fijas y scroll interno en escritorio.
+Hasta 768 px se muestra un mes, con navegación y semanas en una única cabecera
+sticky junto a los controles de ordenación. Rangos y disponibilidad mediante
+texto accesible y tooltip, además del color y la leyenda; sin edición.
+Refresco cada 60 segundos; un
+fallo retira datos obsoletos. El **nombre de cada habitación** enlaza a SU anuncio
+`/habitaciones/{slug}`, en pestaña nueva, con noopener/noreferrer y «Ver anuncio
+de esta habitación». La finca queda como información de agrupación.
 
-Ruta: `/colaboradores/disponibilidad#<secreto>`.
-Generar privadamente 32 bytes aleatorios mediante `secrets.token_urlsafe(32)`.
-Guardar únicamente su SHA-256 hexadecimal en configuración del proceso público:
+### Precio mensual
 
-- `COLLABORATOR_CALENDAR_TOKEN_HASH_FILE`: archivo privado con el digest, leído en
-  cada petición. Preferido: permite revocar/rotar sin reiniciar.
-- Alternativa: `COLLABORATOR_CALENDAR_TOKEN_SHA256` en entorno del proceso.
+`price_monthly` procede de `Room.base_price`, la misma fuente del precio público
+del anuncio; no de `Booking.price` ni de condiciones económicas de reservas.
+Se muestra justo debajo del nombre, sin enlace y separado de la miniatura,
+con formato español y sufijo `€/mes` (por ejemplo, `395 €/mes`).
+`Consultar precio` es una alternativa defensiva de presentación: no modifica
+la regla de publicabilidad existente, que exige un precio finito y positivo.
+La fecha de disponibilidad aparece después del precio. La portada y el nombre
+conservan su enlace al anuncio; no se duplican datos ni se modifica la BD.
 
-No versionar secreto, archivo privado ni enlace completo. El fragmento no viaja
-al servidor como URL: JavaScript lo envía en Authorization al endpoint `/data`.
-No usar query parameters. La página inicial es una carcasa sin datos; `/data`
-exige Bearer válido. Falta de configuración devuelve 404, acceso inválido 401.
-No hay cookies, localStorage, sessionStorage ni analítica. No logs de Authorization;
-el despliegue/proxy tampoco debe habilitarlos. HTTPS obligatorio al publicar.
-Cabeceras no-store, no-referrer y noindex/nofollow/noarchive; no sitemap ni menús.
-Los enlaces al anuncio no transmiten el secreto ni Referer.
+## Despliegue y rollback
 
-Revocar: sustituir el digest por el de un secreto nuevo (o retirar configuración).
-Las nuevas consultas fallan inmediatamente; una vista abierta se vacía en su
-siguiente refresco, normalmente antes de un minuto. No se pueden retirar capturas
-ya tomadas. Cualquiera con el enlace puede consultarlo: es acceso compartido, no
-identidad individual ni autorización para reservar. No distribuir públicamente.
+La entrega inicial utilizó un runtime aislado basado en 11976ad015627cd5232199ed7aecf24371f3cde8
+(pre-fiscal), con componentes públicos revisados superpuestos. No desplegar ni
+hacer push indiscriminado de agente-ia, que contiene también preparación fiscal.
+Para una publicación futura se debe identificar la entrega activa y respaldarla;
+la referencia histórica anterior no sustituye esa comprobación.
+Un adaptador privado conecta BD/media productivas sin cargar administración.
+El lanzador apunta a esa entrega, no al checkout. No se necesita secreto.
 
-## Validación
+Respaldar entrega/lanzador, probar en loopback temporal y recargar solo la tarea
+pública, manteniendo 127.0.0.1:8001. No tocar DNS, Cloudflare, administración,
+iCal ni migraciones. Verificar HTTPS real, no solo localhost.
+Conservar rollback a la entrega privada anterior y el rollback original sin
+calendario. Restaurar lanzador y reiniciar solo la tarea pública si es necesario.
+El antiguo hash queda solo en la copia privada: cambiarlo NO revoca el acceso
+al nuevo calendario público. Para retirarlo se debe retirar/restaurar la entrega.
 
-Fixtures exclusivamente sintéticos. Integración: siete ejemplos aprobados, límites
-de seis meses, reservas lejanas, publicación, finalizaciones anticipadas, iCal,
-solapamientos, consultas acotadas, DTO mínimo, revocación y ausencia de mutaciones.
-JavaScript: transporte autorizado, ausencia de token en DOM/enlaces, huecos neutros,
-salida exclusiva, refresco/revocación y acceso desde fragmento sin recargar.
-Entorno temporal privado en data/runtime, excluido de Git; no usa la BD real.
+## Pruebas
 
-Resultados de validación del checkpoint (29/10/2026):
+### Presentación semanal y portadas (29/10/2026)
 
-- 103 tests Python: integración pública, disponibilidad, Gantt y finalización
-  anticipada.
-- 64 tests Python adicionales: sincronización iCal, facturación y liquidaciones.
-- 4 tests JavaScript del calendario.
-- Navegador: 375/768/1280 px, sin overflow del documento, desplazamiento interno
-  con teclado, anuncios abiertos correctamente y consola sin errores.
-- Integridad SQLite: quick_check correcto y foreign_key_check vacío; consulta
-  productiva exclusivamente en lectura. Ninguna migración de este checkpoint.
+Actualización responsive: hasta 768 px se presenta un mes seleccionado, con
+semanas alineadas debajo de la identidad de cada habitación. Flechas accesibles
+recorren los meses disponibles, conservando la selección tras el refresco.
+El primer/último mes puede tener menos de cuatro semanas por el recorte del
+horizonte; no se inventan fechas fuera del período. En escritorio siguen visibles
+las semanas del horizonte con scroll interno y navegación a cada grupo mensual.
 
-## Procedimiento futuro de publicación
+Cabecera móvil unificada: ordenación, navegación y semanas comparten un único contenedor
+sticky opaco de altura estable. El thead de escritorio se oculta en móvil, sin
+dos cabeceras superpuestas. La marca global no es fija. Cambiar de mes conserva
+la posición vertical y no reconstruye las filas; el anclaje automático está
+desactivado dentro de la vista. Comprobado con clics reales al final de la lista
+en 375 y 768 px, y regresión de escritorio en 1280 px.
 
-1. Obtener autorización expresa para desplegar. Revisar el conjunto de commits:
-   este checkpoint tiene como antecesor el commit local de preparación fiscal;
-   no desplegar/activar ese módulo incidentalmente ni aplicar su migración.
-   El calendario no añade dependencia funcional de facturación ni librerías.
-2. Preparar una entrega revisada con las rutas del calendario, el helper de
-   disponibilidad y el registro en la aplicación pública. Verificar compatibilidad
-   con la versión desplegada y ejecutar sus tests antes de cambiar el proceso.
-3. Generar un secreto NUEVO de producción (no reutilizar el sintético). Guardar
-   privadamente el enlace y el digest en un archivo accesible solo por la cuenta
-   del proceso público y administradores. Configurar
-   COLLABORATOR_CALENDAR_TOKEN_HASH_FILE en el arranque público persistente.
-4. Con autorización de despliegue, recargar únicamente el proceso público que
-   escucha en 127.0.0.1:8001. No modificar administración, sincronizador, DNS ni
-   túnel de calendarios. No se necesita nueva ruta de Cloudflare si el hostname
-   público ya dirige todos sus paths a este proceso.
-5. Verificar en HTTPS la carcasa sin datos, /data sin token (401), token correcto
-   (200), token incorrecto (401), no-store/noindex/no-referrer, anuncios sin token,
-   rechazo de POST y ausencia en sitemap/menús. Comprobar también portada/fichas.
-6. Distribuir privadamente el enlace con fragmento a colaboradores autorizados.
-   Nunca copiarlo a documentación, logs o repositorio. Verificar que ningún proxy
-   registra Authorization ni cachea las respuestas.
-7. Revocación: reemplazar atómicamente el archivo de digest con el hash de otro
-   secreto privado, o retirar el archivo para deshabilitar. No requiere reinicio.
-   Probar que el enlace anterior ya no obtiene datos y distribuir el nuevo solo
-   si procede. Para rollback del acceso basta retirar ese archivo; no hay datos
-   ni migración que deshacer.
+El texto enlazado es `Room.public_slug`, sin modificar slug ni URL. Se conserva
+el título como alternativa defensiva; la publicabilidad actual exige slug.
+Cada bloque semanal es un SVG compacto de tamaño uniforme: tramos contiguos
+verdes/rojos, agrupando días consecutivos iguales en orden cronológico. No hay
+amarillo ni separación interna. El texto accesible indica rango y proporción.
+No se requiere CSS inline ni se relaja CSP.
 
-Estos pasos están documentados, no ejecutados en producción durante el cierre.
+La proyección incluye únicamente la URL pública de la portada de 320 px,
+resuelta por el mismo servicio del anuncio (portada de habitación y alternativa
+de finca). No se duplican imágenes. Miniatura y nombre comparten enlace al anuncio.
+Si falta o falla la imagen, queda un marcador neutro.
+
+La vista agrupa lunes–domingo por el mes de su lunes; los rangos visibles
+identifican semanas entre meses. En los extremos solo cuenta los días consultados,
+marcados con asterisco. Verde requiere disponibilidad ofrecida para ese día;
+el resto es rojo. Los huecos previos a available_from no se ofrecen ni se pintan libres.
+La fecha exacta sigue bajo el nombre. No cambia la selección ni los intervalos.
+La tabla conserva scroll interno, nombres fijos y refresco de un minuto.
+
+Tests semanales: cambio de mes, semana parcial, salida exclusiva, huecos no
+ofrecidos, semana completa, portada reutilizada y ausencia de imagen.
+
+Integración: ejemplos aprobados, reservas lejanas, publicación, salida anticipada,
+iCal, solapamientos, enlaces, DTO mínimo, acceso anónimo, configuración obsoleta
+ignorada y rechazo de todos los métodos de escritura.
+JavaScript: GET sin Authorization/credenciales, nombre enlazado, ausencia de token
+en DOM/enlaces, huecos no ofrecidos en rojo, salida exclusiva y refresco.
+Validación externa: HTTPS sin cookies/Authorization, anuncios, responsive
+375/768/1280, consola, aislamiento administrativo e integridad BD.
+Fixtures sintéticos; runtime y evidencias privadas excluidos de Git.
+
+### Ordenación y cabecera móvil (2026-10-30)
+
+El selector segmentado comienza en «Por finca», conservando exactamente el orden
+y agrupación recibidos. «Por disponibilidad» muestra una lista global: disponibles
+desde hoy primero; después fechas futuras ascendentes; sin fecha ofrecida dentro
+del horizonte al final. Los empates se resuelven por slug y URL. Se usa `start`
+(hoy en Madrid) y `available_from` del servicio, nunca el mes visualizado ni huecos
+intermedios. No se añaden habitaciones excluidas por el servicio.
+
+Se reordenan los mismos nodos de filas, conservando enlaces, imágenes y mes.
+El cambio de orden toma como referencia la primera fila visible y conserva su
+posición cuando los límites de scroll lo permiten. Cerca del principio/final,
+el navegador limita naturalmente el desplazamiento al espacio disponible.
+La selección se mantiene durante el refresco automático, pero no se persiste.
+
+Hasta 768 px, un único contenedor sticky opaco incluye selector, navegación y
+semanas (aproximadamente 144 px). No hay cabecera global fija que compensar.
+El escritorio conserva la tabla desplazable. No se añaden escrituras ni storage.
+
+Validación: 29 tests Python de integración pública y 11 tests JavaScript;
+orden original/restauración, fecha/slug, ausencia de fecha, independencia del mes,
+refresco, privacidad y métodos de escritura rechazados. Comprobación de navegador
+375/768/1280. Despliegue público aislado, conservando release y lanzador anteriores
+para rollback; sin cambiar administración, iCal, facturación ni datos de negocio.
+
+### Revisión aislada del bloque pendiente (18/11/2026)
+
+Se revisaron los ocho archivos del calendario sobre una copia de HEAD, sin
+incorporar los cambios pendientes de geolocalización. Resultado: **106 tests
+Python y 12 tests JavaScript superados**, además de `git diff --check`.
+La batería Python incluyó integración pública, disponibilidad, geometría Gantt,
+rutas Gantt y calendarios maestros; JavaScript cubrió el calendario de colaboradores.
+
+Las comprobaciones de navegador descritas en las secciones anteriores son
+históricas. En esta revisión no se repitió la validación visual real en
+375/768/1280 px: el acceso a la herramienta de navegador falló. Los timeouts
+HTTPS intermitentes observados se investigan separadamente y no se consideran
+una regresión demostrada del calendario. Esta revisión no despliega código.
