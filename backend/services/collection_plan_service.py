@@ -20,7 +20,7 @@ class CollectionPlanService:
 
     def review_token(self, booking, terms):
         rows = self.finance.preview_for_booking(booking, terms, include_deposit=True)
-        value = [booking.id, terms.id, [self.signature(row) for row in rows]]
+        value = [booking.id, str(booking.economic_management_start), str(booking.economic_management_start_configured_at), terms.id, [self.signature(row) for row in rows]]
         return hashlib.sha256(json.dumps(value).encode()).hexdigest()
 
     def generate(self, db, booking_id, terms_id, *, review_token, include_deposit=False):

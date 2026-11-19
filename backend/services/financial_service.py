@@ -136,7 +136,9 @@ class FinancialService:
             terms_id=terms.id,
             currency=terms.currency,
         )
-        if include_deposit and terms.deposit_agreed > ZERO:
+        start = booking.economic_management_start
+        rows = cls.managed_rows(rows, start)
+        if include_deposit and terms.deposit_agreed > ZERO and cls.deposit_in_scope(booking):
             rows.append(
                 RecurringChargePreview(
                     type="security_deposit",
@@ -150,6 +152,14 @@ class FinancialService:
                 )
             )
         return rows
+
+    @staticmethod
+    def managed_rows(rows, start):
+        return [row for row in rows if start is None or row.service_period_start >= start]
+
+    @staticmethod
+    def deposit_in_scope(booking):
+        return booking.economic_management_start is None or booking.check_in >= booking.economic_management_start
 
     @staticmethod
     def _fail(db, message):

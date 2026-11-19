@@ -1,0 +1,27 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Revisar inicio de gestión económica{% endblock %}
+{% block content %}
+<a href="/bookings/{{ booking.id }}/finance">← Cuenta económica</a>
+<h1 class="h3 mt-3">Revisar inicio de gestión económica</h1>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+<form method="get" class="d-flex flex-wrap gap-2 mb-3"><div><label class="form-label" for="month">Mes de inicio</label><input class="form-control" id="month" type="month" name="month" required value="{{ month }}"></div><button class="btn btn-outline-primary align-self-end">Revisar inicio de gestión</button></form>
+{% if view %}
+<p>Inicio propuesto: <strong>{{ view.start.strftime('%m/%Y') }}</strong>. No cambia las fechas del contrato ni su ocupación.</p>
+{% for message in view.blockers %}<div class="alert alert-danger" role="alert">{{ message }}</div>{% endfor %}
+{% for title, rows in [('Mensualidades que se gestionarán',view.included), ('Fuera de gestión en RentalManager',view.excluded)] %}
+<h2 class="h5">{{ title }}</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th>Mes</th><th>Vencimiento</th><th>Importe</th></tr></thead><tbody>
+{% for row in rows %}<tr><td>{{ row.service_period_start.strftime('%m/%Y') }}</td><td>{{ row.due_date.strftime('%d/%m/%Y') }}</td><td>{{ '%.2f'|format(row.amount) }} €</td></tr>{% else %}<tr><td colspan="3">Ninguna mensualidad.</td></tr>{% endfor %}
+</tbody></table></div>{% endfor %}
+<p>Los meses excluidos no se registran como cobrados ni como deuda. Sus importes son únicamente una referencia del cálculo actual.</p>
+<p><strong>Total de rentas gestionadas:</strong> {{ '%.2f'|format(view.total) }} € · <strong>Nuevos cargos de renta previstos:</strong> {{ '%.2f'|format(view.new_total) }} €</p>
+{% if view.deposit_excluded %}<div class="alert alert-info">La fianza pactada vence antes del inicio y no se generará automáticamente. Se conserva como información; no se presupone pagada.</div>{% endif %}
+<h2 class="h5">Cargos existentes</h2><ul>{% for charge in view.charges %}<li>#{{ charge.id }} · {{ charge.concept }} · {{ charge.lifecycle }} · {{ '%.2f'|format(charge.amount) }} €</li>{% else %}<li>Sin cargos existentes.</li>{% endfor %}</ul>
+{% if view.removed %}<div class="alert alert-warning">Se retirarán {{ view.removed|length }} borradores automáticos excluidos. No se modificarán cargos contabilizados.</div>{% endif %}
+{% if not view.blockers %}
+<form method="post"><input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="expected" value="{{ view.fingerprint }}">
+{% if view.removed %}<label class="d-block mb-2"><input type="checkbox" name="replace_drafts" value="yes" required> Confirmo retirar los borradores automáticos indicados.</label>{% endif %}
+<label class="d-block mb-3"><input type="checkbox" name="confirmed" value="yes" required> He revisado incluidos y excluidos y confirmo el inicio de gestión. No se generarán cargos ni pagos.</label>
+<button class="btn btn-primary">Guardar inicio de gestión</button></form>{% endif %}
+{% endif %}
+{% endblock %}

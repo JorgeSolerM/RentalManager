@@ -16,6 +16,9 @@ class Booking(Base):
         index=True,
     )
 
+    economic_management_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    economic_management_start_configured_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     room_id: Mapped[int] = mapped_column(
         ForeignKey("rooms.id"),
         nullable=False,

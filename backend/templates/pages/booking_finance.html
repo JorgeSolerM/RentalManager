@@ -12,6 +12,11 @@
   {% if booking.origin != 'manual' %}<span class="badge text-bg-info">Economía gestionada localmente</span>{% endif %}
 </div>
 
+<section class="card card-body mb-3">
+<h2 class="h5">Inicio de gestión económica</h2>
+{% if booking.economic_management_start %}<p>Desde <strong>{{ booking.economic_management_start.strftime('%m/%Y') }}</strong>. Los meses anteriores quedan fuera de gestión en RentalManager.</p>{% else %}<p>Sin inicio específico confirmado. El calendario comprende el contrato completo. Revise el inicio antes de generar cargos de una reserva antigua.</p>{% endif %}
+<form action="/bookings/{{ booking.id }}/finance/start" method="get" class="d-flex flex-wrap gap-2 align-items-end"><div><label for="economicStartMonth" class="form-label">Mes de inicio</label><input class="form-control" type="month" name="month" id="economicStartMonth" required value="{{ (booking.economic_management_start or booking.check_in).strftime('%Y-%m') }}"></div><button class="btn btn-outline-primary">Revisar inicio de gestión</button></form>
+<p class="small text-muted mt-2 mb-0">La propuesta no se guarda automáticamente. Confirmarla no genera cargos ni pagos.</p></section>
 {% if request.query_params.get('plan_error') %}<div class="alert alert-danger" role="alert">{{ request.query_params.get('plan_error') }}</div>{% endif %}
 {% if not tenants and not payers %}
 <div class="alert alert-warning">No hay arrendatario ni responsable de pago clasificados para esta reserva.</div>
@@ -67,14 +72,15 @@
       <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Periodo</th><th>Vencimiento</th><th class="text-end">Importe</th></tr></thead><tbody>
       {% for row in preview %}<tr><td>{{ row.service_period_start.strftime('%d/%m/%Y') }} – {{ inclusive_period_end(row.service_period_end).strftime('%d/%m/%Y') }}</td><td>{{ row.due_date.strftime('%d/%m/%Y') }}</td><td class="text-end">{{ '%.2f'|format(row.amount) }} €</td></tr>{% endfor %}
       </tbody></table></div>
-      {% if confirmed_terms.deposit_agreed > 0 %}<p class="mb-3"><strong>Fianza disponible para incluir:</strong> {{ '%.2f'|format(confirmed_terms.deposit_agreed) }} € · vencimiento {{ booking.check_in.strftime('%d/%m/%Y') }}</p>{% endif %}
+      {% if confirmed_terms.deposit_agreed > 0 and deposit_in_scope %}<p class="mb-3"><strong>Fianza disponible para incluir:</strong> {{ '%.2f'|format(confirmed_terms.deposit_agreed) }} € · vencimiento {{ booking.check_in.strftime('%d/%m/%Y') }}</p>{% endif %}
+      {% if confirmed_terms.deposit_agreed > 0 and not deposit_in_scope %}<p class="alert alert-info">Fianza pactada: {{ '%.2f'|format(confirmed_terms.deposit_agreed) }} €. Vencimiento anterior al inicio; no se genera como deuda ni se presupone cobrada.</p>{% endif %}
       {% if generation_state.drafts_stale %}<div class="alert alert-warning">Los borradores ya no coinciden con las fechas actuales de la reserva. Regénéralos explícitamente.</div>{% endif %}
       {% if generation_state.posted_mismatch %}<div class="alert alert-danger">Existen cargos contabilizados que no coinciden con las fechas actuales. No se han modificado; la diferencia requiere revisión manual.</div>{% endif %}
       <p>Revise todos los vencimientos. Generar el plan contabiliza los cargos, incluidos los futuros, y los hace utilizables en Cobros/Remesas. <strong>No registra ningún pago.</strong> Los cargos contabilizados no se recalculan; cualquier cambio posterior requiere revisión explícita.</p>
       <form method="post" action="/bookings/{{ booking.id }}/finance/{{ 'regenerate' if generation_state.drafts_stale else 'plan' }}" class="d-flex flex-wrap align-items-center gap-3">
         <input type="hidden" name="terms_id" value="{{ confirmed_terms.id }}">
         <input type="hidden" name="review_token" value="{{ plan_token }}">
-        {% if confirmed_terms.deposit_agreed > 0 %}<div class="form-check"><input class="form-check-input" id="includeDeposit" type="checkbox" name="include_deposit" value="true"{% if deposit_generated %} checked{% endif %}><label class="form-check-label" for="includeDeposit">Incluir cargo de fianza</label></div>{% endif %}
+        {% if confirmed_terms.deposit_agreed > 0 and deposit_in_scope %}<div class="form-check"><input class="form-check-input" id="includeDeposit" type="checkbox" name="include_deposit" value="true"{% if deposit_generated %} checked{% endif %}><label class="form-check-label" for="includeDeposit">Incluir cargo de fianza</label></div>{% endif %}
         {% if not generation_state.drafts_stale %}<label class="d-block"><input type="checkbox" name="confirm_plan" value="yes" required> He revisado el calendario y confirmo su contabilización completa.</label>{% endif %}
         <button class="btn btn-primary" type="submit"{% if generation_state.posted_mismatch or terms_versions|length > 1 %} disabled{% endif %}>{{ 'Regenerar borradores para revisar' if generation_state.drafts_stale else 'Generar plan de cobros' }}</button>
       </form>

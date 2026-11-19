@@ -82,7 +82,7 @@ def booking_finance(
         legacy.amount if use_legacy_price and legacy is not None else None
     )
     total_expected = sum((row.amount for row in preview), Decimal("0.00"))
-    if confirmed_terms is not None:
+    if confirmed_terms is not None and service.deposit_in_scope(booking):
         total_expected += confirmed_terms.deposit_agreed
     payments = manual_payments.history(db, booking_id)
     account = account_view(db, charges, balances, payments, business_today())
@@ -107,6 +107,7 @@ def booking_finance(
             "legacy": legacy,
             "suggested_rent": suggested_rent,
             "total_expected": total_expected,
+            "deposit_in_scope": service.deposit_in_scope(booking),
             "today": business_today(),
             "inclusive_period_end": _inclusive_period_end,
             "payments": payments,
@@ -286,3 +287,34 @@ def post_financial_charges(booking_id: int, db: Session = Depends(get_db)):
         "success" if result.success else "error",
         "financial_charges_posted" if result.success else result.message,
     )
+
+
+@router.get("/{booking_id}/finance/start")
+def review_economic_start(request: Request, booking_id: int, month: str = "", db: Session = Depends(get_db)):
+    from backend.services.economic_start_service import EconomicStartService
+    booking = _booking(db, booking_id)
+    view, error = None, None
+    try:
+        start = date.fromisoformat(month + '-01')
+        view = EconomicStartService().preview(db, booking_id, start)
+    except ValueError as exc:
+        error = str(exc)
+    return templates.TemplateResponse(request=request, name='pages/economic_start.html',
+        context={'booking': booking, 'view': view, 'error': error, 'month': month},
+        headers={'Cache-Control': 'private, no-store'})
+
+
+@router.post("/{booking_id}/finance/start")
+def confirm_economic_start(request: Request, booking_id: int, month: str = Form(...),
+        expected: str = Form(''), confirmed: str = Form(''), replace_drafts: str = Form(''),
+        db: Session = Depends(get_db)):
+    from backend.services.economic_start_service import EconomicStartService
+    try:
+        EconomicStartService().confirm(db, booking_id, date.fromisoformat(month + '-01'), expected,
+            confirmed=confirmed == 'yes', replace_drafts=replace_drafts == 'yes')
+        return RedirectResponse(f'/bookings/{booking_id}/finance', status_code=303)
+    except ValueError as exc:
+        booking = _booking(db, booking_id)
+        return templates.TemplateResponse(request=request, name='pages/economic_start.html',
+            context={'booking': booking, 'view': None, 'error': str(exc), 'month': month}, status_code=409,
+            headers={'Cache-Control': 'private, no-store'})

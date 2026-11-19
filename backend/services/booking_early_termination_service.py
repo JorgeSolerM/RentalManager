@@ -123,7 +123,7 @@ class BookingEarlyTerminationService:
         if partial_month and not accept_proration:
             blockers.append('Revise y acepte expresamente el prorrateo existente por días naturales reales del último mes.')
         request = dict(effective_departure=effective_departure.isoformat(), economic_last_day=economic_last_day.isoformat(), reason=reason, notes=notes, accept_proration=bool(accept_proration))
-        snapshot = dict(booking=columns(booking, 'id room_id room_calendar_id origin external_reference ical_uid check_in check_out expected_arrival_date expected_departure_date price source_guest_name notes'),
+        snapshot = dict(booking=columns(booking, 'id room_id room_calendar_id origin external_reference ical_uid check_in check_out economic_management_start economic_management_start_configured_at expected_arrival_date expected_departure_date price source_guest_name notes'),
             charges=[columns(c, 'id type direction lifecycle amount currency due_date service_period_start service_period_end generation_key financial_terms_id') for c in charges],
             payments=[columns(p, 'id amount lifecycle direction effective_date') for p in payments],
             allocations=[columns(a, 'id payment_id charge_id amount') for a in allocations],
@@ -141,6 +141,7 @@ class BookingEarlyTerminationService:
         if len(confirmed) == 1:
             plan = balance_service.preview_monthly_rent(check_in=booking.check_in, check_out=limit,
                 monthly_rent=confirmed[0].monthly_rent, usual_due_day=confirmed[0].usual_due_day, terms_id=confirmed[0].id)
+            plan = balance_service.managed_rows(plan, booking.economic_management_start)
         elif len(confirmed) > 1:
             blockers.append('Existen varias versiones de renta. Revisión económica necesaria; no se infiere un nuevo plan.')
         return dict(booking=booking, request=request, snapshot=snapshot, fingerprint=digest(snapshot), blockers=blockers,
