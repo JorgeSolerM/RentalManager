@@ -1,6 +1,8 @@
 {% extends 'layouts/base.html' %}
 {% block title %}Asignar cobro{% endblock %}
+{% block main_class %}payment-correction-page{% endblock %}
 {% block content %}
+<style>.payment-correction-page{min-width:0;overflow-wrap:anywhere}.payment-correction-page .table-responsive{max-width:100%}.payment-correction-page .table{min-width:32rem;overflow-wrap:normal}</style>
 <a href="/bookings/{{ booking.id }}/finance">← Cuenta económica</a>
 <h1 class="h3 mt-3">Asignar cobro #{{ view.payment.id }}</h1>
 <p>{{ view.payment.effective_date.strftime('%d/%m/%Y') }} · {{ payment_methods.get(view.payment.method,view.payment.method) }} · Importe recibido: <strong>{{ '%.2f'|format(view.payment.amount) }} €</strong></p>
@@ -10,7 +12,7 @@
 {% if view.blocker %}<div class="alert alert-warning" role="alert">{{ view.blocker }}</div>{% endif %}
 {% if review %}
 <h2 class="h5">Revisar asignación</h2>
-<div class="table-responsive"><table class="table"><thead><tr><th>Cargo</th><th>Pendiente actual</th><th>Asignar ahora</th><th>Pendiente después</th></tr></thead><tbody>
+<div class="table-responsive" tabindex="0" role="region" aria-label="Distribución por cargo; tabla desplazable"><table class="table"><thead><tr><th>Cargo</th><th>Pendiente actual</th><th>Asignar ahora</th><th>Pendiente después</th></tr></thead><tbody>
 {% for row in review.selected %}<tr><td>#{{ row.charge.id }} · {{ row.charge.concept }}</td><td>{{ '%.2f'|format(row.outstanding) }} €</td><td>{{ '%.2f'|format(row.amount) }} €</td><td>{{ '%.2f'|format(row.remaining) }} €</td></tr>{% endfor %}
 </tbody></table></div>
 <p>Total a asignar: <strong>{{ '%.2f'|format(review.total) }} €</strong> · Quedará sin asignar: <strong>{{ '%.2f'|format(review.remaining) }} €</strong>.</p>
@@ -23,11 +25,12 @@
 {% elif not view.blocker and view.available > 0 %}
 <p>Seleccione importes para uno o varios cargos de esta reserva. Puede dejar parte del cobro sin asignar.</p>
 <form method="post" action="/bookings/{{ booking.id }}/finance/payments/{{ view.payment.id }}/assign/preview">
-<div class="table-responsive"><table class="table"><thead><tr><th>Cargo / vencimiento</th><th>Pendiente</th><th>Importe a asignar</th></tr></thead><tbody>
+<div class="table-responsive" tabindex="0" role="region" aria-label="Distribución por cargo; tabla desplazable"><table class="table"><thead><tr><th>Cargo / vencimiento</th><th>Pendiente</th><th>Importe a asignar</th></tr></thead><tbody>
 {% for row in view.rows %}<tr><td>#{{ row.charge.id }} · {{ row.charge.concept }}<small class="d-block">{{ row.charge.due_date.strftime('%d/%m/%Y') }}</small></td><td>{{ '%.2f'|format(row.outstanding) }} €</td><td>{% if row.blocker %}<span class="text-danger">{{ row.blocker }}</span>{% else %}<label class="visually-hidden" for="allocation_{{ row.charge.id }}">Asignar al cargo {{ row.charge.id }}</label><input class="form-control" style="min-width:7rem;max-width:12rem" type="number" min="0" step="0.01" max="{{ [view.available,row.outstanding]|min }}" id="allocation_{{ row.charge.id }}" name="allocation_{{ row.charge.id }}" placeholder="0,00">{% endif %}</td></tr>
 {% else %}<tr><td colspan="3">No hay cargos contabilizados pendientes en esta reserva.</td></tr>{% endfor %}
 </tbody></table></div><button class="btn btn-primary">Revisar asignación</button>
 </form>{% endif %}
 <h2 class="h5 mt-4">Historial de asignaciones posteriores</h2>
 {% for operation in view.history %}<div class="card card-body mb-2"><small>{{ operation.created_at.strftime('%d/%m/%Y %H:%M') }} UTC · Operación {{ operation.request_key }}</small><ul class="mb-0">{% for change in operation.changes %}<li>Cargo #{{ change.charge_id }}: +{{ change.added }} € (antes {{ change.before }} €, después {{ change.after }} €)</li>{% endfor %}</ul></div>{% else %}<p class="text-muted">Sin asignaciones posteriores registradas.</p>{% endfor %}
+{% if view.payment.lifecycle=='posted' and view.payment.direction=='receipt' %}<a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ view.payment.id }}/correction">Corregir cobro</a><a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ view.payment.id }}/correction?kind=void">Anular cobro</a>{% endif %}{% include 'pages/payment_correction_history.html' %}
 {% endblock %}

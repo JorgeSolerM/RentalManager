@@ -16,6 +16,7 @@ from backend.services.manual_payment_service import ManualPaymentService, METHOD
 from backend.services.sepa_collection_service import SepaCollectionService
 from backend.services.collection_plan_service import CollectionPlanService
 from backend.services.payment_assignment_service import PaymentAssignmentService
+from backend.services.payment_correction_service import PaymentCorrectionService
 from backend.services.financial_account_view import account_view, movement_label
 
 
@@ -113,6 +114,8 @@ def booking_finance(
             "inclusive_period_end": _inclusive_period_end,
             "payments": payments,
             "unassigned_receipts": PaymentAssignmentService().unassigned(db, booking_id),
+            "corrections": PaymentCorrectionService().history(db, booking_id),
+            "corrections_by_original": {c.original_payment_id:c for c in PaymentCorrectionService().history(db, booking_id)},
             "account": account,
             "movement_label": movement_label,
             "plan_token": CollectionPlanService().review_token(booking, confirmed_terms) if confirmed_terms and not preview_error else None,
@@ -330,7 +333,8 @@ def assignment_page(request, db, booking_id, payment_id, *, view=None, review=No
         raise HTTPException(404, 'Cobro no encontrado en esta reserva.') from None
     return templates.TemplateResponse(request=request, name='pages/payment_assignment.html',
         context={'booking':booking, 'view':view, 'review':review, 'error':error,
-                 'request_key':str(uuid4()), 'payment_methods':ALL_METHODS},
+                 'request_key':str(uuid4()), 'payment_methods':ALL_METHODS,
+                 'corrections':PaymentCorrectionService().history(db, booking_id)},
         status_code=status, headers={'Cache-Control':'private, no-store'})
 
 
@@ -363,3 +367,48 @@ async def assign_payment_action(request:Request, booking_id:int, payment_id:int,
     except ValueError as exc:
         db.rollback()
         return assignment_page(request,db,booking_id,payment_id,error=str(exc),status=409)
+
+
+def correction_page(request, db, booking_id, payment_id, kind, *, values=None, review=None, error=None, status=200):
+    booking=_booking(db,booking_id)
+    if kind not in ('void','replace'):raise HTTPException(404,'Acción no encontrada.')
+    try:view=PaymentCorrectionService().form(db,booking_id,payment_id)
+    except ValueError:raise HTTPException(404,'Cobro no encontrado en esta reserva.') from None
+    return templates.TemplateResponse(request=request,name='pages/payment_correction.html',
+        context={'booking':booking,'view':view,'review':review,'kind':kind,'values':values or {},
+                 'error':error,'request_key':str(uuid4()),'corrections':view['history'],'payment_methods':ALL_METHODS},
+        status_code=status,headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/{booking_id}/finance/payments/{payment_id}/correction')
+def correction_form(request:Request, booking_id:int, payment_id:int, kind:str='replace', db:Session=Depends(get_db)):
+    return correction_page(request,db,booking_id,payment_id,kind)
+
+
+@router.post('/{booking_id}/finance/payments/{payment_id}/correction/{action}')
+async def correct_payment(request:Request, booking_id:int, payment_id:int, action:str, db:Session=Depends(get_db)):
+    _booking(db,booking_id)
+    form=await request.form();kind=str(form.get('kind','replace'))
+    values={str(k):str(v) for k,v in form.multi_items() if k in ('amount','reason') or k.startswith('allocation_')}
+    try:
+        pairs=[] if form.get('distribution_present')=='yes' else None
+        if pairs is not None:
+            try:
+                for key,value in form.multi_items():
+                    if key.startswith('allocation_'):pairs.append((int(key.removeprefix('allocation_')),str(value) or '0'))
+            except ValueError:raise ValueError('Distribución no válida.') from None
+        args=dict(kind=kind,reason=values.get('reason',''),pairs=pairs,redistributed=form.get('redistributed')=='yes')
+        if kind == 'replace':
+            args['amount'] = values.get('amount')
+        service=PaymentCorrectionService()
+        if action=='preview':
+            review=service.preview(db,booking_id,payment_id,**args)
+            return correction_page(request,db,booking_id,payment_id,kind,values=values,review=review)
+        if action!='confirm':raise ValueError('Acción no válida.')
+        operation=service.confirm(db,booking_id,payment_id,**args,request_key=str(form.get('request_key','')),
+            expected=str(form.get('expected','')),confirmed=form.get('confirmed')=='yes')
+        target=operation.replacement_payment_id or operation.original_payment_id
+        return RedirectResponse(f'/bookings/{booking_id}/finance/payments/{target}/assign',status_code=303)
+    except ValueError as exc:
+        db.rollback()
+        return correction_page(request,db,booking_id,payment_id,kind,values=values,error=str(exc),status=409)

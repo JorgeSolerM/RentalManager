@@ -1,0 +1,38 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Revisar corrección de cobro{% endblock %}
+{% block main_class %}payment-correction-page{% endblock %}
+{% block content %}
+<style>.payment-correction-page{min-width:0;overflow-wrap:anywhere}.payment-correction-page .table-responsive{max-width:100%}.payment-correction-page .table{min-width:32rem;overflow-wrap:normal}</style>
+<a href="/bookings/{{ booking.id }}/finance">← Cuenta económica</a>
+<h1 class="h3 mt-3">{{ 'Anular cobro' if kind=='void' else 'Corregir cobro' }} #{{ view.payment.id }}</h1>
+<p>Importe original: <strong>{{ '%.2f'|format(view.payment.amount) }} €</strong> · {{ view.payment.effective_date }} · {{ payment_methods.get(view.payment.method,view.payment.method) }}</p>
+<p>El original y sus asignaciones se conservarán como histórico sin efecto económico. Esta operación no realiza una devolución bancaria.</p>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% for blocker in view.blockers %}<div class="alert alert-warning" role="alert">{{ blocker }}</div>{% endfor %}
+{% if review %}
+<h2 class="h5">Vista previa del impacto</h2>
+<p>Importe vigente después: <strong>{{ review.amount }} €</strong>. Sin asignar: {{ review.remaining }} €.</p>
+<p>Cobrado en la reserva: {{ review.received_before }} € → {{ review.received_after }} €.</p>
+<div class="table-responsive" tabindex="0" role="region" aria-label="Distribución por cargo; tabla desplazable"><table class="table"><thead><tr><th>Cargo</th><th>Asignado antes</th><th>Después</th><th>Pendiente después</th></tr></thead><tbody>
+{% for row in review.effects %}<tr><td>{{ row.charge.concept }}</td><td>{{ row.before }} €</td><td>{{ row.after }} €</td><td>{{ row.outstanding_after }} €</td></tr>{% endfor %}</tbody></table></div>
+<p>Motivo: {{ review.reason }}</p>
+<form method="post" action="/bookings/{{ booking.id }}/finance/payments/{{ view.payment.id }}/correction/confirm">
+<input type="hidden" name="kind" value="{{ kind }}">{% if kind=='replace' %}<input type="hidden" name="amount" value="{{ review.amount }}">{% endif %}<input type="hidden" name="reason" value="{{ review.reason }}">
+<input type="hidden" name="request_key" value="{{ request_key }}"><input type="hidden" name="expected" value="{{ review.fingerprint }}">
+<input type="hidden" name="distribution_present" value="yes">{% for cid,amount in review.revised %}<input type="hidden" name="allocation_{{ cid }}" value="{{ amount }}">{% endfor %}
+{% if review.redistributed %}<input type="hidden" name="redistributed" value="yes">{% endif %}
+<label class="d-block mb-3"><input type="checkbox" name="confirmed" value="yes" required> Confirmo expresamente el impacto y el motivo de esta operación.</label>
+<button class="btn btn-danger">Confirmar {{ 'anulación' if kind=='void' else 'corrección' }}</button>
+<a href="?kind={{ kind }}" class="btn btn-outline-secondary">Volver a revisar</a></form>
+{% elif not view.blockers %}
+<form method="post" action="/bookings/{{ booking.id }}/finance/payments/{{ view.payment.id }}/correction/preview">
+<input type="hidden" name="kind" value="{{ kind }}">
+{% if kind=='replace' %}<label class="form-label" for="amount">Nuevo importe (€)</label><input class="form-control mb-3" id="amount" name="amount" type="number" min="0.01" step="0.01" required value="{{ values.get('amount',view.payment.amount) }}">
+<input type="hidden" name="distribution_present" value="yes">
+<p>Si el nuevo importe cubre las asignaciones, consérvelas. Si no las cubre, revise la distribución y acepte la casilla inferior.</p>
+{% for row in view.rows %}<label class="form-label d-block" for="allocation_{{ row.charge.id }}">{{ row.charge.concept }} · asignado {{ row.allocation.amount }} €</label><input class="form-control mb-2" id="allocation_{{ row.charge.id }}" name="allocation_{{ row.charge.id }}" type="number" min="0" step="0.01" value="{{ values.get('allocation_' ~ row.charge.id,row.allocation.amount) }}">{% endfor %}
+<label class="d-block mb-3"><input type="checkbox" name="redistributed" value="yes"> He revisado expresamente la distribución para reducir el importe por debajo de lo asignado.</label>{% endif %}
+<label class="form-label" for="reason">Motivo obligatorio</label><textarea class="form-control mb-3" id="reason" name="reason" required maxlength="1000">{{ values.get('reason','') }}</textarea>
+<button class="btn btn-primary">Revisar impacto</button></form>{% endif %}
+{% include 'pages/payment_correction_history.html' %}
+{% endblock %}
