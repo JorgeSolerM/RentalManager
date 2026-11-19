@@ -84,3 +84,14 @@ Tras configurar las tareas se deberá comprobar manualmente:
 4. ejecución y código de salida del CLI;
 5. actualización de último intento/estado en el workspace;
 6. ausencia de dos instancias simultáneas.
+
+## Diagnóstico adicional activado (19/11/2026)
+
+El runner dispone de eventos optativos `ical_result`, con códigos cerrados y
+contadores de cancelaciones, desapariciones y conflictos de finalización anticipada.
+No almacena URL, resumen de reserva ni texto del proveedor. No cambia backoff,
+selección o política de conciliación. Se cambió únicamente la acción productiva
+a `-m data.runtime.ical_diagnostics_entry`, conservando cuenta, desencadenadores,
+privilegios y condiciones. El adaptador privado habilita el log iCal; no se versiona.
+Primer ciclo ordinario validado: 19/11/2026 00:55:55, resultado 0 y log generado.
+Detalles y reversión en [OPERATIONAL_DIAGNOSTICS.md](OPERATIONAL_DIAGNOSTICS.md).

@@ -58,4 +58,6 @@ def create_public_app(*, media_store: MediaFileStore | None = None) -> FastAPI:
 
     app.include_router(router)
     app.include_router(collaborator_router)
+    from backend.core.operational_diagnostics import install_diagnostics
+    install_diagnostics(app, 'public')
     return app

@@ -16,6 +16,7 @@ from backend.core.ical_sync_config import (
 from backend.core.operation_result import OperationResult
 from backend.repositories.room_calendar_repository import RoomCalendarRepository
 from backend.services.ical_sync_service import IcalSyncService
+from backend.core.operational_logging import ical_event
 
 
 logger = logging.getLogger(__name__)
@@ -223,6 +224,7 @@ class RoomCalendarSyncRunner:
                     calendar_id,
                     type(error).__name__,
                 )
+            ical_event(result, calendar_id)
             return result
 
     def run_cycle(self, session_factory) -> AutomaticSyncCycleReport:

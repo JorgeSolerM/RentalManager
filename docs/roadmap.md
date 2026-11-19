@@ -1,5 +1,24 @@
 # Roadmap de RentalManager
 
+## Estado operativo — 19/11/2026
+
+El detalle histórico se conserva debajo. Para despliegues, distinguir código
+implementado de comportamiento realmente cargado por cada servicio.
+
+- Geolocalización y calendario de colaboradores: checkpoints cerrados; el botón
+  «Actualizar ubicación» está publicado con router, contexto, HTML y JavaScript compatibles.
+- Estabilidad, bloque 1 fase 2: diagnóstico JSON rotado, health local, manifiestos
+  por servicio e instrumentación iCal implementados y validados: batería final
+  consolidada de 229 tests Python y 19 JavaScript.
+  **Activados en producción el 19/11/2026** tras autorización: administración/web
+  con health y logs privados; iCal conserva su adaptador ya validado.
+  Validación visual aprobada y cierre Git autorizado. Reversión por servicio preparada.
+- Producción: reinicios autorizados de administración/web, sin migraciones ni
+  cambios de negocio. iCal no se reinició ni modificó durante esta activación.
+- VERI*FACTU: pausado expresamente. No bloquea el resto del proyecto.
+
+Procedimiento y limitaciones: [Diagnóstico operativo](OPERATIONAL_DIAGNOSTICS.md).
+
 ## Objetivo
 
 Este documento define la evolución prevista del proyecto.

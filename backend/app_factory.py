@@ -94,4 +94,6 @@ def create_app(initialize_database: bool = False) -> FastAPI:
     rooms.templates.env.filters["date"] = format_date
     dashboard.templates.env.filters["date"] = format_date
 
+    from backend.core.operational_diagnostics import install_diagnostics
+    install_diagnostics(app, 'admin')
     return app

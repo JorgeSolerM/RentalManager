@@ -6,6 +6,8 @@ from backend.services.room_calendar_sync_runner import RoomCalendarSyncRunner
 
 
 def main() -> int:
+    from backend.core.operational_logging import configured_sink
+    configured_sink('ical')
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
         report = RoomCalendarSyncRunner().run_cycle(SessionLocal)
