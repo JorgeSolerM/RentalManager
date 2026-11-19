@@ -12,7 +12,7 @@ from backend.models.provider import Provider
 from backend.models.property import Property
 from backend.models.owner_settlement import Expense, ExpenseCategory, ExpensePayment, OwnerSettlementLine
 from backend.services.financial_transaction import financial_transaction
-from backend.services.settlement_money import ZERO, expense_balance, money, percentage_fee
+from backend.services.settlement_money import ZERO, ExpenseBalance, expense_balance, money, percentage_fee
 
 
 def fingerprint(value):
@@ -39,9 +39,14 @@ class ExpenseService:
         if expense is None:
             raise ValueError("Gasto no encontrado.")
         payments = self.payments(db, expense_id)
+        payments = [p for p in payments if p.lifecycle == "posted"]
         ids = [p.id for p in payments]
         consumed = list(db.scalars(select(OwnerSettlementLine.amount).where(
             OwnerSettlementLine.expense_payment_id.in_(ids)))) if ids else []
+        if expense.lifecycle == "void":
+            if payments or consumed:
+                raise ValueError("Gasto anulado con movimientos incompatibles. Requiere revisión.")
+            return ExpenseBalance(expense.total_amount, ZERO, ZERO, ZERO, ZERO, "void")
         return expense_balance(expense.total_amount,
                                [p.amount if p.direction == "payment" else -p.amount for p in payments],
                                sum(consumed, ZERO))
@@ -109,7 +114,7 @@ class ExpenseService:
             balance = self.balance(db, expense_id)
             if corrects_id:
                 original = db.get(ExpensePayment, corrects_id)
-                if (original is None or original.expense_id != expense_id or original.direction != "payment"
+                if (original is None or original.expense_id != expense_id or original.direction != "payment" or original.lifecycle != "posted"
                         or original.paid_by != paid_by or original.paid_by_owner_id != paid_by_owner_id
                         or effective_date < original.effective_date):
                     raise ValueError("La corrección debe conservar el gasto y quién pagó originalmente.")

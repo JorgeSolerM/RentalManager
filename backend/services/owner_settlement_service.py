@@ -217,6 +217,8 @@ class OwnerSettlementService:
         return result
 
     def _expense_distribution(self, db, payment, all_lines):
+        if payment.lifecycle != "posted":
+            return {}
         key = f"expense:{payment.id}"
         frozen = next((l.snapshot["distribution"] for l in all_lines if l.source_key == key), None)
         if frozen is not None:
@@ -257,7 +259,7 @@ class OwnerSettlementService:
             Payment.lifecycle == "posted", Payment.effective_date < end, BookingCharge.lifecycle == "posted")
             .options(joinedload(PaymentAllocation.payment), joinedload(PaymentAllocation.charge)).order_by(PaymentAllocation.id)))
         expenses = list(db.scalars(select(ExpensePayment).join(Expense).where(
-            Expense.property_id.in_(property_ids), ExpensePayment.effective_date < end).order_by(ExpensePayment.id)))
+            Expense.property_id.in_(property_ids), ExpensePayment.lifecycle == "posted", ExpensePayment.effective_date < end).order_by(ExpensePayment.id)))
         for kind, sources, builder in (("income", allocations, self._income_distribution), ("expense", expenses, self._expense_distribution)):
             for source in sources:
                 key = f"{kind}:{source.id}"

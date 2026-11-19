@@ -47,6 +47,7 @@ class Expense(Base):
     borne_by: Mapped[str] = mapped_column(String(15), default="owner")
     lifecycle: Mapped[str] = mapped_column(String(12), default="posted")
     notes: Mapped[str | None] = mapped_column(Text)
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
 
 
@@ -54,6 +55,7 @@ class ExpensePayment(Base):
     __tablename__ = "expense_payments"
     __table_args__ = (
         CheckConstraint("amount > 0", name="ck_expense_payment_amount"),
+        CheckConstraint("lifecycle IN ('posted','void')", name="ck_expense_payment_lifecycle"),
         CheckConstraint("direction IN ('payment','reversal')", name="ck_expense_payment_direction"),
         CheckConstraint("paid_by IN ('manager','owner','other')", name="ck_expense_payment_actor"),
         CheckConstraint("(paid_by = 'owner' AND paid_by_owner_id IS NOT NULL) OR (paid_by != 'owner' AND paid_by_owner_id IS NULL)", name="ck_expense_payment_owner"),
@@ -74,11 +76,8 @@ class ExpensePayment(Base):
     fingerprint: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
 
-    @property
-    def lifecycle(self):
-        # Registration is an explicit posted cash movement; corrections are
-        # new reversal records, never a toggle that erases a previous payment.
-        return "posted"
+    lifecycle: Mapped[str] = mapped_column(String(12), nullable=False, default="posted", server_default="posted")
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class ManagementFeeTerms(Base):

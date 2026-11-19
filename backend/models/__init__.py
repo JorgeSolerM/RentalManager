@@ -80,3 +80,5 @@ __all__ = [
 from backend.models.payment_allocation_operation import PaymentAllocationOperation
 
 from backend.models.payment_correction_operation import PaymentCorrectionOperation
+
+from backend.models.expense_correction import ExpensePaymentVoidOperation, ExpenseCorrectionOperation

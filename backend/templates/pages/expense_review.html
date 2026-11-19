@@ -1,0 +1,41 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Revisar gasto{% endblock %}
+{% block main_class %}owner-economy{% endblock %}
+{% block body_class %}owner-economy-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static',path='css/owner_economy.css') }}">
+<a href="/expenses/{{ view.expense.id }}">← Volver al gasto</a>
+<h1 class="h3 mt-3">{{ {'correct':'Corregir gasto','void':'Anular gasto','payment_void':'Anular pago'}[view.kind] }} #{{ view.payment.id if view.payment else view.expense.id }}</h1>
+<p>{{ view.expense.concept }} · Total registrado: {{ view.expense.total_amount }} €</p>
+{% if view.payment %}<p>Pago original: <strong>{{ view.payment.amount }} €</strong> · {{ view.payment.effective_date }} · {{ view.payment.reference or 'Sin referencia' }}</p>
+<div class="alert alert-warning">Solo para un pago registrado por error sin salida real de dinero. Si el pago se efectuó realmente, no use esta anulación: requiere devolución real o regularización.</div>{% endif %}
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% for blocker in view.blockers %}<div class="alert alert-warning" role="alert">{{ blocker }}</div>{% endfor %}
+{% if review %}
+<h2 class="h5">Vista previa del impacto</h2>
+<div class="table-responsive" tabindex="0" role="region" aria-label="Impacto económico"><table class="table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th></tr></thead><tbody>
+{% for field,label in [('total','Total del gasto'),('paid','Pagado efectivo'),('unpaid','Pendiente de pago'),('available','Pendiente de liquidar / ajuste')] %}<tr><td style="white-space: normal">{{ label }}</td><td>{{ review.impact[field ~ '_before'] }} €</td><td>{{ review.impact[field ~ '_after'] }} €</td></tr>{% endfor %}</tbody></table></div>
+{% if view.kind=='correct' %}<p>Concepto: {{ review.before.concept }} → {{ review.after.concept }}</p><p>Categoría: {% for c in categories if c.id==view.expense.category_id %}{{ c.name }}{% endfor %} → {% for c in categories if c.id==review['values'].category_id %}{{ c.name }}{% endfor %}</p>{% endif %}
+{% if view.kind=='void' %}<p>El total original permanece en el histórico. El gasto anulado queda fuera del pendiente activo.</p>{% endif %}
+<p>Motivo: {{ review['values'].reason }}</p>
+<form method="post" action="/expenses/{{ view.expense.id }}/review/confirm">
+<input type="hidden" name="kind" value="{{ view.kind }}"><input type="hidden" name="reason" value="{{ review['values'].reason }}">
+<input type="hidden" name="request_key" value="{{ request_key }}"><input type="hidden" name="expected" value="{{ review.fingerprint }}">
+{% if view.payment %}<input type="hidden" name="payment_id" value="{{ view.payment.id }}"><label class="d-block mb-3"><input type="checkbox" name="no_money_moved" value="yes" required> Confirmo que este pago se registró por error y no hubo salida real de dinero.</label>{% endif %}
+{% if view.kind=='correct' %}{% for name in ['base_amount','concept','category_id'] %}<input type="hidden" name="{{ name }}" value="{{ review['values'][name] }}">{% endfor %}{% endif %}
+<label class="d-block mb-3"><input type="checkbox" name="confirmed" value="yes" required> He revisado el impacto y confirmo expresamente la operación.</label>
+<button class="btn btn-danger">Confirmar operación</button> <a href="/expenses/{{ view.expense.id }}/review?kind={{ view.kind }}{% if view.payment %}&payment_id={{ view.payment.id }}{% endif %}">Volver a revisar</a>
+</form>
+{% elif not view.blockers %}
+<form method="post" action="/expenses/{{ view.expense.id }}/review/preview">
+<input type="hidden" name="kind" value="{{ view.kind }}">
+{% if view.payment %}<input type="hidden" name="payment_id" value="{{ view.payment.id }}"><label class="d-block mb-3"><input type="checkbox" name="no_money_moved" value="yes" required> El pago se registró por error y no hubo salida real de dinero.</label>{% endif %}
+{% if view.kind=='correct' %}
+<label class="form-label" for="base_amount">Base del gasto (€)</label><input class="form-control mb-3" name="base_amount" id="base_amount" type="number" step="0.01" min="0" required value="{{ values.get('base_amount',view.expense.base_amount) }}">
+<p>Se conservan IVA {{ view.expense.vat_rate }} % y retención {{ view.expense.withholding_rate }} %. El total se recalcula en la vista previa.</p>
+<label class="form-label" for="concept">Concepto</label><input class="form-control mb-3" name="concept" id="concept" required maxlength="255" value="{{ values.get('concept',view.expense.concept) }}">
+<label class="form-label" for="category_id">Categoría</label><select class="form-select mb-3" id="category_id" name="category_id" required>{% for c in categories if c.active or c.id==view.expense.category_id %}<option value="{{ c.id }}" {% if c.id|string==values.get('category_id',view.expense.category_id|string) %}selected{% endif %}>{{ c.name }}{% if not c.active %} · Inactiva (histórica){% endif %}</option>{% endfor %}</select>{% endif %}
+<label class="form-label" for="reason">Motivo obligatorio</label><textarea class="form-control mb-3" name="reason" id="reason" required maxlength="1000">{{ values.get('reason','') }}</textarea>
+<button class="btn btn-primary">Revisar impacto</button></form>{% endif %}
+{% include 'pages/expense_correction_history.html' %}
+{% endblock %}

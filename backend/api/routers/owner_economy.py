@@ -15,6 +15,7 @@ from backend.models.property import Property
 from backend.models.payment import Payment
 from backend.models.owner_bank_account import OwnerBankAccount
 from backend.models.owner_settlement import Expense, ExpenseCategory, ManagementFeeTerms, OwnerSettlement, OwnerPayout
+from backend.services.expense_correction_service import ExpenseCorrectionService
 from backend.services.expense_service import ExpenseService
 from backend.services.expense_category_service import ExpenseCategoryService
 from backend.services.owner_settlement_service import OwnerSettlementService
@@ -35,6 +36,7 @@ def page(request, db, mode, **context):
         item = context['item']
         context['ownership_info'] = expense_ownership_info(db, item.property_id, item.expense_date)
         context['category'] = db.get(ExpenseCategory, item.category_id)
+        context['expense_history'] = ExpenseCorrectionService().history(db, item.id)
     return templates.TemplateResponse(request=request, name="pages/owner_economy.html", context={
         "request": request, "mode": mode, "today": business_today(), "key": str(uuid4()),
         "owners": list(db.scalars(select(Owner).order_by(Owner.legal_name))),
@@ -323,3 +325,49 @@ def settlement_pdf_download(settlement_id: int, version: int, db=Depends(get_db)
                         filename=f'liquidacion-{settlement_id}-v{artifact["version"]}.pdf',
                         headers={'Cache-Control':'private, no-store', 'X-Robots-Tag':'noindex, nofollow',
                                  'X-Content-Type-Options':'nosniff'})
+
+
+def expense_review_page(request, db, expense_id, kind, payment_id=None, *, values=None, review=None, error=None, status=200):
+    try:
+        view = ExpenseCorrectionService().form(db, expense_id, kind, payment_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    return templates.TemplateResponse(request=request, name='pages/expense_review.html', context={
+        'view':view, 'review':review, 'values':values or {}, 'error':error, 'request_key':str(uuid4()),
+        'categories':ExpenseCategoryService().list(db), 'expense_history':view['history']},
+        status_code=status, headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/expenses/{expense_id}/review')
+def expense_review(request:Request, expense_id:int, kind:str='correct', payment_id:int|None=None, db=Depends(get_db)):
+    return expense_review_page(request, db, expense_id, kind, payment_id)
+
+
+@router.post('/expenses/{expense_id}/review/{action}')
+async def expense_review_action(request:Request, expense_id:int, action:str, db=Depends(get_db)):
+    form = await request.form()
+    kind = str(form.get('kind',''))
+    try:
+        payment_id = int(form['payment_id']) if form.get('payment_id') else None
+    except (ValueError,TypeError):
+        raise HTTPException(400, 'Pago no válido.') from None
+    values = {key:str(form.get(key,'')) for key in ('reason','base_amount','concept','category_id')}
+    args = dict(kind=kind, reason=values['reason'])
+    if kind == 'correct':args.update({key:values[key] for key in ('base_amount','concept','category_id')})
+    if kind == 'payment_void':args['no_money_moved'] = form.get('no_money_moved') == 'yes'
+    service = ExpenseCorrectionService()
+    try:
+        if action == 'preview':
+            review = service.preview(db, expense_id, payment_id=payment_id, **args)
+            return expense_review_page(request, db, expense_id, kind, payment_id, values=values, review=review)
+        if action != 'confirm':raise ValueError('Acción no válida.')
+        service.confirm(db, expense_id, payment_id=payment_id, **args, request_key=str(form.get('request_key','')),
+                        expected=str(form.get('expected','')), confirmed=form.get('confirmed') == 'yes')
+        return RedirectResponse(f'/expenses/{expense_id}',303)
+    except LookupError as exc:
+        db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:
+        db.rollback()
+        return expense_review_page(request, db, expense_id, kind, payment_id, values=values, error=str(exc), status=409)
