@@ -1,0 +1,8 @@
+<section class="card card-body mt-4">
+  <h2 class="h5">Cobros pendientes de asignación</h2>
+  <p class="text-muted">Son importes ya recibidos. Asignarlos a cargos no registra otro cobro.</p>
+  <div class="table-responsive"><table class="table"><thead><tr><th>Cobro</th><th>Importe</th><th>Asignado</th><th>Disponible</th><th>Revisión</th></tr></thead><tbody>
+  {% for row in unassigned_receipts %}<tr><td>#{{ row.payment.id }} · {{ row.payment.effective_date.strftime('%d/%m/%Y') }}<small class="d-block">{{ payment_methods.get(row.payment.method,row.payment.method) }}</small></td><td>{{ '%.2f'|format(row.payment.amount) }} €</td><td>{{ '%.2f'|format(row.assigned) }} €</td><td>{{ '%.2f'|format(row.available) }} €</td><td>{% if row.blocker %}<span class="text-danger">Requiere revisión: {{ row.blocker }}</span>{% else %}<a href="/bookings/{{ booking.id }}/finance/payments/{{ row.payment.id }}/assign">Asignar cobro</a>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="5">No hay cobros con saldo pendiente de asignación.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>

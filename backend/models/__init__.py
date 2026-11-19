@@ -76,3 +76,5 @@ __all__ = [
     "room_features",
     "property_requirements",
 ]
+
+from backend.models.payment_allocation_operation import PaymentAllocationOperation

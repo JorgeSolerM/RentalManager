@@ -15,6 +15,7 @@ from backend.services.financial_service import FinancialService
 from backend.services.manual_payment_service import ManualPaymentService, METHODS, ALL_METHODS
 from backend.services.sepa_collection_service import SepaCollectionService
 from backend.services.collection_plan_service import CollectionPlanService
+from backend.services.payment_assignment_service import PaymentAssignmentService
 from backend.services.financial_account_view import account_view, movement_label
 
 
@@ -111,6 +112,7 @@ def booking_finance(
             "today": business_today(),
             "inclusive_period_end": _inclusive_period_end,
             "payments": payments,
+            "unassigned_receipts": PaymentAssignmentService().unassigned(db, booking_id),
             "account": account,
             "movement_label": movement_label,
             "plan_token": CollectionPlanService().review_token(booking, confirmed_terms) if confirmed_terms and not preview_error else None,
@@ -318,3 +320,46 @@ def confirm_economic_start(request: Request, booking_id: int, month: str = Form(
         return templates.TemplateResponse(request=request, name='pages/economic_start.html',
             context={'booking': booking, 'view': None, 'error': str(exc), 'month': month}, status_code=409,
             headers={'Cache-Control': 'private, no-store'})
+
+
+def assignment_page(request, db, booking_id, payment_id, *, view=None, review=None, error=None, status=200):
+    booking = _booking(db, booking_id)
+    try:
+        view = view or PaymentAssignmentService().form(db, booking_id, payment_id)
+    except ValueError:
+        raise HTTPException(404, 'Cobro no encontrado en esta reserva.') from None
+    return templates.TemplateResponse(request=request, name='pages/payment_assignment.html',
+        context={'booking':booking, 'view':view, 'review':review, 'error':error,
+                 'request_key':str(uuid4()), 'payment_methods':ALL_METHODS},
+        status_code=status, headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/{booking_id}/finance/payments/{payment_id}/assign')
+def assign_payment_page(request:Request, booking_id:int, payment_id:int, db:Session=Depends(get_db)):
+    return assignment_page(request,db,booking_id,payment_id)
+
+
+@router.post('/{booking_id}/finance/payments/{payment_id}/assign/{action}')
+async def assign_payment_action(request:Request, booking_id:int, payment_id:int, action:str, db:Session=Depends(get_db)):
+    _booking(db,booking_id)
+    form=await request.form()
+    assignments=PaymentAssignmentService()
+    try:
+        pairs=[]
+        try:
+            for key,value in form.multi_items():
+                if key.startswith('allocation_') and str(value).strip() and Decimal(str(value)) != 0:
+                    pairs.append((int(key.removeprefix('allocation_')),str(value)))
+        except (ValueError,ArithmeticError):
+            raise ValueError('Revise los importes de asignación.') from None
+        if action=='preview':
+            review=assignments.preview(db,booking_id,payment_id,pairs)
+            return assignment_page(request,db,booking_id,payment_id,view=review,review=review)
+        if action!='confirm':
+            raise ValueError('Acción no válida.')
+        assignments.confirm(db,booking_id,payment_id,pairs,request_key=str(form.get('request_key','')),
+            expected=str(form.get('expected','')),confirmed=form.get('confirmed')=='yes')
+        return RedirectResponse(f'/bookings/{booking_id}/finance/payments/{payment_id}/assign?assigned=1',status_code=303)
+    except ValueError as exc:
+        db.rollback()
+        return assignment_page(request,db,booking_id,payment_id,error=str(exc),status=409)
