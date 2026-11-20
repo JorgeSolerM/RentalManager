@@ -604,3 +604,30 @@ async def reviewed_payout_action(request:Request,settlement_id:int,action:str,db
         return RedirectResponse(f'/settlements/{settlement_id}',303)
     except LookupError as exc:db.rollback();raise HTTPException(404,str(exc)) from None
     except ValueError as exc:db.rollback();return payout_registration_page(request,db,settlement_id,values=v,error=str(exc),status=409)
+
+
+# Loss recognition is informational; never creates banking or settlement entries.
+def regularization_page(request,db,incident_id,*,values=None,review=None,error=None,status=200):
+    from backend.services.owner_transfer_regularization_service import OwnerTransferRegularizationService
+    try:view=OwnerTransferRegularizationService().form(db,incident_id)
+    except LookupError as exc:raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:raise HTTPException(409,str(exc)) from None
+    return templates.TemplateResponse(request=request,name='pages/transfer_regularization.html',context=dict(view=view,values=values or {},review=review,error=error,
+        owners=list(db.scalars(select(Owner).order_by(Owner.legal_name))),request_key=str(uuid4())),status_code=status,headers={'Cache-Control':'private, no-store'})
+
+@router.get('/transfer-incidents/{incident_id}/regularizations')
+def regularization_history(request:Request,incident_id:int,db=Depends(get_db)):
+    return regularization_page(request,db,incident_id)
+
+@router.post('/transfer-incidents/{incident_id}/regularizations/{action}')
+async def regularization_action(request:Request,incident_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_transfer_regularization_service import OwnerTransferRegularizationService
+    f=await request.form();v={k:str(f.get(k,'')) for k in ('kind','amount','loss_id','responsible','responsible_owner_id','agreement','reason','evidence','evidence_reference')};v['authorized']=f.get('authorized')=='yes'
+    service=OwnerTransferRegularizationService()
+    try:
+        if action=='preview':return regularization_page(request,db,incident_id,values=v,review=service.preview(db,incident_id,**v))
+        if action!='confirm':raise ValueError('Acción no válida.')
+        service.confirm(db,incident_id,**v,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/transfer-incidents/{incident_id}/regularizations',303)
+    except LookupError as exc:db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:db.rollback();return regularization_page(request,db,incident_id,values=v,error=str(exc),status=409)

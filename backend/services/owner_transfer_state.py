@@ -17,6 +17,10 @@ def incident_state(db):
 def incident_effects(db, owner_id, settlement_id):
     incidents,outflows,states,operations=incident_state(db)
     recovery_rows, recovery_allocations, recovery_audit = recovery_state(db)
+    from backend.services.owner_transfer_loss_state import loss_state
+    losses=[dict(incident_id=i.id,**{k:v for k,v in loss_state(db,i).items() if k!='operations'}) for i in incidents if i.intended_owner_id==owner_id or str(owner_id) in states.get(i.id,{}).get('allocations',{})]
+    from backend.models.owner_transfer_regularization import OwnerTransferRegularizationOperation
+    regularizations=list(db.scalars(select(OwnerTransferRegularizationOperation).order_by(OwnerTransferRegularizationOperation.id)))
     restored=Decimal('0'); credited_loss=Decimal('0')
     loss=Decimal('0');extra=Decimal('0');pending=Decimal('0');blockers=[];rows=[]
     for incident in incidents:
@@ -42,8 +46,8 @@ def incident_effects(db, owner_id, settlement_id):
             if incident.source_kind=='payout' and not incident.receipt_accredited:loss+=incident.affected_amount
             rows.append(dict(id=incident.id,kind=incident.kind,source_kind=incident.source_kind,amount=str(incident.affected_amount),pending=str(Decimal('0') if incident.receipt_accredited else incident.affected_amount-recovered),recovered=str(recovered),review='Recepción acreditada' if incident.receipt_accredited else 'Requiere identificación' if incident.kind=='unknown_recipient' else 'Incidencia confirmada',funding='Atribuido' if allocations else 'Pendiente de atribución',allocations=allocations))
     raw=lambda x:{c.name:getattr(x,c.name) for c in x.__table__.columns}
-    return dict(loss=loss,credited_loss=credited_loss,restored=restored,extra=extra,pending=pending,blockers=blockers,rows=rows,
-        fingerprint_state=[*[raw(x) for x in incidents],*[raw(x) for x in outflows.values()],*[raw(x) for x in operations],*[raw(x) for x in recovery_rows],*[raw(x) for x in recovery_audit]])
+    return dict(losses=losses,loss=loss,credited_loss=credited_loss,restored=restored,extra=extra,pending=pending,blockers=blockers,rows=rows,
+        fingerprint_state=[*[raw(x) for x in incidents],*[raw(x) for x in outflows.values()],*[raw(x) for x in operations],*[raw(x) for x in recovery_rows],*[raw(x) for x in recovery_audit],*[raw(x) for x in regularizations]])
 
 
 def recovery_state(db):
