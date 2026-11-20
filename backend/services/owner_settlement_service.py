@@ -378,24 +378,14 @@ class OwnerSettlementService:
                 raise ValueError("Cierre la liquidación antes de registrar un pago.")
             if account is None or account.owner_id != settlement.owner_id or not account.active or not account.receives_settlements:
                 raise ValueError("Cuenta destino no válida para este propietario.")
-            paid = sum(db.scalars(select(OwnerPayout.amount).where(OwnerPayout.settlement_id == settlement_id)), ZERO)
-            if amount > Decimal(settlement.snapshot["totals"]["payout_due"]) - paid:
+            from backend.services.owner_payout_balance_service import OwnerPayoutBalanceService
+            balances = OwnerPayoutBalanceService()
+            balance = balances.summary(db, settlement)
+            if amount > balance['remaining']:
                 raise ValueError("El pago supera los fondos pendientes de transferir.")
-            owner_lines = list(db.scalars(select(OwnerSettlementLine).where(OwnerSettlementLine.owner_id == settlement.owner_id)))
-            consumed = {r.payment_allocation_id for r in owner_lines if r.payment_allocation_id}
-            original_payments = list(db.scalars(select(PaymentAllocation.payment_id).where(PaymentAllocation.id.in_(consumed))))
-            pending_returns = list(db.scalars(select(PaymentAllocation.id).join(Payment).where(
-                Payment.corrects_payment_id.in_(original_payments), Payment.lifecycle == "posted",
-                Payment.direction == "refund", PaymentAllocation.id.not_in(consumed))))
-            if pending_returns:
+            if balances.pending_returns(db, settlement.owner_id):
                 raise ValueError("Hay devoluciones pendientes de liquidar; revise el ajuste antes de transferir fondos.")
-            closed = list(db.scalars(select(OwnerSettlement).where(OwnerSettlement.owner_id == settlement.owner_id,
-                                                                   OwnerSettlement.status == "closed")))
-            # Carry rows transfer an existing negative balance; do not count it twice.
-            owner_funds = sum((Decimal(s.snapshot["totals"]["funds_balance"]) -
-                               Decimal(s.snapshot["totals"]["prior_balance"]) for s in closed), ZERO)
-            owner_paid = sum(db.scalars(select(OwnerPayout.amount).where(OwnerPayout.owner_id == settlement.owner_id)), ZERO)
-            if amount > max(ZERO, owner_funds - owner_paid):
+            if amount > balance['available']:
                 raise ValueError("El pago supera los fondos netos del propietario tras los ajustes cerrados.")
             payout = OwnerPayout(settlement_id=settlement_id, owner_id=settlement.owner_id,
                 amount=amount, effective_date=effective_date, bank_account_id=account.id,

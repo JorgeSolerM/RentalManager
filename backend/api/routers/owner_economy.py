@@ -256,12 +256,11 @@ def detail(request, db, item, error=None):
     if item.selection.get('billing'):
         from backend.services.fee_invoice_service import FeeInvoiceService
         fee_summary = FeeInvoiceService().summary(db, item.id)
-    payouts = list(db.scalars(select(OwnerPayout).where(OwnerPayout.settlement_id == item.id)))
-    paid = sum((p.amount for p in payouts), Decimal("0.00"))
-    due = Decimal(item.snapshot["totals"]["payout_due"])
-    return page(request, db, "settlement", item=item, view=item.snapshot, error=error, payouts=payouts, fee_summary=fee_summary,
-        paid=paid, remaining=max(Decimal("0.00"), due-paid),
-        payment_status="Saldo a favor del gestor" if Decimal(item.snapshot['totals']['carry_forward']) < 0 else "Sin transferencia del gestor" if due == 0 else "Pagada" if paid == due else "Parcialmente pagada" if paid > 0 else "Pendiente de pago",
+    from backend.services.owner_payout_balance_service import OwnerPayoutBalanceService
+    balance = OwnerPayoutBalanceService().summary(db, item)
+    return page(request, db, "settlement", item=item, view=item.snapshot, error=error, fee_summary=fee_summary,
+        payouts=balance['payouts'], payout_states=balance['states'], payout_operations=balance['operations'],
+        paid=balance['paid'], remaining=balance['remaining'], payment_status=balance['status'],
         accounts=list(db.scalars(select(OwnerBankAccount).where(OwnerBankAccount.owner_id == item.owner_id,
             OwnerBankAccount.active == True, OwnerBankAccount.receives_settlements == True))))
 
@@ -371,3 +370,42 @@ async def expense_review_action(request:Request, expense_id:int, action:str, db=
     except ValueError as exc:
         db.rollback()
         return expense_review_page(request, db, expense_id, kind, payment_id, values=values, error=str(exc), status=409)
+
+
+# Administrative representations of owner payouts, never bank orders.
+def payout_review_page(request,db,settlement_id,payout_id,kind='replace',review=None,error=None,status=200,values=None):
+    from backend.services.owner_payout_correction_service import OwnerPayoutCorrectionService
+    if kind not in ('void','replace'):raise HTTPException(400,'Operación no válida.')
+    try:view=OwnerPayoutCorrectionService().form(db,settlement_id,payout_id)
+    except LookupError as exc:raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:raise HTTPException(409,str(exc)) from None
+    return templates.TemplateResponse(request=request,name='pages/payout_review.html',context=dict(view=view,kind=kind,review=review,error=error,values=values or {},request_key=str(uuid4())),status_code=status,headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/settlements/{settlement_id}/payouts/{payout_id}/review')
+def payout_review(request:Request,settlement_id:int,payout_id:int,kind:str='replace',db=Depends(get_db)):
+    return payout_review_page(request,db,settlement_id,payout_id,kind)
+
+
+@router.post('/settlements/{settlement_id}/payouts/{payout_id}/review/{action}')
+async def payout_review_action(request:Request,settlement_id:int,payout_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_payout_correction_service import OwnerPayoutCorrectionService
+    f=await request.form();kind=str(f.get('kind',''));s=OwnerPayoutCorrectionService()
+    values={k:str(f.get(k,'')) for k in ('reason','amount','effective_date','reference')}
+    args=dict(kind=kind,reason=values['reason'])
+    if kind=='void':args['no_transfer']=f.get('no_transfer')=='yes'
+    else:args.update({k:values[k] for k in ('amount','effective_date','reference')},same_transfer=f.get('same_transfer')=='yes')
+    try:
+        if any(k in f for k in ('owner_id','settlement_id','bank_account_id')):raise ValueError('No se puede cambiar beneficiario, cuenta ni liquidación en este circuito.')
+        if action=='preview':
+            review=s.preview(db,settlement_id,payout_id,**args)
+            return payout_review_page(request,db,settlement_id,payout_id,kind,review=review,values=values)
+        if action!='confirm':raise ValueError('Acción no válida.')
+        # Only a trusted authentication integration may set this state; never a form field.
+        operator_id=getattr(request.state,'operator_id',None)
+        s.confirm(db,settlement_id,payout_id,**args,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=operator_id)
+        return RedirectResponse(f'/settlements/{settlement_id}#payout-history',303)
+    except LookupError as exc:
+        db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:
+        db.rollback();return payout_review_page(request,db,settlement_id,payout_id,kind,error=str(exc),status=409,values=values)

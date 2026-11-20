@@ -95,14 +95,16 @@ class SettlementDocumentService:
             legacy = header is None
             if legacy:
                 header = previous[0]['identity'] if previous else document_identity(db, item, rows)
-            payouts = list(db.scalars(select(OwnerPayout).where(OwnerPayout.settlement_id == item.id).order_by(OwnerPayout.id)))
+            from backend.services.owner_payout_balance_service import OwnerPayoutBalanceService
+            balance = OwnerPayoutBalanceService().summary(db, item)
+            payouts = balance['effective']
             payout_rows = [dict(id=p.id, date=str(p.effective_date), amount=str(p.amount),
                                 account_suffix=(p.account_snapshot.get('iban') or '')[-4:]) for p in payouts]
-            paid = sum((p.amount for p in payouts), Decimal('0.00'))
+            paid = balance['paid']
             payload = dict(id=item.id, owner_id=item.owner_id, identity=header, legacy_identity=legacy,
                            start=str(item.period_start), end=str(item.period_end), closed_at=str(item.closed_at),
                            rows=rows, totals=item.snapshot['totals'], payouts=payout_rows, paid=str(paid),
-                           pending=str(max(Decimal('0.00'), Decimal(item.snapshot['totals']['payout_due'])-paid)))
+                           pending=str(balance['remaining']))
             digest = sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
             from backend.services.settlement_pdf import render_settlement_pdf, RENDERER_VERSION
             for artifact in previous:

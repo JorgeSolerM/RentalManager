@@ -82,3 +82,5 @@ from backend.models.payment_allocation_operation import PaymentAllocationOperati
 from backend.models.payment_correction_operation import PaymentCorrectionOperation
 
 from backend.models.expense_correction import ExpensePaymentVoidOperation, ExpenseCorrectionOperation
+
+from backend.models.owner_payout_correction import OwnerPayoutCorrectionOperation

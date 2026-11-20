@@ -1,0 +1,34 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Revisar pago al propietario{% endblock %}
+{% block main_class %}owner-economy{% endblock %}
+{% block body_class %}owner-economy-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static',path='css/owner_economy.css') }}">
+<a href="/settlements/{{ view.settlement.id }}">← Volver a la liquidación</a>
+<h1 class="h3 mt-3">{{ 'Anular registro por error' if kind=='void' else 'Corregir registro del pago' }} #{{ view.payout.id }}</h1>
+<p>Liquidación #{{ view.settlement.id }} · Cuenta terminada en {{ view.payout.account_snapshot.iban[-4:] }}</p>
+<div class="alert alert-info">Esta operación solo rectifica el registro administrativo. No ordena transferencias ni devoluciones y conserva la liquidación y sus PDF históricos.</div>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% for b in view.blockers %}<div class="alert alert-warning" role="alert">{{ b }}</div>{% endfor %}
+{% if review %}
+<h2 class="h5">Vista previa del impacto</h2><div class="table-responsive"><table class="table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th></tr></thead><tbody>
+{% for field,label in [('amount','Importe del registro'),('paid','Pagado efectivo'),('remaining','Pendiente de la liquidación'),('available','Fondos disponibles del propietario')] %}<tr><td style="white-space:normal">{{ label }}</td><td>{{ review.impact[field ~ '_before'] }} €</td><td>{{ review.impact[field ~ '_after'] }} €</td></tr>{% endfor %}</tbody></table></div>
+<p>Fecha: {{ review.before.effective_date }} → {{ review.after.effective_date }}<br>Referencia: {{ review.before.reference or '—' }} → {{ review.after.reference or '—' }}</p><p>Motivo: {{ review['values'].reason }}</p>
+<form method="post" action="/settlements/{{ view.settlement.id }}/payouts/{{ view.payout.id }}/review/confirm">
+<input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="reason" value="{{ review['values'].reason }}"><input type="hidden" name="request_key" value="{{ request_key }}"><input type="hidden" name="expected" value="{{ review.fingerprint }}">
+{% if kind=='replace' %}{% for field in ['amount','effective_date','reference'] %}<input type="hidden" name="{{ field }}" value="{{ review['values'][field] }}">{% endfor %}{% endif %}
+{% else %}{% if not view.blockers %}<form method="post" action="/settlements/{{ view.settlement.id }}/payouts/{{ view.payout.id }}/review/preview">
+<input type="hidden" name="kind" value="{{ kind }}">
+{% if kind=='replace' %}
+<label for="amount">Importe realmente transferido (€)</label><input class="form-control mb-3" id="amount" name="amount" type="number" step="0.01" min="0.01" value="{{ values.get('amount',view.payout.amount) }}" required>
+<label for="effective_date">Fecha efectiva</label><input class="form-control mb-3" id="effective_date" name="effective_date" type="date" value="{{ values.get('effective_date',view.payout.effective_date) }}" required>
+<label for="reference">Referencia</label><input class="form-control mb-3" id="reference" name="reference" maxlength="255" value="{{ values.get('reference',view.payout.reference or '') }}">
+{% endif %}<label for="reason">Motivo obligatorio</label><textarea class="form-control mb-3" id="reason" name="reason" maxlength="1000" required>{{ values.get('reason','') }}</textarea>{% endif %}{% endif %}
+{% if review or not view.blockers %}
+{% if kind=='void' %}<label class="d-block mb-3"><input type="checkbox" name="no_transfer" value="yes" required> Confirmo que este registro es erróneo y no hubo transferencia real. Si hubo transferencia o devolución real, este circuito no es válido.</label>
+{% else %}<label class="d-block mb-3"><input type="checkbox" name="same_transfer" value="yes" required> Confirmo que estos datos corresponden a la misma transferencia al mismo propietario. No se realiza una nueva transferencia.</label>{% endif %}
+{% if review %}<label class="d-block mb-3"><input type="checkbox" name="confirmed" value="yes" required> He revisado el impacto y confirmo expresamente la rectificación.</label>{% endif %}
+<button class="btn {{ 'btn-danger' if review else 'btn-primary' }}">{{ 'Confirmar rectificación' if review else 'Revisar impacto' }}</button></form>{% endif %}
+<h2 class="h5 mt-4" id="history">Historial de la liquidación</h2>
+{% for op in view.history %}<article class="card card-body mb-2"><strong>{{ 'Registro anulado' if op.kind=='void' else 'Registro sustituido' }}</strong><span>{{ op.created_at }} UTC · {{ op.operator_id or 'Operador no identificado por la sesión' }}</span><p class="text-break">{{ op.reason }}</p><p><a href="/settlements/{{ view.settlement.id }}/payouts/{{ op.original_payout_id }}/review">Original #{{ op.original_payout_id }}</a>{% if op.replacement_payout_id %} → <a href="/settlements/{{ view.settlement.id }}/payouts/{{ op.replacement_payout_id }}/review">Sustituto #{{ op.replacement_payout_id }}</a>{% endif %}</p><span>{% if op.kind=='void' %}Importe original {{ op.before_state.amount }} € · Registro sin efecto económico{% else %}{{ op.before_state.amount }} € → {{ op.after_state.amount }} €{% endif %}</span><small>Fecha {{ op.before_state.effective_date }} → {{ op.after_state.effective_date }} · Referencia {{ op.before_state.reference or '—' }} → {{ op.after_state.reference or '—' }}</small></article>{% else %}<p>Sin rectificaciones.</p>{% endfor %}
+{% endblock %}
