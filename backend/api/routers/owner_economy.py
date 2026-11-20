@@ -260,7 +260,7 @@ def detail(request, db, item, error=None):
     balance = OwnerPayoutBalanceService().summary(db, item)
     return page(request, db, "settlement", item=item, view=item.snapshot, error=error, fee_summary=fee_summary,
         payouts=balance['payouts'], payout_states=balance['states'], payout_operations=balance['operations'],
-        paid=balance['paid'], remaining=balance['remaining'], payment_status=balance['status'],
+        paid=balance['paid'], gross_paid=balance['gross_paid'], returned=balance['returned'], remaining=balance['remaining'], payment_status=balance['status'],
         accounts=list(db.scalars(select(OwnerBankAccount).where(OwnerBankAccount.owner_id == item.owner_id,
             OwnerBankAccount.active == True, OwnerBankAccount.receives_settlements == True))))
 
@@ -409,3 +409,49 @@ async def payout_review_action(request:Request,settlement_id:int,payout_id:int,a
         db.rollback();raise HTTPException(404,str(exc)) from None
     except ValueError as exc:
         db.rollback();return payout_review_page(request,db,settlement_id,payout_id,kind,error=str(exc),status=409,values=values)
+
+
+# Real credited bank returns, never bank instructions.
+def payout_return_page(request, db, settlement_id, payout_id, review=None, error=None, status=200, values=None):
+    from backend.services.owner_payout_return_service import OwnerPayoutReturnService
+    try:
+        view = OwnerPayoutReturnService().form(db, settlement_id, payout_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return templates.TemplateResponse(request=request, name='pages/payout_return.html',
+        context=dict(view=view, review=review, error=error, values=values or {}, request_key=str(uuid4())),
+        status_code=status, headers={'Cache-Control': 'private, no-store'})
+
+
+@router.get('/settlements/{settlement_id}/payouts/{payout_id}/returns')
+def payout_returns(request: Request, settlement_id: int, payout_id: int, db=Depends(get_db)):
+    return payout_return_page(request, db, settlement_id, payout_id)
+
+
+@router.post('/settlements/{settlement_id}/payouts/{payout_id}/returns/{action}')
+async def payout_return_action(request: Request, settlement_id: int, payout_id: int, action: str, db=Depends(get_db)):
+    from backend.services.owner_payout_return_service import OwnerPayoutReturnService
+    f = await request.form()
+    values = {k: str(f.get(k, '')) for k in ('amount', 'effective_date', 'bank_reference', 'bank_transaction_id', 'receiving_iban', 'reason')}
+    args = dict(values, received=f.get('received') == 'yes')
+    service = OwnerPayoutReturnService()
+    try:
+        if any(k in f for k in ('owner_id', 'settlement_id', 'bank_account_id')):
+            raise ValueError('No se puede cambiar el propietario, la liquidación ni el destino del pago original.')
+        if action == 'preview':
+            review = service.preview(db, settlement_id, payout_id, **args)
+            return payout_return_page(request, db, settlement_id, payout_id, review=review, values=values)
+        if action != 'confirm':
+            raise ValueError('Acción no válida.')
+        service.confirm(db, settlement_id, payout_id, **args, request_key=str(f.get('request_key', '')),
+            expected=str(f.get('expected', '')), confirmed=f.get('confirmed') == 'yes',
+            operator_id=getattr(request.state, 'operator_id', None))
+        return RedirectResponse(f'/settlements/{settlement_id}/payouts/{payout_id}/returns#history', 303)
+    except LookupError as exc:
+        db.rollback()
+        raise HTTPException(404, str(exc)) from None
+    except ValueError as exc:
+        db.rollback()
+        return payout_return_page(request, db, settlement_id, payout_id, error=str(exc), status=409, values=values)

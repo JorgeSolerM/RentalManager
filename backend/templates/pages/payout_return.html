@@ -1,0 +1,32 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Devolución bancaria{% endblock %}
+{% block main_class %}owner-economy{% endblock %}
+{% block body_class %}owner-economy-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static',path='css/owner_economy.css') }}">
+<a href="/settlements/{{ view.settlement.id }}">← Volver a la liquidación</a>
+<h1 class="h3 mt-3">Registrar devolución bancaria</h1>
+<p>Liquidación #{{ view.settlement.id }} · Transferencia original #{{ view.root_id }} · Registro vigente #{{ view.payout.id }} · Destino terminado en {{ view.payout.account_snapshot.iban[-4:] }}</p>
+<p>Importe registrado: {{ view.payout.amount }} € · Ya devuelto: {{ view.returned }} € · Máximo a devolver: {{ view.maximum }} €</p>
+<div class="alert alert-info">Solo abonos efectivamente recibidos de transferencias destinadas correctamente al propietario. No registra dinero pendiente de recuperar ni ordena transferencias. El cierre y sus PDF históricos se conservan.</div>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% for b in view.blockers %}<div class="alert alert-warning" role="alert">{{ b }}</div>{% endfor %}
+{% if review %}
+<h2 class="h5">Revisar devolución recibida</h2><div class="table-responsive"><table class="table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th></tr></thead><tbody>
+{% for field,label in [('returned','Devoluciones recibidas'),('paid','Pagado neto'),('remaining','Pendiente de liquidación'),('available','Fondos disponibles del propietario')] %}<tr><td style="white-space:normal">{{ label }}</td><td>{{ review.impact[field ~ '_before'] }} €</td><td>{{ review.impact[field ~ '_after'] }} €</td></tr>{% endfor %}</tbody></table></div>
+<p>Recepción {{ review['values'].effective_date }} · Cuenta terminada en {{ review['values'].receiving_iban[-4:] }} · {{ review['values'].amount }} €</p><p class="text-break">{{ review['values'].bank_reference }} · {{ review['values'].reason }}</p>
+<form method="post" action="/settlements/{{ view.settlement.id }}/payouts/{{ view.selected.id }}/returns/confirm">
+{% for field in ['amount','effective_date','bank_reference','bank_transaction_id','receiving_iban','reason'] %}<input type="hidden" name="{{ field }}" value="{{ review['values'][field] or '' }}">{% endfor %}
+<input type="hidden" name="request_key" value="{{ request_key }}"><input type="hidden" name="expected" value="{{ review.fingerprint }}">
+{% elif not view.blockers %}
+<form method="post" action="/settlements/{{ view.settlement.id }}/payouts/{{ view.selected.id }}/returns/preview">
+{% for field,label,type in [('amount','Importe efectivamente devuelto (€)','number'),('effective_date','Fecha de recepción del dinero','date'),('bank_reference','Referencia bancaria','text'),('bank_transaction_id','Identificador único del abono (si consta en el banco)','text'),('receiving_iban','IBAN de la cuenta que recibió el abono','text')] %}<label for="{{ field }}">{{ label }}</label><input class="form-control mb-3" id="{{ field }}" name="{{ field }}" type="{{ type }}" value="{{ values.get(field,'') }}" {% if field!='bank_transaction_id' %}required{% endif %} {% if field=='amount' %}min="0.01" step="0.01" max="{{ view.maximum }}"{% endif %}>{% endfor %}
+<small class="d-block mb-3">La cuenta se conserva únicamente como huella y últimos cuatro caracteres. Dos abonos iguales en fecha e importe requieren identificadores bancarios verificables distintos.</small>
+<label for="reason">Motivo obligatorio</label><textarea class="form-control mb-3" id="reason" name="reason" maxlength="1000" required>{{ values.get('reason','') }}</textarea>
+{% endif %}
+{% if review or not view.blockers %}<label class="d-block mb-3"><input type="checkbox" name="received" value="yes" required> Confirmo que el dinero ha sido efectivamente abonado en la cuenta identificada y que la transferencia original estaba destinada correctamente a este propietario.</label>
+{% if review %}<label class="d-block mb-3"><input type="checkbox" name="confirmed" value="yes" required> He revisado el impacto y confirmo el registro de esta devolución real.</label>{% endif %}<button class="btn btn-primary">{{ 'Confirmar devolución recibida' if review else 'Revisar devolución' }}</button></form>{% endif %}
+<h2 class="h5 mt-4" id="history">Historial de devoluciones de la transferencia #{{ view.root_id }}</h2>
+{% for r in view.history %}<article class="card card-body mb-2"><strong>Abono recibido #{{ r.id }} · {{ r.amount }} €</strong><span>{{ r.effective_date }} · Cuenta receptora terminada en {{ r.receiving_account_suffix }}</span><p class="text-break">{{ r.bank_reference }} · {{ r.reason }}</p><small>Registro {{ r.created_at }} UTC · {{ r.operator_id or 'Operador no identificado por la sesión' }} · Pago #{{ r.payout_id }}</small></article>{% else %}<p>Sin devoluciones registradas.</p>{% endfor %}
+<a href="/settlements/{{ view.settlement.id }}/payouts/{{ view.selected.id }}/review#history">Ver historial de correcciones administrativas</a>
+{% endblock %}

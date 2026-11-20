@@ -148,8 +148,10 @@ def render_settlement_pdf(payload, generated):
     if credit:
         summary_rows.append(('SALDO A FAVOR DEL GESTOR',credit))
     paid=Decimal(payload['paid'])
+    if Decimal(payload.get('returned','0')):
+        summary_rows += [('Pagos vigentes',Decimal(payload['gross_paid'])),('Devoluciones recibidas',Decimal(payload['returned']))]
     if paid:
-        summary_rows += [('A transferir al cierre',Decimal(t['payout_due'])),('Pagado al propietario',paid),('PENDIENTE',Decimal(payload['pending']))]
+        summary_rows += [('A transferir al cierre',Decimal(t['payout_due'])),('Pagado neto al propietario',paid),('PENDIENTE',Decimal(payload['pending']))]
     else:
         summary_rows.append(('A TRANSFERIR AL PROPIETARIO' if credit else 'PENDIENTE DE TRANSFERIR',Decimal(payload['pending'])))
     summary=Table([[p(label,'bold' if label.isupper() else 'body'),p(euros(value),'boldright' if label.isupper() else 'right')] for label,value in summary_rows],colWidths=[106*mm,36*mm],hAlign='RIGHT')
@@ -165,6 +167,9 @@ def render_settlement_pdf(payload, generated):
     if payload['payouts']:
         section('PAGOS AL PROPIETARIO')
         table(['Fecha','Cuenta destino','Importe'],[[human_date(r['date']),'**** '+r['account_suffix'],euros(r['amount'])] for r in payload['payouts']],[35,110,35])
+    if payload.get('returns'):
+        section('DEVOLUCIONES BANCARIAS RECIBIDAS')
+        table(['Fecha','Pago / cuenta receptora','Importe'],[[human_date(r['date']),str(r['payout_id'])+' / **** '+r['account_suffix'],euros(r['amount'])] for r in payload['returns']],[35,110,35])
     def footer(canvas,doc):
         canvas.saveState(); canvas.setFont('Helvetica',7.5); canvas.setFillColor(colors.HexColor('#69726b'))
         canvas.drawString(15*mm,9*mm,f"Liquidación #{payload['id']} · Documento privado · No es factura")

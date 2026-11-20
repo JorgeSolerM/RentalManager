@@ -36,6 +36,7 @@ class OwnerPayoutCorrectionService:
         if settlement.status!='closed':blockers.append('Solo se revisan pagos de liquidaciones cerradas; no se modifica el cierre.')
         if payout.owner_id!=settlement.owner_id or not payout.account_snapshot.get('iban'):blockers.append('Beneficiario o cuenta histórica ambiguos. Requiere revisión específica.')
         if balance['states'][payout.id]!='posted':blockers.append('El registro ya está anulado o sustituido. Consulte el historial y revise el pago vigente.')
+        if balance['returned_by_root'].get(balance['roots'][payout.id],0):blockers.append('El pago tiene devoluciones bancarias recibidas. No se permite anularlo ni sustituirlo administrativamente.')
         if settlement.selection.get('billing'):blockers.append('Liquidación con compensaciones de facturación: requiere revisión específica; este circuito no altera sus fondos.')
         # Compatibility guard only: no dependency on applying the fiscal migration.
         if inspect(db.connection()).has_table('fee_compensations'):
@@ -75,7 +76,7 @@ class OwnerPayoutCorrectionService:
         if values['kind']=='replace':after.update(effective_date=values['effective_date'],reference=redact(values['reference']))
         paid=limits['paid']+new;available=max(money('0'),limits['owner_funds']-limits['owner_paid']-new)
         impact=dict(paid_before=str(b['paid']),paid_after=str(paid),remaining_before=str(b['remaining']),remaining_after=str(b['due']-paid),available_before=str(b['available']),available_after=str(available),amount_before=str(p.amount),amount_after=str(new))
-        state=dict(payouts=[raw(p) for p in b['all_payouts']],operations=[raw(o) for o in b['operations']],closed=[raw(s) for s in b['closed']],values=values,payout_id=payout_id,settlement_id=settlement_id)
+        state=dict(returns=[raw(r) for r in b['all_returns']],payouts=[raw(p) for p in b['all_payouts']],operations=[raw(o) for o in b['operations']],closed=[raw(s) for s in b['closed']],values=values,payout_id=payout_id,settlement_id=settlement_id)
         return dict(**view,values=values,before=before,after=after,impact=impact,fingerprint=fingerprint(state))
 
     def confirm(self,db,settlement_id,payout_id,*,request_key,expected,confirmed=False,operator_id=None,**values):
