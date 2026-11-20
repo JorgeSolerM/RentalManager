@@ -260,7 +260,7 @@ def detail(request, db, item, error=None):
     balance = OwnerPayoutBalanceService().summary(db, item)
     return page(request, db, "settlement", item=item, view=item.snapshot, error=error, fee_summary=fee_summary,
         payouts=balance['payouts'], payout_states=balance['states'], payout_operations=balance['operations'],
-        paid=balance['paid'], gross_paid=balance['gross_paid'], returned=balance['returned'], remaining=balance['remaining'], payment_status=balance['status'],
+        transfer_balance=balance, paid=balance['paid'], gross_paid=balance['gross_paid'], returned=balance['returned'], remaining=balance['remaining'], payment_status=balance['status'],
         accounts=list(db.scalars(select(OwnerBankAccount).where(OwnerBankAccount.owner_id == item.owner_id,
             OwnerBankAccount.active == True, OwnerBankAccount.receives_settlements == True))))
 
@@ -455,3 +455,67 @@ async def payout_return_action(request: Request, settlement_id: int, payout_id: 
     except ValueError as exc:
         db.rollback()
         return payout_return_page(request, db, settlement_id, payout_id, error=str(exc), status=409, values=values)
+
+
+# Private incident workflow: never orders bank transfers or recoveries.
+def incident_page(request, db, settlement_id=None, incident_id=None, review=None, error=None, status=200, values=None, attribution=None):
+    from backend.services.owner_transfer_incident_service import OwnerTransferIncidentService
+    service=OwnerTransferIncidentService()
+    try:
+        detail=service.detail(db,incident_id) if incident_id else None
+        settlement,balance=service.context(db,settlement_id) if not detail else (detail['settlement'],detail['balance'])
+    except LookupError as exc:raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:raise HTTPException(409,str(exc)) from None
+    return templates.TemplateResponse(request=request,name='pages/transfer_incident.html',context=dict(settlement=settlement,balance=balance,detail=detail,review=review,error=error,values=values or {},attribution=attribution,owners=list(db.scalars(select(Owner).order_by(Owner.legal_name))),request_key=str(uuid4())),status_code=status,headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/settlements/{settlement_id}/transfer-incidents/new')
+def incident_new(request:Request,settlement_id:int,db=Depends(get_db)):
+    kind=request.query_params.get('kind','wrong_recipient')
+    return incident_page(request,db,settlement_id,values={'kind':kind})
+
+
+@router.get('/transfer-incidents/{incident_id}')
+def incident_detail(request:Request,incident_id:int,db=Depends(get_db)):
+    return incident_page(request,db,incident_id=incident_id)
+
+
+def incident_inputs(f):
+    values={k:str(f.get(k,'')) for k in ('source_kind','kind','payout_id','duplicate_of_id','amount','effective_date','reference','bank_transaction_id','original_bank_id','source_iban','destination_iban','recipient_owner_id','recipient_description','reason','evidence')}
+    values.update(allocations={key[5:]:str(f.get(key,'')) for key in f if key.startswith('fund_')},scope=f.getlist('scope'),executed=f.get('executed')=='yes',receipt_accredited=f.get('receipt_accredited')=='yes')
+    return values
+
+
+@router.post('/settlements/{settlement_id}/transfer-incidents/{action}')
+async def incident_action(request:Request,settlement_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_transfer_incident_service import OwnerTransferIncidentService
+    f=await request.form();inputs=incident_inputs(f);service=OwnerTransferIncidentService()
+    try:
+        if 'intended_owner_id' in f or 'settlement_id' in f:raise ValueError('No cambie el propietario o liquidación previstos.')
+        if action=='preview':
+            review=service.preview(db,settlement_id,**inputs)
+            return incident_page(request,db,settlement_id,review=review,values=inputs)
+        if action!='confirm':raise ValueError('Acción no válida.')
+        row=service.confirm(db,settlement_id,**inputs,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/transfer-incidents/{row.id}',303)
+    except LookupError as exc:
+        db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:
+        db.rollback();return incident_page(request,db,settlement_id,error=str(exc),status=409,values=inputs)
+
+
+@router.post('/transfer-incidents/{incident_id}/attribute/{action}')
+async def incident_attribute(request:Request,incident_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_transfer_incident_service import OwnerTransferIncidentService
+    f=await request.form();service=OwnerTransferIncidentService();allocations={key[5:]:str(f.get(key,'')) for key in f if key.startswith('fund_')};reason=str(f.get('reason',''))
+    try:
+        if action=='preview':
+            review=service.attribution_preview(db,incident_id,allocations=allocations,reason=reason)
+            return incident_page(request,db,incident_id=incident_id,attribution=review)
+        if action!='confirm':raise ValueError('Acción no válida.')
+        service.attribute(db,incident_id,allocations=allocations,reason=reason,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/transfer-incidents/{incident_id}',303)
+    except LookupError as exc:
+        db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:
+        db.rollback();return incident_page(request,db,incident_id=incident_id,error=str(exc),status=409)

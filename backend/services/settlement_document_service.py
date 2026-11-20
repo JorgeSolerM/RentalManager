@@ -104,7 +104,7 @@ class SettlementDocumentService:
             payload = dict(id=item.id, owner_id=item.owner_id, identity=header, legacy_identity=legacy,
                            start=str(item.period_start), end=str(item.period_end), closed_at=str(item.closed_at),
                            rows=rows, totals=item.snapshot['totals'], payouts=payout_rows, paid=str(paid),
-                           pending=str(balance['remaining']), gross_paid=str(balance['gross_paid']), returned=str(balance['returned']),
+                           incidents=balance['incidents'], pending_recovery=str(balance['pending_recovery']), deficit=str(balance['deficit']), pending=str(balance['remaining']), gross_paid=str(balance['gross_paid']), returned=str(balance['returned']),
                            returns=[dict(id=r.id, payout_id=r.payout_id, date=str(r.effective_date), amount=str(r.amount), account_suffix=r.receiving_account_suffix) for r in balance['returns']])
             digest = sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
             from backend.services.settlement_pdf import render_settlement_pdf, RENDERER_VERSION

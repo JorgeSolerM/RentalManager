@@ -25,6 +25,8 @@ class OwnerPayoutReturnService:
         if settlement.status!='closed':blockers.append('La liquidación debe estar cerrada; su cierre no se modificará.')
         if active is None:blockers.append('El pago está anulado administrativamente. No admite una devolución bancaria.')
         if p.owner_id!=settlement.owner_id or p.method!='bank_transfer' or not p.account_snapshot.get('iban'):blockers.append('Transferencia o beneficiario no identificados inequívocamente. Requiere otro procedimiento.')
+        from backend.models.owner_transfer_incident import OwnerTransferIncident
+        if db.scalar(select(OwnerTransferIncident.id).where(OwnerTransferIncident.payout_root_id==root)):blockers.append('Transferencia con incidencia bancaria: su recuperación requiere el circuito específico, todavía no habilitado.')
         if settlement.selection.get('billing'):blockers.append('Liquidación con compensaciones de facturación. Requiere revisión específica.')
         if inspect(db.connection()).has_table('fee_compensations'):
             from backend.models.fee_billing import FeeCompensation
@@ -63,8 +65,8 @@ class OwnerPayoutReturnService:
         if db.scalar(select(OwnerPayoutReturn.id).where(OwnerPayoutReturn.dedupe_key==dedupe).limit(1)):raise ValueError('Este abono ya está registrado o coincide con una devolución existente. Revise el historial.')
         matches=list(db.scalars(select(OwnerPayoutReturn).where(OwnerPayoutReturn.transfer_root_id==view['root_id'],OwnerPayoutReturn.effective_date==day,OwnerPayoutReturn.amount==amount)))
         if any(not v['bank_transaction_id'] or not r.bank_transaction_id or (r.receiving_account_hash==account_hash and r.bank_transaction_id==v['bank_transaction_id']) for r in matches):raise ValueError('Posible duplicado: misma transferencia, fecha e importe. Se requieren identificadores bancarios distintos y verificables para distinguir los abonos; no cambie la referencia para eludir la revisión.')
-        b=view['balance'];impact=dict(gross=str(b['gross_paid']),returned_before=str(b['returned']),returned_after=str(b['returned']+amount),paid_before=str(b['paid']),paid_after=str(b['paid']-amount),remaining_before=str(b['remaining']),remaining_after=str(b['remaining']+amount),available_before=str(b['available']),available_after=str(max(ZERO,b['owner_funds']-b['owner_paid']+amount)))
-        state=dict(payouts=[raw(r) for r in b['all_payouts']],operations=[raw(r) for r in b['operations']],returns=[raw(r) for r in b['all_returns']],closed=[raw(r) for r in b['closed']],values=self.digest_values(v),selected=payout_id)
+        b=view['balance'];impact=dict(gross=str(b['gross_paid']),returned_before=str(b['returned']),returned_after=str(b['returned']+amount),paid_before=str(b['paid']),paid_after=str(b['paid']-amount),remaining_before=str(b['remaining']),remaining_after=str(b['remaining']+amount),available_before=str(b['available']),available_after=str(ZERO if b['payout_blockers'] else max(ZERO,b['owner_funds']-b['cash_used']+amount)))
+        state=dict(incidents=b['incident_state'],payouts=[raw(r) for r in b['all_payouts']],operations=[raw(r) for r in b['operations']],returns=[raw(r) for r in b['all_returns']],closed=[raw(r) for r in b['closed']],values=self.digest_values(v),selected=payout_id)
         return dict(**view,values=v,impact=impact,dedupe_key=dedupe,account_hash=account_hash,fingerprint=fingerprint(state))
 
     def confirm(self,db,settlement_id,payout_id,*,request_key,expected,confirmed=False,operator_id=None,**inputs):

@@ -381,6 +381,9 @@ class OwnerSettlementService:
             from backend.services.owner_payout_balance_service import OwnerPayoutBalanceService
             balances = OwnerPayoutBalanceService()
             balance = balances.summary(db, settlement)
+            if balance['payout_blockers']:raise ValueError(' '.join(balance['payout_blockers']))
+            from backend.services.owner_transfer_incident_service import prevent_duplicate_payout
+            prevent_duplicate_payout(db,amount,effective_date,account.iban,reference)
             if amount > balance['remaining']:
                 raise ValueError("El pago supera los fondos pendientes de transferir.")
             if balances.pending_returns(db, settlement.owner_id):
