@@ -61,6 +61,8 @@ class OwnerPayoutReturnService:
         if day<p.effective_date:raise ValueError('La devolución no puede recibirse antes de la transferencia.')
         if amount>view['maximum']:raise ValueError('La devolución supera el importe pagado todavía no devuelto.')
         account_hash=self.digest_values(v)['receiving_account_hash']
+        from backend.services.owner_bank_credit_service import validate_credit
+        validate_credit(db,account_hash=account_hash,bank_id=v['bank_transaction_id'],day=day,amount=amount,source=('payout',view['root_id']))
         dedupe=fingerprint(['bank',account_hash,v['bank_transaction_id']]) if v['bank_transaction_id'] else fingerprint(['possible',view['root_id'],v['effective_date'],v['amount']])
         if db.scalar(select(OwnerPayoutReturn.id).where(OwnerPayoutReturn.dedupe_key==dedupe).limit(1)):raise ValueError('Este abono ya está registrado o coincide con una devolución existente. Revise el historial.')
         matches=list(db.scalars(select(OwnerPayoutReturn).where(OwnerPayoutReturn.transfer_root_id==view['root_id'],OwnerPayoutReturn.effective_date==day,OwnerPayoutReturn.amount==amount)))
@@ -80,5 +82,8 @@ class OwnerPayoutReturnService:
             view=self.preview(db,settlement_id,payout_id,**v)
             if view['fingerprint']!=expected:raise ValueError('Los datos han cambiado. Revise de nuevo la devolución.')
             row=OwnerPayoutReturn(payout_id=view['payout'].id,transfer_root_id=view['root_id'],amount=money(v['amount']),effective_date=date.fromisoformat(v['effective_date']),bank_reference=redact(v['bank_reference']),bank_transaction_id=v['bank_transaction_id'],receiving_account_hash=view['account_hash'],receiving_account_suffix=v['receiving_iban'][-4:],reason=redact(v['reason']),received=True,operator_id=str(operator_id)[:160] if operator_id is not None else None,request_key=key,dedupe_key=view['dedupe_key'],fingerprint=digest,reviewed_state=expected,impact=view['impact'])
-            db.add(row);db.flush();self.balances.summary(db,view['settlement'])
+            db.add(row);db.flush()
+            from backend.services.owner_bank_credit_service import register_identity
+            register_identity(db,row,recovery=False)
+            self.balances.summary(db,view['settlement'])
         return row

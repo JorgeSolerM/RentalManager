@@ -288,16 +288,7 @@ async def settlement_close(request: Request, settlement_id: int, db=Depends(get_
 
 @router.post("/settlements/{settlement_id}/payout")
 async def settlement_payout(request: Request, settlement_id: int, db=Depends(get_db)):
-    f = await request.form()
-    try:
-        settlements.payout(db, settlement_id, amount=f["amount"], effective_date=date.fromisoformat(f["effective_date"]),
-            bank_account_id=int(f["bank_account_id"]), method="bank_transfer", request_key=f["request_key"], reference=f.get("reference"))
-        return RedirectResponse(f"/settlements/{settlement_id}", 303)
-    except (ValueError, KeyError) as exc:
-        item = db.get(OwnerSettlement, settlement_id)
-        if item is None:
-            raise HTTPException(404)
-        return detail(request, db, item, str(exc))
+    return await reviewed_payout_action(request,settlement_id,'preview',db)
 
 
 @router.post('/settlements/{settlement_id}/documents')
@@ -519,3 +510,97 @@ async def incident_attribute(request:Request,incident_id:int,action:str,db=Depen
         db.rollback();raise HTTPException(404,str(exc)) from None
     except ValueError as exc:
         db.rollback();return incident_page(request,db,incident_id=incident_id,error=str(exc),status=409)
+
+
+# Effective recoveries: administrative endpoints only, never banking instructions.
+def recovery_page(request,db,incident_id,*,mode='receive',values=None,review=None,error=None,status=200,recovery_id=None):
+    from backend.services.owner_transfer_recovery_service import OwnerTransferRecoveryService
+    try:view=OwnerTransferRecoveryService().form(db,incident_id)
+    except LookupError as exc:raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:raise HTTPException(409,str(exc)) from None
+    return templates.TemplateResponse(request=request,name='pages/transfer_recovery.html',context=dict(view=view,mode=mode,values=values or {},review=review,error=error,recovery_id=recovery_id,
+        owners=list(db.scalars(select(Owner).order_by(Owner.legal_name))),request_key=str(uuid4())),status_code=status,headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/transfer-incidents/{incident_id}/recoveries')
+def recovery_history(request:Request,incident_id:int,db=Depends(get_db)):
+    return recovery_page(request,db,incident_id)
+
+
+def recovery_inputs(f):
+    result={k:str(f.get(k,'')) for k in ('amount','effective_date','receiving_iban','bank_reference','bank_transaction_id','reason','evidence')}
+    return dict(result,received=f.get('received')=='yes',allocations={k[5:]:str(f.get(k,'')) for k in f if k.startswith('fund_')})
+
+
+@router.post('/transfer-incidents/{incident_id}/recoveries/{action}')
+async def recovery_action(request:Request,incident_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_transfer_recovery_service import OwnerTransferRecoveryService
+    f=await request.form();values=recovery_inputs(f);service=OwnerTransferRecoveryService()
+    try:
+        if action=='preview':return recovery_page(request,db,incident_id,values=values,review=service.preview(db,incident_id,**values))
+        if action!='confirm':raise ValueError('Acción no válida.')
+        service.confirm(db,incident_id,**values,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/transfer-incidents/{incident_id}/recoveries',303)
+    except LookupError as exc:db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:db.rollback();return recovery_page(request,db,incident_id,values=values,error=str(exc),status=409)
+
+
+@router.get('/transfer-recoveries/{recovery_id}/attribute')
+def recovery_attribution_form(request:Request,recovery_id:int,db=Depends(get_db)):
+    from backend.models.owner_transfer_recovery import OwnerTransferRecovery
+    row=db.get(OwnerTransferRecovery,recovery_id)
+    if row is None:raise HTTPException(404)
+    return recovery_page(request,db,row.incident_id,mode='attribute',recovery_id=recovery_id)
+
+
+@router.post('/transfer-recoveries/{recovery_id}/attribute/{action}')
+async def recovery_attribution_action(request:Request,recovery_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_transfer_recovery_service import OwnerTransferRecoveryService
+    from backend.models.owner_transfer_recovery import OwnerTransferRecovery
+    row=db.get(OwnerTransferRecovery,recovery_id)
+    if row is None:raise HTTPException(404)
+    iid=row.incident_id;f=await request.form();v=dict(allocations={k[5:]:str(f.get(k,'')) for k in f if k.startswith('fund_')},reason=str(f.get('reason','')));service=OwnerTransferRecoveryService()
+    try:
+        if action=='preview':return recovery_page(request,db,iid,mode='attribute',recovery_id=recovery_id,values=v,review=service.attribution_preview(db,recovery_id,**v))
+        if action!='confirm':raise ValueError('Acción no válida.')
+        service.attribute(db,recovery_id,**v,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/transfer-incidents/{iid}/recoveries',303)
+    except ValueError as exc:db.rollback();return recovery_page(request,db,iid,mode='attribute',recovery_id=recovery_id,values=v,error=str(exc),status=409)
+
+
+@router.post('/transfer-incidents/{incident_id}/recoveries/link/{action}')
+async def recovery_link_action(request:Request,incident_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_transfer_recovery_service import OwnerTransferRecoveryService
+    f=await request.form();v=dict(return_id=str(f.get('return_id','')),reason=str(f.get('reason','')));service=OwnerTransferRecoveryService()
+    try:
+        if action=='preview':return recovery_page(request,db,incident_id,mode='link',values=v,review=service.link_preview(db,incident_id,**v))
+        if action!='confirm':raise ValueError('Acción no válida.')
+        service.link_return(db,incident_id,**v,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/transfer-incidents/{incident_id}/recoveries',303)
+    except ValueError as exc:db.rollback();return recovery_page(request,db,incident_id,mode='link',values=v,error=str(exc),status=409)
+
+
+def payout_registration_page(request,db,settlement_id,*,values=None,review=None,error=None,status=200):
+    from backend.services.owner_payout_balance_service import OwnerPayoutBalanceService
+    s=db.get(OwnerSettlement,settlement_id)
+    if s is None:raise HTTPException(404)
+    return templates.TemplateResponse(request=request,name='pages/payout_registration_review.html',context=dict(settlement=s,balance=OwnerPayoutBalanceService().summary(db,s),values=values or {},review=review,error=error,request_key=str(uuid4()),
+        accounts=list(db.scalars(select(OwnerBankAccount).where(OwnerBankAccount.owner_id==s.owner_id,OwnerBankAccount.active==True,OwnerBankAccount.receives_settlements==True)))),status_code=status,headers={'Cache-Control':'private, no-store'})
+
+
+@router.get('/settlements/{settlement_id}/payout/review')
+def reviewed_payout_form(request:Request,settlement_id:int,db=Depends(get_db)):
+    return payout_registration_page(request,db,settlement_id)
+
+
+@router.post('/settlements/{settlement_id}/payout/{action}')
+async def reviewed_payout_action(request:Request,settlement_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_payout_review_service import OwnerPayoutReviewService
+    f=await request.form();v={k:str(f.get(k,'')) for k in ('amount','effective_date','bank_account_id','reference','reason','source_iban','bank_transaction_id','previous_payout_id','previous_bank_id')};v['paid']=f.get('paid')=='yes';service=OwnerPayoutReviewService()
+    try:
+        if action=='preview':return payout_registration_page(request,db,settlement_id,values=v,review=service.preview(db,settlement_id,**v))
+        if action!='confirm':raise ValueError('Acción no válida.')
+        service.confirm(db,settlement_id,**v,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/settlements/{settlement_id}',303)
+    except LookupError as exc:db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:db.rollback();return payout_registration_page(request,db,settlement_id,values=v,error=str(exc),status=409)

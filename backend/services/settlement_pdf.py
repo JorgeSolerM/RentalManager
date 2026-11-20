@@ -173,6 +173,9 @@ def render_settlement_pdf(payload, generated):
     if payload.get('incidents'):
         section('INCIDENCIAS BANCARIAS / SIN RECUPERACIONES AUTOMATICAS')
         table(['Incidencia','Importe afectado','Pendiente de recuperar'],[[str(r['id']),euros(r['amount']),euros(r['pending'])] for r in payload['incidents']],[40,65,75])
+    if payload.get('recoveries'):
+        section('RECUPERACIONES EFECTIVAMENTE RECIBIDAS')
+        table(['Fecha','Recuperación','Fondos restituidos al propietario'],[[human_date(r['date']),str(r['id']),euros(r['amount'])] for r in payload['recoveries']],[35,45,100])
     def footer(canvas,doc):
         canvas.saveState(); canvas.setFont('Helvetica',7.5); canvas.setFillColor(colors.HexColor('#69726b'))
         canvas.drawString(15*mm,9*mm,f"Liquidación #{payload['id']} · Documento privado · No es factura")

@@ -361,11 +361,11 @@ class OwnerSettlementService:
         return draft
 
     def payout(self, db, settlement_id, *, amount, effective_date, bank_account_id, method,
-               request_key, reference=None, notes=None):
+               request_key, reference=None, notes=None, reviewed=None):
         amount, key = money(amount), request_id(request_key)
         if amount <= ZERO or effective_date > business_today() or method not in {"bank_transfer", "other"}:
             raise ValueError("Revise importe, método y fecha efectiva.")
-        digest = fingerprint([settlement_id, amount, effective_date, bank_account_id, method, reference, notes])
+        digest = fingerprint([settlement_id, amount, effective_date, bank_account_id, method, reference, notes] + ([reviewed["inputs"]] if reviewed else []))
         with financial_transaction(db):
             previous = db.scalar(select(OwnerPayout).where(OwnerPayout.request_key == key))
             if previous:
@@ -383,7 +383,14 @@ class OwnerSettlementService:
             balance = balances.summary(db, settlement)
             if balance['payout_blockers']:raise ValueError(' '.join(balance['payout_blockers']))
             from backend.services.owner_transfer_incident_service import prevent_duplicate_payout
-            prevent_duplicate_payout(db,amount,effective_date,account.iban,reference)
+            review_view=None
+            if reviewed:
+                from backend.services.owner_payout_review_service import OwnerPayoutReviewService
+                review_view=OwnerPayoutReviewService().preview(db,settlement_id,**reviewed['inputs'])
+                if review_view['fingerprint']!=reviewed['expected']:raise ValueError('Los datos han cambiado; revise nuevamente el pago.')
+                rv=review_view['values']
+                if (money(rv['amount']),rv['effective_date'],rv['bank_account_id'],rv['reference'])!=(amount,str(effective_date),bank_account_id,reference or '') or method!='bank_transfer':raise ValueError('El pago no coincide con la vista previa revisada.')
+            else:prevent_duplicate_payout(db,amount,effective_date,account.iban,reference)
             if amount > balance['remaining']:
                 raise ValueError("El pago supera los fondos pendientes de transferir.")
             if balances.pending_returns(db, settlement.owner_id):
@@ -394,5 +401,6 @@ class OwnerSettlementService:
                 amount=amount, effective_date=effective_date, bank_account_id=account.id,
                 account_snapshot={"holder": account.account_holder_name, "iban": account.iban, "bic": account.bic},
                 method=method, reference=reference, notes=notes, request_key=key, fingerprint=digest)
-            db.add(payout)
+            db.add(payout);db.flush()
+            if review_view:OwnerPayoutReviewService().record(db,payout,review_view,reviewed['expected'],reviewed.get('operator_id'))
         return payout
