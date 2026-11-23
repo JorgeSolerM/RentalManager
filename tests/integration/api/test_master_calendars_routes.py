@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from fastapi.testclient import TestClient
+from tests.admin_browser_client import AdminBrowserClient as TestClient
 from icalendar import Calendar
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
@@ -165,7 +165,8 @@ def test_regeneration_contract_revokes_old_url(client, db_session):
 def test_workspace_uses_configured_origin_and_never_request_host(client, db_session, monkeypatch):
     room, _, _ = seed(db_session)
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://calendar.example")
-    response = client.get(f"/rooms/{room.id}", headers={"Host": "attacker.example"})
+    assert client.get(f"/rooms/{room.id}", headers={"Host": "attacker.example"}).status_code == 403
+    response = client.get(f"/rooms/{room.id}")
     assert response.status_code == 200
     assert "Copiar para HousingAnywhere" in response.text
     assert "https://calendar.example/ical/rooms/" in response.text

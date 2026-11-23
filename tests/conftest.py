@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from fastapi.testclient import TestClient
+from tests.admin_browser_client import AdminBrowserClient as TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 

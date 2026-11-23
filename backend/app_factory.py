@@ -96,4 +96,6 @@ def create_app(initialize_database: bool = False) -> FastAPI:
 
     from backend.core.operational_diagnostics import install_diagnostics
     install_diagnostics(app, 'admin')
+    from backend.core.admin_security import install_admin_security
+    install_admin_security(app)
     return app

@@ -22,7 +22,10 @@ ICAL_CODES = {'room_calendar_sync_'+suffix for suffix in (
     'download_failed','http_access_error','http_error','http_server_error','in_progress',
     'incompatible_stay','invalid_feed','rate_limited','recurrence_not_supported','timeout',
     'too_large','too_many_events','too_many_redirects','unexpected_error','unsafe_url')}
-EVENTS = {'service_started', 'service_stopped', 'request_started', 'request_finished',
+ACCESS_CODES = {'invalid_host','ical_route_denied','remote_disabled','untrusted_proxy',
+                'invalid_proxy','access_denied','read_only_denied','local_spoof_denied',
+                'csrf_denied','request_too_large','remote_read','local_access','remote_unavailable'}
+EVENTS = {'admin_access', 'service_started', 'service_stopped', 'request_started', 'request_finished',
           'request_failed', 'runtime_error', 'dependency_check', 'ical_result'}
 COUNTS = {'calendar_id', 'received', 'created', 'updated', 'unchanged', 'cancelled',
           'disappeared', 'ignored_echoes', 'early_termination_conflicts'}
@@ -59,7 +62,7 @@ def safe_fields(values):
         elif key in {'success', 'ready'} and type(value) is bool:
             result[key] = value
         elif key == 'result_code':
-            result[key] = value if value in ICAL_CODES else 'unknown'
+            result[key] = value if value in ICAL_CODES | ACCESS_CODES else 'unknown'
         elif key == 'error_type':
             # Closed taxonomy, never an arbitrary provider exception or message.
             result[key] = value if value in {'timeout','database','network','permission','unexpected'} else 'unexpected'
