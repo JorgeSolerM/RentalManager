@@ -11,6 +11,11 @@ class AdminBrowserClient(TestClient):
 
     def request(self, method, url, **kwargs):
         if method.upper() not in {'GET', 'HEAD', 'OPTIONS'}:
+            if self.cookies.get('rm_admin_csrf'):
+                headers = dict(kwargs.get('headers') or {})
+                headers.setdefault('X-RM-CSRF', self.cookies.get('rm_admin_csrf'))
+                kwargs['headers'] = headers
+                return super().request(method, url, **kwargs)
             page = super().request('GET', '/')
             token = re.search(r'name="rm-admin-csrf" content="([^"]+)"', page.text)
             if token:

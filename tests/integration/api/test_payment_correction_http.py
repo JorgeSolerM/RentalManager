@@ -32,7 +32,14 @@ def live_http(db_session):
         while not server.started:
             assert thread.is_alive() and time.monotonic()<limit
             time.sleep(.02)
-        with httpx.Client(base_url=f'http://127.0.0.1:{port}',trust_env=False,timeout=15) as client:yield client
+        with httpx.Client(base_url=f'http://127.0.0.1:{port}',trust_env=False,timeout=15) as client:
+            client.get('/')
+            def browser_csrf(request):
+                if request.method not in {'GET','HEAD','OPTIONS'}:
+                    request.headers['X-RM-CSRF']=client.cookies['rm_admin_csrf']
+                    request.headers['Origin']=f'http://127.0.0.1:{port}'
+            client.event_hooks['request'].append(browser_csrf)
+            yield client
     finally:
         server.should_exit=True;thread.join(15);sock.close()
         assert not thread.is_alive()

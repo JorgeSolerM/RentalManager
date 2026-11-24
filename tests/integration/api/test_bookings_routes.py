@@ -3,7 +3,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from fastapi.testclient import TestClient
+from tests.admin_browser_client import AdminBrowserClient as TestClient
 from icalendar import Calendar
 from datetime import datetime
 

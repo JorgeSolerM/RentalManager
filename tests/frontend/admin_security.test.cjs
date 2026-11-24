@@ -11,7 +11,7 @@ test('Browser forms, fetch and XHR carry CSRF only to their own origin', async (
     const requests=[];
     await page.route('**/*', async route => {
       const r=route.request();
-      if (r.url()==='https://admin.example.test/') return route.fulfill({contentType:'text/html',body:`<html><head><meta name="rm-admin-csrf" content="synthetic-token"><meta name="rm-admin-remote" content="1"><script>${script}</script></head><body><form method="post" action="/write"><input name="value" value="kept"><button>Enviar</button></form></body></html>`});
+      if (r.url()==='https://admin.example.test/') return route.fulfill({contentType:'text/html',body:`<html><head><meta name="rm-admin-csrf" content="synthetic-token"><meta name="rm-admin-remote" content="1"><script>${script}</script></head><body><form method="post" action="/write"><input name="value" value="kept"><select name="method"><option>cash</option></select><input name="action" value="synthetic"><button>Enviar</button></form></body></html>`});
       requests.push({url:r.url(),method:r.method(),headers:await r.allHeaders(),data:r.postData()});
       await route.fulfill({contentType:'application/json',body:'{}',headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'}});
     });
@@ -28,10 +28,10 @@ test('Browser forms, fetch and XHR carry CSRF only to their own origin', async (
       assert.equal(r.headers['x-rm-csrf'],undefined);
       assert.ok(!JSON.stringify(r).includes('synthetic-token'));
     }
-    await Promise.all([page.waitForURL('**/write'),page.locator('button').click()]);
+    await Promise.all([page.waitForRequest(r=>r.url()==='https://admin.example.test/write' && r.method()==='POST'),page.locator('button').click({force:true})]);
     assert.match(requests.find(r=>r.url.endsWith('/write')).data,/_rm_csrf=synthetic-token/);
     await page.goto('https://admin.example.test/');
-    await Promise.all([page.waitForURL('**/write'),page.evaluate(()=>document.querySelector('form').submit())]);
+    await Promise.all([page.waitForRequest(r=>r.url()==='https://admin.example.test/write' && r.method()==='POST'),page.evaluate(()=>document.querySelector('form').submit())]);
     assert.match(requests.filter(r=>r.url.endsWith('/write')).at(-1).data,/_rm_csrf=synthetic-token/);
   } finally { await browser.close(); }
 });

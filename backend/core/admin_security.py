@@ -7,7 +7,7 @@ import time
 from urllib.parse import urlsplit
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, HTMLResponse
 
 from backend.core.admin_access import AccessConfig, AccessDenied, AccessVerifier, host_header, loopback
 from backend.core.admin_read_policy import permits
@@ -18,6 +18,14 @@ PROXY_HEADERS = {'forwarded', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarde
 SAFE = {'GET', 'HEAD', 'OPTIONS'}
 CSRF_COOKIE = 'rm_admin_csrf'
 REMOTE_CSRF_COOKIE = '__Host-rm_admin_csrf'
+
+CSRF_ERROR_HTML = """<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Formulario no enviado · RentalManager</title>
+<style>body{font:1rem system-ui;margin:3rem auto;padding:0 1rem;max-width:42rem;line-height:1.6}button,a{font:inherit}button{padding:.6rem 1rem;margin-right:1rem}</style></head>
+<body><main><h1>No se ha guardado el formulario</h1><p role="alert">El formulario ha caducado o no es válido.</p>
+<p>Vuelve al formulario y conserva los datos que necesites antes de recargar la página. Después vuelve a enviarlo.</p>
+<button type="button" onclick="history.back()">Volver al formulario</button><a href="/">Ir al inicio</a>
+<p>No se ha realizado ninguna operación con este envío.</p></main></body></html>"""
 
 
 class AdminSecurityMiddleware(BaseHTTPMiddleware):
@@ -62,7 +70,9 @@ class AdminSecurityMiddleware(BaseHTTPMiddleware):
         response.headers['Pragma'] = 'no-cache'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['Referrer-Policy'] = 'no-referrer'
+        # no-referrer makes native form POSTs carry Origin: null in browsers.
+        # Preserve the exact origin locally; never disclose a referrer cross-origin.
+        response.headers['Referrer-Policy'] = 'same-origin'
         response.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
         # Legacy inline scripts/styles are retained; tighten with nonces in a
@@ -78,6 +88,13 @@ class AdminSecurityMiddleware(BaseHTTPMiddleware):
         self.record(request, code, status)
         message = {'csrf_denied': 'El formulario ha caducado o no es válido. Recarga la página y vuelve a intentarlo.',
                    'read_only_denied': 'Acceso remoto de consulta: esta operación no está permitida.'}.get(code, 'Acceso no permitido.')
+        if code == 'csrf_denied' and (
+            request.headers.get('sec-fetch-dest') == 'document' or
+            (not request.headers.get('sec-fetch-dest') and 'text/html' in request.headers.get('accept', '')
+             and 'application/json' not in request.headers.get('accept', ''))
+        ):
+            # Fixed HTML only: never echo form data, tokens or untrusted return URLs.
+            return self.headers(HTMLResponse(CSRF_ERROR_HTML, status_code=status), remote)
         return self.headers(JSONResponse({'detail': message, 'code': code}, status_code=status), remote)
 
     async def dispatch(self, request, call_next):
