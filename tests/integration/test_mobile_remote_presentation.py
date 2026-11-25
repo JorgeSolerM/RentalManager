@@ -57,3 +57,13 @@ def test_local_keeps_booking_editor_and_remote_search_is_authorized(remote_app,k
   r=c.get('/persons',params={'q':'Synthetic'});assert r.status_code==200
   assert 'Synthetic person' in r.text
   assert c.post('/bookings/create',data={'room_id':1},headers={'X-RM-CSRF':token}).status_code==403
+
+
+@pytest.mark.parametrize('template,expected',[
+ ('dashboard.html', ['Situación operativa', 'Ocupación', 'Próximas entradas']),
+ ('gantt.html', ['Reservas por habitación', '2×', '⛶ Ampliar']),
+])
+def test_mobile_templates_preserve_utf8(template,expected):
+ from pathlib import Path
+ text=(Path(__file__).resolve().parents[2]/'backend/templates/pages'/template).read_text(encoding='utf-8')
+ assert all(value in text for value in expected)
