@@ -13,7 +13,7 @@ const RMGantt = {
     },
     parseDate(value){const [y,m,d]=value.split("-").map(Number);return Date.UTC(y,m-1,d);},
     isoDate(ms){return new Date(ms).toISOString().slice(0,10);},
-    labelWidth(){return window.matchMedia("(max-width:768px), (max-width:1024px) and (max-height:500px) and (pointer:coarse)").matches?this.LABEL_WIDTH_MOBILE:this.LABEL_WIDTH_DESKTOP;},
+    labelWidth(){return window.matchMedia("(max-width:768px), (max-width:1280px) and (max-height:500px) and (any-pointer:coarse)").matches?this.LABEL_WIDTH_MOBILE:this.LABEL_WIDTH_DESKTOP;},
     buildMonths(){
         const months=[],windowStart=this.parseDate(this.data.window.start),windowEnd=this.parseDate(this.data.window.end);let cursor=windowStart;
         while(cursor<windowEnd){const current=new Date(cursor),naturalEnd=Date.UTC(current.getUTCFullYear(),current.getUTCMonth()+1,1),end=Math.min(naturalEnd,windowEnd);months.push({start:cursor,end,days:(end-cursor)/this.DAY_MS,date:current});cursor=end;}
@@ -51,7 +51,7 @@ const RMGantt = {
     restoreAnchor(anchor){if(!anchor)return;this.root.scrollLeft=Math.max(0,this.datePosition(anchor.date)-(this.root.clientWidth-this.labelWidth())/2);this.root.scrollTop=anchor.top;this.lastAnchor=this.captureAnchor();},
     renderPreservingCenter(){if(!this.monthWidth)return;const anchor=this.lastAnchor||this.captureAnchor();this.render();this.restoreAnchor(anchor);},
     expand(force){const enabled=force===undefined?!document.body.classList.contains('gantt-expanded'):force;document.body.classList.toggle('gantt-expanded',enabled);const button=document.getElementById('ganttExpand');button.textContent=enabled?'Salir de ampliado':'⛶ Ampliar';button.setAttribute('aria-pressed',String(enabled));},
-    laneHeight(){return matchMedia('(max-width:768px), (max-width:1024px) and (max-height:500px) and (pointer:coarse)').matches?44:34;},
+    laneHeight(){return matchMedia('(max-width:768px), (max-width:1280px) and (max-height:500px) and (any-pointer:coarse)').matches?44:34;},
     shiftWindow(months){const s=new Date(this.parseDate(this.data.window.start)),e=new Date(this.parseDate(this.data.window.end));s.setUTCMonth(s.getUTCMonth()+months);e.setUTCMonth(e.getUTCMonth()+months);this.load(this.isoDate(s),this.isoDate(e));},
     loadDefault(){this.loadContextWindow(true);},
     setView(months){if(![4,8,12].includes(months)||months===this.viewMonths)return;this.viewMonths=months;this.updateViewButtons();this.updateUrlView();this.loadContextWindow(true);},
@@ -90,7 +90,7 @@ const RMGantt = {
         bar.style.cssText=`left:${left}px;width:${paintedWidth}px;top:${booking.lane*this.laneHeight()+2}px`;
         const visual=document.createElement("span");visual.className="gantt-booking-visual";visual.classList.add(booking.origin.slug==="manual"?"gantt-origin-manual":"gantt-origin-platform");visual.style.cssText=`--origin-hue:${hue};--booking-inset-left:${leftInset}px;--booking-inset-right:${rightInset}px`;
         this.fillBookingContent(visual,booking,Math.max(0,paintedWidth-leftInset-rightInset));bar.append(visual);
-        const overlap=booking.overlap_kind==="historical"?" Coincidencia histórica.":booking.overlap_kind==="operational"?" Anomalía de solapamiento.":"",detail=`${booking.guest_name}. Entrada: ${this.formatDate(booking.check_in)}. Salida: ${this.formatDate(booking.check_out)}. Origen: ${booking.origin.name}. ${booking.editable?"Manual":"Importada, solo lectura"}.${overlap}`;bar.title=detail;opener.setAttribute("aria-label",detail);bar.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest(".booking-person-link"))return;if(RMAdminUI.remote||matchMedia("(max-width:768px), (max-width:1024px) and (max-height:500px) and (pointer:coarse)").matches)RMBookingReader.open(booking.id,room.code);else BookingUI.openEditModal(booking.id,!booking.editable);});return bar;
+        const overlap=booking.overlap_kind==="historical"?" Coincidencia histórica.":booking.overlap_kind==="operational"?" Anomalía de solapamiento.":"",detail=`${booking.guest_name}. Entrada: ${this.formatDate(booking.check_in)}. Salida: ${this.formatDate(booking.check_out)}. Origen: ${booking.origin.name}. ${booking.editable?"Manual":"Importada, solo lectura"}.${overlap}`;bar.title=detail;opener.setAttribute("aria-label",detail);bar.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest(".booking-person-link"))return;if(RMAdminUI.remote||matchMedia("(max-width:768px), (max-width:1280px) and (max-height:500px) and (any-pointer:coarse)").matches)RMBookingReader.open(booking.id,room.code);else BookingUI.openEditModal(booking.id,!booking.editable);});return bar;
     },
     fillBookingContent(bar,booking,width){
         const fullRange=`${this.formatHumanDate(booking.check_in,true)} – ${this.formatHumanDate(booking.check_out,true)}`,shortRange=`${this.formatHumanDate(booking.check_in,false)}–${this.formatHumanDate(booking.check_out,false)}`;

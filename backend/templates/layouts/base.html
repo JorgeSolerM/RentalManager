@@ -24,7 +24,7 @@
     <!-- CSS general -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}?v=20260901-person-list">
 
-    <link rel="stylesheet" href="{{ url_for('static', path='css/admin_mobile.css') }}?v=mobile-1">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/admin_mobile.css') }}?v=compact-2">
     <!-- RMToast -->
     <link rel="stylesheet" href="{{ url_for('static', path='components/rm_toast/rm_toast.css') }}">
 
@@ -36,6 +36,7 @@
 
 <body class="{% block body_class %}{% endblock %}">
 
+    {% set admin_page_title = self.title()|striptags|trim|replace(" · RentalManager", "") %}
     {% include "components/header.html" %}
 
     {% include "components/rm_toast.html" %}
@@ -77,7 +78,7 @@
     <script src="{{ url_for('static', path='components/rm_switch/rm_switch.js') }}"></script>
 
     {% include "components/booking_reader.html" %}
-    <script src="{{ url_for('static', path='js/admin_mobile.js') }}?v=mobile-1"></script>
+    <script src="{{ url_for('static', path='js/admin_mobile.js') }}?v=compact-2"></script>
     <script src="{{ url_for('static', path='js/booking_reader.js') }}?v=mobile-1"></script>
     {% block scripts %}
     {% endblock %}

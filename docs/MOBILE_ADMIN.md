@@ -9,7 +9,7 @@ No sustituye las barreras de seguridad del servidor ni amplía sus permisos.
 - `layouts/base.html`, `components/header.html` y `components/sidebar.html`:
   cabecera compacta, indicador «Modo consulta» y menú Bootstrap Offcanvas.
 - `admin_mobile.css` y `admin_mobile.js`: adaptación hasta 768 px y en teléfonos
-  horizontales con puntero táctil hasta 1024 × 500 px; tablas con scroll interno,
+  horizontales con cualquier puntero táctil hasta 1280 × 500 px; tablas con scroll interno,
   controles táctiles, formularios y modales. No se añaden dependencias externas.
 - `gantt.css`, `gantt.js` y `pages/gantt.html`: columna móvil de habitaciones de
   116 px, fechas fijas, desplazamiento nativo, filtros plegables, zoom visual
@@ -69,3 +69,35 @@ El respaldo, manifiesto de bytes, registros y script de reversión se conservan
 fuera de Git, en el directorio privado de ejecución del despliegue. Los cambios
 locales ajenos permanecen sin incluirse en el commit. Web pública, iCal,
 sincronizaciones y subfases económicas quedan fuera de esta entrega.
+
+
+## Cabecera compacta y espacio vertical (noviembre de 2026)
+
+La cabecera móvil usa una fila explícita de 53 px: menú de 44 × 44 px,
+título de la página flexible con elipsis e indicador informativo sin tamaño de
+botón. El título procede del bloque Jinja `title`; la marca de escritorio se
+conserva. Las páginas locales usan la misma distribución sin indicador remoto.
+
+CSS y JavaScript comparten la condición `(max-width:768px), (max-width:1280px)
+and (max-height:500px) and (any-pointer:coarse)`. Así el menú sigue superpuesto
+en un teléfono horizontal, incluso con ratón conectado, sin cambiar un escritorio
+convencional. El calendario mantiene sus reglas, colores, escalas y zoom.
+
+En 640×360, 667×375, 844×390 y 932×430 los controles ocupan una fila de 44 px,
+también en modo ampliado. El relleno específico del Gantt prevalece sobre el
+relleno general móvil. En la referencia emulada, cabecera 61→53 px y calendario
++26,4 px; escritorio 1280/1920 conserva dimensiones. No se reproduce el caso
+físico de tres líneas: las cifras comparan la referencia emulada contra el
+candidato, no pretenden medir ese teléfono.
+
+Pruebas reproducibles: `tests/integration/test_compact_admin_header.py` y
+`tests/frontend/compact_admin_layout.test.cjs`. La prueba de navegador requiere
+Playwright ya disponible y `RM_LAYOUT_TEST_URL` apuntando a una instancia
+**sintética aislada** en localhost. Para la comparación, usar
+`RM_LAYOUT_REFERENCE_URL`; para evidencias, `RM_LAYOUT_EVIDENCE_DIR`.
+El adaptador de pruebas debe aceptar `x-rm-test-remote: 1` solo en la instancia
+sintética, verificando JWT de prueba con claves efímeras. Nunca instalar ese
+adaptador en producción. `RM_LAYOUT_BOOTSTRAP_DIR` permite proporcionar copias
+locales de Bootstrap 5.3.7 solo al navegador de pruebas si el entorno bloquea
+el CDN. Sin URL explícita, esta prueba de navegador se omite; debe ejecutarse
+expresamente para validar un despliegue de presentación.
