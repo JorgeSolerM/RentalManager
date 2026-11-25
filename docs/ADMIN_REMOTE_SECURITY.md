@@ -1,40 +1,53 @@
-# Administración remota: protecciones desplegadas, acceso remoto desactivado
+# Administración remota: operación en solo lectura
 
-## Alcance y estado
+## Estado al 25/11/2026
 
-Protecciones desplegadas en administración el 23/11/2026, tras pruebas aisladas.
-El acceso remoto continúa desactivado. No se ha cambiado DNS, Cloudflare,
-tareas de Windows, firewall ni el túnel. No hay migración.
-Subfase económica 4.3 y VERI*FACTU permanecen fuera de este bloque.
+La administración remota está operativa con Google y TOTP, exclusivamente en
+`read_only`. El usuario ha confirmado la navegación remota y la creación local
+de reservas tras la reparación CSRF. Esta confirmación funcional no sustituye
+las pruebas automatizadas de rechazo de escrituras y de identidad inválida.
 
-Los ocho componentes de ejecución coinciden con el candidato probado. Se cargan
-las dependencias criptográficas desde un directorio privado de administración.
-El arranque actual de la tarea se conserva: antes de activar Access habrá que
-configurar `--no-proxy-headers`. El adaptador privado desactiva el access log bruto
-de Uvicorn y conserva el registro JSON sanitizado. No se ha habilitado ningún
-hostname administrativo externo.
+Código de seguridad: commit `f354fe4151589204b6b924a18f8c9ad498f0f1a0`.
+Reparación CSRF y pruebas: commit `b2733894ab65d922d8382cfa6b4ca40ad7dd62b4`.
+La activación modifica configuración privada de ejecución, no añade secretos al
+repositorio. La tarea administrativa utiliza `--no-proxy-headers` y
+`--no-access-log`, con escucha exclusiva en loopback. No existe modo remoto de
+escritura. La administración local conserva sus operaciones con CSRF.
 
-El cierre se valida también sobre HEAD más los 15 archivos de este bloque, sin
-incorporar la reutilización de inquilinos. La prueba de búsquedas POST siempre
-verifica la capacidad de consulta y prueba además el handler real cuando esté
-presente; ese handler pertenece al checkpoint independiente de inquilinos.
+La reparación conserva Origin estricto y la cookie firmada: cambia la política
+Referrer-Policy a `same-origin`, evita propiedades DOM ocultadas por controles
+llamados method/action y presenta errores CSRF navegables para formularios HTML.
+Las respuestas API conservan el error JSON; fetch/XHR muestran un aviso accesible.
 
-Validación de cierre: 91 pruebas Python y una prueba de navegador superadas sobre
-HEAD más los archivos de seguridad, con bases sintéticas y sin el desarrollo
-pendiente de inquilinos. Se verifican JWT, hostnames, CSRF, permisos de consulta,
-compatibilidad iCal y diagnóstico. Los ocho hashes de ejecución coinciden con
-los instalados. La ruta iCal productiva se comprueba con un token ficticio; los
-ICS válidos se prueban en aislamiento, sin consultar tokens productivos.
+El cierre no modifica el túnel, Cloudflare, datos reales, web pública ni iCal;
+no ejecuta migraciones ni reinicia servicios. La reutilización de inquilinos,
+el candidato económico, output/ y la subfase económica 4.3 quedan separados.
 
-La administración local conserva las operaciones existentes. Los POST/PUT/PATCH/
-DELETE necesitan ahora el token CSRF que entrega la página y envía el adaptador
-de formularios/fetch/XHR. Scripts locales que escriban deberán obtener ese token;
-no hay una excepción basada en User-Agent ni en la ausencia de Origin.
+## Validación de cierre del 25/11/2026
 
-La modalidad remota está deshabilitada por defecto; no existe modalidad remota
-de escritura. El hostname remoto, incluso configurado, no se acepta si falta la
-activación. Los hostnames locales autorizados son localhost, 127.0.0.1 y ::1,
-con conexión efectiva loopback y sin cabeceras de reenvío/identidad remota.
+- Copia limpia de `b273389`: 165 pruebas Python superadas y un fallo previo de
+  conteo de consultas de habitaciones (cuatro frente a tres). Incluye las 76
+  pruebas de seguridad remota/CSRF y pruebas de reservas, personas, habitaciones,
+  fincas, propietarios, configuración, cobros, gastos y pagos a propietarios.
+- Edge headless: una prueba superada con envíos efectivos de formularios, submit
+  programático, fetch y XHR; transporte de CSRF limitado al origen propio.
+- Copia aislada con los cambios pendientes de reservas/inquilinos: 31 pruebas
+  superadas y tres fallos de expectativa de cabecera. El endpoint responde 200
+  con `Cache-Control: private, no-store`; las pruebas pendientes esperan la
+  cadena exacta `no-store`. Se conservan sin modificar ni incluir en este commit.
+- Los ocho archivos de fábrica, seguridad, registro, JavaScript y plantilla
+  desplegados coinciden con HEAD al normalizar finales de línea. Se comparó el
+  mapa real del launcher privado; no se afirma identidad de todo el despliegue,
+  que conserva overlays y cambios pendientes ajenos a este cierre.
+- Se comprobó en modo lectura la tarea administrativa: loopback puerto 8000,
+  `--no-proxy-headers --no-access-log`. La configuración privada está activada
+  exclusivamente en `read_only`.
+
+Todas las bases de estas pruebas son sintéticas y aisladas. No se ejecutaron
+migraciones ni operaciones sobre datos productivos. La batería general no está
+completamente verde por los fallos indicados; no se ocultaron ni debilitaron
+aserciones para cerrar el bloque. Los registros detallados y la comparación de
+archivos permanecen en el directorio privado de evidencias del cierre.
 
 ## Arquitectura
 
@@ -80,7 +93,7 @@ Las pruebas generan claves sintéticas en memoria y simulan todas las respuestas
 Referencias: https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/
 y https://pyjwt.readthedocs.io/en/stable/usage.html
 
-## Configuración privada pendiente
+## Configuración privada de ejecución
 
 Configurar solo en el adaptador privado, nunca versionar valores de producción:
 
@@ -103,7 +116,7 @@ un solo proceso Uvicorn: múltiples workers requerirían coordinar el secreto CS
 
 ## Proxy, cookies, cabeceras y registros
 
-Requisito del futuro arranque: `--host 127.0.0.1 --port 8000 --no-proxy-headers
+Arranque administrativo requerido: `--host 127.0.0.1 --port 8000 --no-proxy-headers
 --no-access-log`. No usar procesamiento previo de X-Forwarded-For de Uvicorn:
 la aplicación necesita ver el peer real loopback y valida el JWT antes de aceptar
 el esquema HTTPS. X-Forwarded-Proto debe ser único y exactamente https; Forwarded
@@ -118,7 +131,7 @@ o same-site. La cookie de Access pertenece a Cloudflare: revisar sus atributos
 en la activación real; no convertirla en una cookie compartida con la web pública.
 
 Respuestas administrativas privadas no-store/no-cache, noindex, nosniff, DENY,
-no-referrer, Permissions-Policy restrictiva y CSP. HSTS solo en el hostname remoto.
+same-origin (Referrer-Policy), Permissions-Policy restrictiva y CSP. HSTS solo en el hostname remoto.
 CSP conserva unsafe-inline por compatibilidad con plantillas existentes y permite
 Bootstrap en cdn.jsdelivr.net; no equivale a una política estricta basada en nonces.
 Los errores inesperados remotos no muestran detalles y llevan caché privada.
@@ -130,43 +143,73 @@ no bloquea la aplicación. Desactivar el access log bruto de Uvicorn evita que o
 canal registre consultas sensibles. Un diagnóstico desactivado implica que estos
 eventos no persisten: comprobar logging antes de habilitar remoto.
 
-## Activación futura (requiere autorización)
+## Configuración de Cloudflare comprobada
 
-1. Comparar hashes del manifiesto con código desplegado y overlays privados del
-   adaptador administrativo. Integrar la instalación de seguridad en la fábrica
-   realmente cargada; no sobrescribir a ciegas los overlays de diagnóstico.
-2. Respaldar esos archivos, configuración y tarea administrativa. Ninguna migración.
-3. Instalar dependencias en un entorno candidato, probarlo y solo después preparar
-   su inclusión en el entorno de administración. No instalar paquetes en caliente
-   en el entorno compartido por servicios en ejecución.
-4. Instalar componentes, conservar remote_enabled=0, adaptar únicamente el arranque
-   administrativo a los flags anteriores y comprobar acceso local y CSRF.
-5. En una fase autorizada separada, revisar zona/túnel completo; crear Access para
-   el hostname administrativo con identidad exacta y MFA, sin Bypass. Configurar
-   Protect with Access en cloudflared antes de publicar la ruta.
-6. Configurar issuer/audiencia/identidades; activar remoto solo después de verificar
-   políticas. No abrir puertos, alterar iCal ni reiniciar el conector compartido
-   innecesariamente. Validar en Android sobre datos móviles.
-7. Comprobar sesiones revocadas, bypass por otros hostnames, origin/JWT inválidos,
-   writes denegados, consultas POST, caché, cookies, logs y regresión pública/iCal.
+La aplicación self-hosted cubre únicamente el hostname administrativo. Su política
+Allow limita la identidad a la cuenta autorizada y exige Google. La aplicación
+acepta solo ese proveedor; no se utiliza Bypass ni autenticación automática del
+cliente Cloudflare One. La sesión de aplicación y política dura una hora.
 
-## Reversión
+MFA independiente está personalizado tanto en aplicación como en política:
+aplicación autenticadora (TOTP), duración de una hora. La ruta administrativa del
+túnel apunta al servicio loopback y tiene Protect with Access activo, con equipo
+y AUD correspondientes a la aplicación. Los valores concretos de equipo, AUD,
+identidad y configuración de ejecución se conservan fuera de Git.
 
-Primero bloquear Access/revocar sesiones y retirar únicamente la ruta remota de
-administración. No eliminar Access dejando el origen publicado. Establecer
-RM_ADMIN_REMOTE_ENABLED=0 y recargar exclusivamente administración cuando se
-autorice. Si es necesario, restaurar componentes/launcher/tarea administrativos
-respaldados. No detener cloudflared compartido, no tocar la BD ni los servicios
-públicos/iCal. Confirmar acceso local y ausencia de acceso remoto antes de cerrar.
+Rutas de consulta del panel (no requieren cambiar ni guardar configuración):
+
+- Zero Trust → Access controls → Applications → aplicación administrativa → Edit
+  → Application details → Authentication → Identity / MFA.
+- Zero Trust → Access controls → Policies → política administrativa → Edit:
+  identidad, proveedor, duración y MFA independiente.
+- Networking → Tunnels → túnel existente → Routes → hostname administrativo
+  → Edit → Additional application settings → Access: Protect with Access,
+  Team name y Application Audience (AUD).
+
+La comprobación manual solicitó Google y TOTP. Durante la prueba de revocación
+se observó una nueva cadena de redirecciones por Access. No se ha realizado una
+prueba independiente de reproducción del JWT anterior: no se afirma que la
+validación criptográfica local consulte por sí sola una lista de revocación.
+El origen valida firma, vigencia, emisor, audiencia e identidad; Access controla
+las sesiones en el borde. Un nuevo inicio de sesión autorizado sigue permitido.
+
+## Desactivación del acceso remoto (procedimiento, no ejecutado en el cierre)
+
+1. Respaldar el launcher privado **actual**, su mapa de módulos y la definición
+   de la tarea «RentalManager - Servidor», en almacenamiento privado. Registrar
+   hashes y fecha. No copiar secretos a Git ni a registros públicos.
+2. En el launcher administrativo vigente, cambiar únicamente
+   `RM_ADMIN_REMOTE_ENABLED` a `0`. Conservar el modo `read_only`, las protecciones
+   CSRF, JWT y el resto de configuración. No restaurar una versión anterior a la
+   reparación CSRF ni reemplazar otros overlays a ciegas.
+3. Cuando se autorice la intervención, reiniciar exclusivamente
+   «RentalManager - Servidor» para que el proceso lea el cambio. No reiniciar
+   Cloudflared ni la web pública, abrir puertos, modificar DNS o rutas iCal.
+4. Comprobar que la administración local carga y que el hostname remoto devuelve
+   `remote_disabled` después de Access. Sin sesión puede verse antes el login de
+   Cloudflare: eso por sí solo no demuestra que el origen esté desactivado.
+5. Conservar Access y Protect with Access. Si además se necesita revocar sesiones,
+   hacerlo como acción separada autorizada en Zero Trust → Team & Resources →
+   Users → usuario → Revoke sessions. La revocación no sustituye el paso 2:
+   una identidad autorizada podría iniciar una nueva sesión.
+
+Para revertir una desactivación, comparar el respaldo con la versión actual,
+verificar de nuevo identidad/MFA/AUD y restaurar solo el indicador de activación,
+con autorización y reinicio exclusivo administrativo. Mantener siempre
+`read_only`. Los respaldos y scripts del despliegue son privados; verificar sus
+hashes y alcance antes de utilizarlos, pues un respaldo antiguo puede revertir
+correcciones posteriores. No tocar base de datos ni migraciones.
 
 ## Límites conocidos
 
-- No se ha configurado ni probado el tenant real de Cloudflare, MFA, sesión Access,
-  TLS real del futuro subdominio, revocación real ni navegación Android remota.
-- La aplicación rechaza remoto por defecto; no se ha publicado ningún hostname.
-- Primera fase solo consulta: algunas acciones de edición existentes siguen
-  visibles y muestran un rechazo explícito al intentar ejecutarlas.
+- Primera fase solo consulta: algunas acciones de edición siguen visibles y
+  muestran un rechazo explícito al intentar ejecutarlas.
+- La confirmación de navegación real procede del usuario. Las escrituras con
+  identidad válida se prueban en aislamiento, no sobre datos productivos.
+- La revocación observada no equivale a una prueba independiente de replay de JWT.
 - El rediseño móvil y una CSP estricta con nonces son trabajos separados.
-- Formulario mutador sin cabecera CSRF: límite de lectura para inspección de 32 MiB.
-- La lista de capacidades debe revisarse ante nuevas rutas o nuevos efectos en GET.
-- Versiones de tests y resultados exactos se entregan en VALIDATION.md del candidato.
+- Formulario mutador sin cabecera CSRF: lectura de inspección limitada a 32 MiB.
+- Revisar capacidades ante nuevas rutas o nuevos efectos secundarios en GET.
+- Existe un fallo previo de conteo de consultas de habitaciones (espera tres,
+  observa cuatro), reproducido también sin la reparación CSRF. No se cambia
+  esa aserción ni se presenta la batería general como totalmente verde.
