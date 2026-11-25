@@ -8,6 +8,6 @@
 .owner-economy .table td:first-child { white-space: nowrap; }
 @media (max-width: 767px) {
   .owner-economy .d-flex > label { flex-basis: 100%; }
-  .owner-economy-page .sidebar { display: none; }
+
   .owner-economy-page .app-shell > main { margin-left: 0; padding: 1rem !important; }
 }

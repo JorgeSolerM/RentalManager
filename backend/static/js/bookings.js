@@ -1,6 +1,7 @@
 const BookingUI = {
 
     init() {
+        if (document.querySelector('meta[name="rm-admin-remote"]')?.content === "1") return;
 
         this.cacheDom();
 
@@ -113,6 +114,7 @@ const BookingUI = {
     },
 
     async openEditModal(bookingId, readOnly = false) {
+        if (document.querySelector('meta[name="rm-admin-remote"]')?.content === "1") return RMBookingReader.open(bookingId);
 
         try {
 

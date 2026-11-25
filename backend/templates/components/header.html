@@ -1,15 +1,5 @@
-<header class="navbar navbar-light bg-light border-bottom px-4">
-
-    <span class="navbar-brand mb-0 h1">
-
-        RentalManager - HSI Rents
-
-    </span>
-
-    <span class="text-success">
-
-        ● Sistema operativo
-
-    </span>
-
+<header class="navbar navbar-light bg-light border-bottom px-4 rm-header">
+<button class="btn btn-outline-secondary rm-menu-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#rmNavigation" aria-controls="rmNavigation" aria-label="Abrir menú">☰</button>
+<span class="navbar-brand mb-0 h1">RentalManager <span class="rm-brand-detail">- HSI Rents</span></span>
+{% if request.state.admin_remote|default(false) %}<span class="badge rounded-pill text-bg-light border rm-consultation" role="status">Modo consulta</span>{% else %}<span class="text-success rm-system-status">● Sistema operativo</span>{% endif %}
 </header>

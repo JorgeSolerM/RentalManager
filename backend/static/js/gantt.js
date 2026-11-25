@@ -2,24 +2,24 @@ const RMGantt = {
     DAY_MS: 86400000,
     MIN_MONTH_WIDTH: 84,
     LABEL_WIDTH_DESKTOP: 240,
-    LABEL_WIDTH_MOBILE: 150,
+    LABEL_WIDTH_MOBILE: 116,
     HEADER_MONTHS: ["ene","feb","mar","abr","may","jun","jul","ago","sept","oct","nov","dic"],
     SHORT_MONTHS: ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"],
 
     init() {
         this.root=document.getElementById("ganttRoot"); if(!this.root)return;
         this.status=document.getElementById("ganttStatus");this.propertyFilter=document.getElementById("ganttPropertyFilter");this.inactive=document.getElementById("ganttInactive");
-        this.data=JSON.parse(document.getElementById("ganttInitialData").textContent);this.viewMonths=Number(this.root.dataset.viewMonths)||8;this.bindControls();this.updateViewButtons();this.render();this.scrollToToday();this.observeSize();
+        this.zoom=1;this.lastGeometry=null;this.data=JSON.parse(document.getElementById("ganttInitialData").textContent);this.viewMonths=Number(this.root.dataset.viewMonths)||8;this.bindControls();this.updateViewButtons();this.render();this.scrollToToday();this.observeSize();
     },
     parseDate(value){const [y,m,d]=value.split("-").map(Number);return Date.UTC(y,m-1,d);},
     isoDate(ms){return new Date(ms).toISOString().slice(0,10);},
-    labelWidth(){return window.matchMedia("(max-width: 768px)").matches?this.LABEL_WIDTH_MOBILE:this.LABEL_WIDTH_DESKTOP;},
+    labelWidth(){return window.matchMedia("(max-width:768px), (max-width:1024px) and (max-height:500px) and (pointer:coarse)").matches?this.LABEL_WIDTH_MOBILE:this.LABEL_WIDTH_DESKTOP;},
     buildMonths(){
         const months=[],windowStart=this.parseDate(this.data.window.start),windowEnd=this.parseDate(this.data.window.end);let cursor=windowStart;
         while(cursor<windowEnd){const current=new Date(cursor),naturalEnd=Date.UTC(current.getUTCFullYear(),current.getUTCMonth()+1,1),end=Math.min(naturalEnd,windowEnd);months.push({start:cursor,end,days:(end-cursor)/this.DAY_MS,date:current});cursor=end;}
         return months;
     },
-    calculateMonthWidth(){const usable=Math.max(1,this.root.clientWidth-this.labelWidth());return Math.max(this.MIN_MONTH_WIDTH,usable/this.months.length);},
+    calculateMonthWidth(){const usable=Math.max(1,this.root.clientWidth-this.labelWidth());return Math.max(this.MIN_MONTH_WIDTH,usable/this.months.length)*this.zoom;},
     datePosition(value){
         const instant=typeof value==="number"?value:this.parseDate(value),windowStart=this.parseDate(this.data.window.start),windowEnd=this.parseDate(this.data.window.end);
         if(instant<=windowStart)return 0;if(instant>=windowEnd)return this.months.length*this.monthWidth;
@@ -27,10 +27,15 @@ const RMGantt = {
         return (index+dayIndex/month.days)*this.monthWidth;
     },
     dateAtPosition(x){
-        const safeX=Math.max(0,Math.min(x,this.months.length*this.monthWidth)),index=Math.min(this.months.length-1,Math.floor(safeX/this.monthWidth)),month=this.months[index],fraction=(safeX-index*this.monthWidth)/this.monthWidth,dayIndex=Math.min(month.days-1,Math.floor(fraction*month.days+1e-9));
+        const safeX=Math.max(0,Math.min(x,this.months.length*this.monthWidth)),index=Math.min(this.months.length-1,Math.floor(safeX/this.monthWidth)),month=this.months[index],fraction=(safeX-index*this.monthWidth)/this.monthWidth,dayIndex=Math.min(month.days,fraction*month.days);
         return month.start+dayIndex*this.DAY_MS;
     },
     bindControls(){
+        document.getElementById('ganttZoom').addEventListener('change',e=>{const anchor=this.captureAnchor();this.zoom=Number(e.target.value);this.render();this.restoreAnchor(anchor);});
+        document.getElementById('ganttFiltersToggle').addEventListener('click',e=>{const open=document.getElementById('ganttFilters').classList.toggle('is-open');e.currentTarget.setAttribute('aria-expanded',String(open));});
+        document.getElementById('ganttExpand').addEventListener('click',()=>this.expand());
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('gantt-expanded')&&!document.querySelector('.modal.show'))this.expand(false);});
+        this.root.addEventListener('scroll',()=>{this.lastAnchor=this.captureAnchor();},{passive:true});
         document.getElementById("ganttToday").addEventListener("click",()=>this.loadDefault());
         document.getElementById("ganttPrevious").addEventListener("click",()=>this.shiftWindow(-1));
         document.getElementById("ganttNext").addEventListener("click",()=>this.shiftWindow(1));
@@ -42,10 +47,11 @@ const RMGantt = {
         this.resizeObserver=new ResizeObserver(()=>{cancelAnimationFrame(this.resizeFrame);this.resizeFrame=requestAnimationFrame(()=>this.renderPreservingCenter());});
         this.resizeObserver.observe(this.root);
     },
-    renderPreservingCenter(){
-        if(!this.monthWidth)return;const centerDate=this.dateAtPosition(Math.max(0,this.root.scrollLeft+this.root.clientWidth/2-this.labelWidth()));
-        this.render();this.root.scrollLeft=Math.max(0,this.labelWidth()+this.datePosition(centerDate)-this.root.clientWidth/2);
-    },
+    captureAnchor(){const g=this.lastGeometry||{width:this.root.clientWidth,label:this.labelWidth()};return {date:this.dateAtPosition(Math.max(0,this.root.scrollLeft+(g.width-g.label)/2)),top:this.root.scrollTop};},
+    restoreAnchor(anchor){if(!anchor)return;this.root.scrollLeft=Math.max(0,this.datePosition(anchor.date)-(this.root.clientWidth-this.labelWidth())/2);this.root.scrollTop=anchor.top;this.lastAnchor=this.captureAnchor();},
+    renderPreservingCenter(){if(!this.monthWidth)return;const anchor=this.lastAnchor||this.captureAnchor();this.render();this.restoreAnchor(anchor);},
+    expand(force){const enabled=force===undefined?!document.body.classList.contains('gantt-expanded'):force;document.body.classList.toggle('gantt-expanded',enabled);const button=document.getElementById('ganttExpand');button.textContent=enabled?'Salir de ampliado':'⛶ Ampliar';button.setAttribute('aria-pressed',String(enabled));},
+    laneHeight(){return matchMedia('(max-width:768px), (max-width:1024px) and (max-height:500px) and (pointer:coarse)').matches?44:34;},
     shiftWindow(months){const s=new Date(this.parseDate(this.data.window.start)),e=new Date(this.parseDate(this.data.window.end));s.setUTCMonth(s.getUTCMonth()+months);e.setUTCMonth(e.getUTCMonth()+months);this.load(this.isoDate(s),this.isoDate(e));},
     loadDefault(){this.loadContextWindow(true);},
     setView(months){if(![4,8,12].includes(months)||months===this.viewMonths)return;this.viewMonths=months;this.updateViewButtons();this.updateUrlView();this.loadContextWindow(true);},
@@ -54,16 +60,17 @@ const RMGantt = {
     loadContextWindow(scrollToday){const t=new Date(this.parseDate(this.data.window.today)),s=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()-1,1)),e=new Date(Date.UTC(s.getUTCFullYear(),s.getUTCMonth()+this.viewMonths,1));this.load(this.isoDate(s),this.isoDate(e),scrollToday);},
     async load(start=this.data.window.start,end=this.data.window.end,scrollToday=false){
         this.updateUrlView();
+        this.loadController?.abort();this.loadController=new AbortController();const requestId=(this.loadId||0)+1;this.loadId=requestId;const anchor=this.captureAnchor();
         const params=new URLSearchParams({start,end,include_inactive:String(this.inactive.checked)});if(this.propertyFilter.value)params.set("property_id",this.propertyFilter.value);
         this.root.classList.add("gantt-loading");this.status.textContent="Actualizando calendario…";
-        try{const response=await fetch(`/gantt/data?${params}`);if(!response.ok)throw new Error();this.data=await response.json();this.render();if(scrollToday)this.scrollToToday();this.status.textContent="Calendario actualizado.";}
-        catch(error){RMNotification.error("No se ha podido cargar el calendario.");this.status.textContent="Error al actualizar el calendario.";}
-        finally{this.root.classList.remove("gantt-loading");}
+        try{const response=await fetch(`/gantt/data?${params}`,{signal:this.loadController.signal});if(!response.ok)throw new Error();const data=await response.json();if(requestId!==this.loadId)return;this.data=data;this.render();if(scrollToday)this.scrollToToday();else this.restoreAnchor(anchor);this.status.textContent="Calendario actualizado.";}
+        catch(error){if(error.name==="AbortError")return;RMNotification.error("No se ha podido cargar el calendario.");this.status.textContent="Error al actualizar el calendario.";}
+        finally{if(requestId===this.loadId)this.root.classList.remove("gantt-loading");}
     },
     render(){
         this.months=this.buildMonths();this.monthWidth=this.calculateMonthWidth();this.root.replaceChildren();const canvas=document.createElement("div");canvas.className="gantt-canvas";const width=this.months.length*this.monthWidth;canvas.append(this.header(width));
         for(const property of this.data.properties)for(const room of property.rooms)canvas.append(this.roomRow(room,width));
-        if(!this.data.properties.length){const empty=document.createElement("div");empty.className="gantt-empty";empty.textContent="No hay habitaciones para los filtros seleccionados.";canvas.append(empty);}this.root.append(canvas);
+        if(!this.data.properties.length){const empty=document.createElement("div");empty.className="gantt-empty";empty.textContent="No hay habitaciones para los filtros seleccionados.";canvas.append(empty);}this.root.append(canvas);this.lastGeometry={width:this.root.clientWidth,label:this.labelWidth()};
     },
     header(width){
         const row=document.createElement("div");row.className="gantt-header";const label=document.createElement("div");label.className="gantt-label";label.textContent="Habitación";
@@ -72,18 +79,18 @@ const RMGantt = {
         this.addMonthBoundaries(timeline);this.addTodayLine(timeline);row.append(label,timeline);return row;
     },
     roomRow(room,width){
-        const maxLane=Math.max(0,...room.bookings.map(item=>item.lane)),height=Math.max(38,(maxLane+1)*34+4),row=document.createElement("div");row.className="gantt-room-row";
+        const maxLane=Math.max(0,...room.bookings.map(item=>item.lane)),height=Math.max(this.laneHeight()===44?56:38,(maxLane+1)*this.laneHeight()+4),row=document.createElement("div");row.className="gantt-room-row";
         const label=document.createElement("div");label.className="gantt-label";label.style.height=`${height}px`;const identity=document.createElement("div");identity.className="gantt-room-identity";const details=document.createElement("div");details.className="gantt-room-details";const link=document.createElement("a");link.className="gantt-room-link";link.href=`/rooms/${room.id}`;link.textContent=room.code;if(!room.active)link.insertAdjacentHTML("beforeend",' <span class="badge text-bg-secondary">Archivada</span>');details.append(link);identity.append(details);
-        label.append(identity);if(["error","overdue","paused"].includes(room.sync.severity)){const sync=document.createElement("a");sync.href=`/rooms/${room.id}#configuracion`;sync.className=`gantt-sync-warning gantt-sync-${room.sync.severity}`;sync.textContent="⚠";sync.setAttribute("aria-label",this.syncLabel(room.sync));sync.title=this.syncLabel(room.sync);label.append(sync);}
-        const timeline=document.createElement("div");timeline.className="gantt-timeline gantt-room-timeline";timeline.style.cssText=`width:${width}px;height:${height}px`;this.addMonthBoundaries(timeline);for(const booking of room.bookings)timeline.append(this.bookingBar(booking));this.addTodayLine(timeline);row.append(label,timeline);return row;
+        label.append(identity);const list=document.createElement('button');list.type='button';list.className='gantt-room-reservations';list.textContent=String(room.bookings.length);list.setAttribute('aria-label',`Ver reservas de ${room.code}`);list.addEventListener('click',()=>RMBookingReader.room(room));label.append(list);if(["error","overdue","paused"].includes(room.sync.severity)){const sync=document.createElement("a");sync.href=`/rooms/${room.id}#configuracion`;sync.className=`gantt-sync-warning gantt-sync-${room.sync.severity}`;sync.textContent="⚠";sync.setAttribute("aria-label",this.syncLabel(room.sync));sync.title=this.syncLabel(room.sync);label.append(sync);}
+        const timeline=document.createElement("div");timeline.className="gantt-timeline gantt-room-timeline";timeline.style.cssText=`width:${width}px;height:${height}px`;this.addMonthBoundaries(timeline);for(const booking of room.bookings)timeline.append(this.bookingBar(booking,room));this.addTodayLine(timeline);row.append(label,timeline);return row;
     },
-    bookingBar(booking){
+    bookingBar(booking,room){
         const bar=document.createElement("div");bar.className="gantt-booking";const opener=document.createElement("button");opener.type="button";opener.className="gantt-booking-open";bar.append(opener);if(booking.overlap_kind)bar.classList.add(`gantt-overlap-${booking.overlap_kind}`);
         const hue=[...booking.origin.color_key].reduce((v,c)=>(v*31+c.charCodeAt(0))%360,17),visibleStart=booking.check_in<this.data.window.start?this.data.window.start:booking.check_in,visibleEnd=booking.check_out>this.data.window.end?this.data.window.end:booking.check_out,left=this.datePosition(visibleStart),width=this.datePosition(visibleEnd)-left,paintedWidth=Math.max(2,width),inset=Math.min(1,paintedWidth/4),leftInset=booking.check_in<this.data.window.start?0:inset,rightInset=booking.check_out>this.data.window.end?0:inset;
-        bar.style.cssText=`left:${left}px;width:${paintedWidth}px;top:${booking.lane*34+2}px`;
+        bar.style.cssText=`left:${left}px;width:${paintedWidth}px;top:${booking.lane*this.laneHeight()+2}px`;
         const visual=document.createElement("span");visual.className="gantt-booking-visual";visual.classList.add(booking.origin.slug==="manual"?"gantt-origin-manual":"gantt-origin-platform");visual.style.cssText=`--origin-hue:${hue};--booking-inset-left:${leftInset}px;--booking-inset-right:${rightInset}px`;
         this.fillBookingContent(visual,booking,Math.max(0,paintedWidth-leftInset-rightInset));bar.append(visual);
-        const overlap=booking.overlap_kind==="historical"?" Coincidencia histórica.":booking.overlap_kind==="operational"?" Anomalía de solapamiento.":"",detail=`${booking.guest_name}. Entrada: ${this.formatDate(booking.check_in)}. Salida: ${this.formatDate(booking.check_out)}. Origen: ${booking.origin.name}. ${booking.editable?"Manual":"Importada, solo lectura"}.${overlap}`;bar.title=detail;opener.setAttribute("aria-label",detail);bar.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest(".booking-person-link"))return;BookingUI.openEditModal(booking.id,!booking.editable);});return bar;
+        const overlap=booking.overlap_kind==="historical"?" Coincidencia histórica.":booking.overlap_kind==="operational"?" Anomalía de solapamiento.":"",detail=`${booking.guest_name}. Entrada: ${this.formatDate(booking.check_in)}. Salida: ${this.formatDate(booking.check_out)}. Origen: ${booking.origin.name}. ${booking.editable?"Manual":"Importada, solo lectura"}.${overlap}`;bar.title=detail;opener.setAttribute("aria-label",detail);bar.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest(".booking-person-link"))return;if(RMAdminUI.remote||matchMedia("(max-width:768px), (max-width:1024px) and (max-height:500px) and (pointer:coarse)").matches)RMBookingReader.open(booking.id,room.code);else BookingUI.openEditModal(booking.id,!booking.editable);});return bar;
     },
     fillBookingContent(bar,booking,width){
         const fullRange=`${this.formatHumanDate(booking.check_in,true)} – ${this.formatHumanDate(booking.check_out,true)}`,shortRange=`${this.formatHumanDate(booking.check_in,false)}–${this.formatHumanDate(booking.check_out,false)}`;

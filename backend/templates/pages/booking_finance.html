@@ -2,7 +2,7 @@
 {% extends "layouts/base.html" %}
 {% block title %}Cuenta económica · {{ booking.operational_person_name }} · RentalManager{% endblock %}
 {% block content %}
-<div class="mb-3"><a href="/bookings/{{ booking.id }}/early-termination">{{ booking.early_termination_label or 'Finalizar anticipadamente' }}</a>{% if booking.early_termination %}<p class="small mt-2">Salida efectiva: {{ booking.check_out.strftime('%d/%m/%Y') }} · Último día a cargo (incluido): {{ booking.early_termination.economic_last_day.strftime('%d/%m/%Y') }}</p>{% endif %}</div>
+<div class="mb-3">{% if not request.state.admin_remote|default(false) %}<a href="/bookings/{{ booking.id }}/early-termination">{{ booking.early_termination_label or 'Finalizar anticipadamente' }}</a>{% endif %}{% if booking.early_termination %}<p class="small mt-2">Salida efectiva: {{ booking.check_out.strftime('%d/%m/%Y') }} · Último día a cargo (incluido): {{ booking.early_termination.economic_last_day.strftime('%d/%m/%Y') }}</p>{% endif %}</div>
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
   <div>
     <a class="small" href="/rooms/{{ booking.room_id }}">← Volver a {{ booking.room.code }}</a>
@@ -15,7 +15,7 @@
 <section class="card card-body mb-3">
 <h2 class="h5">Inicio de gestión económica</h2>
 {% if booking.economic_management_start %}<p>Desde <strong>{{ booking.economic_management_start.strftime('%m/%Y') }}</strong>. Los meses anteriores quedan fuera de gestión en RentalManager.</p>{% else %}<p>Sin inicio específico confirmado. El calendario comprende el contrato completo. Revise el inicio antes de generar cargos de una reserva antigua.</p>{% endif %}
-<form action="/bookings/{{ booking.id }}/finance/start" method="get" class="d-flex flex-wrap gap-2 align-items-end"><div><label for="economicStartMonth" class="form-label">Mes de inicio</label><input class="form-control" type="month" name="month" id="economicStartMonth" required value="{{ (booking.economic_management_start or booking.check_in).strftime('%Y-%m') }}"></div><button class="btn btn-outline-primary">Revisar inicio de gestión</button></form>
+{% if not request.state.admin_remote|default(false) %}<form action="/bookings/{{ booking.id }}/finance/start" method="get" class="d-flex flex-wrap gap-2 align-items-end"><div><label for="economicStartMonth" class="form-label">Mes de inicio</label><input class="form-control" type="month" name="month" id="economicStartMonth" required value="{{ (booking.economic_management_start or booking.check_in).strftime('%Y-%m') }}"></div>{% if not request.state.admin_remote|default(false) %}<button class="btn btn-outline-primary">Revisar inicio de gestión</button>{% endif %}</form>{% endif %}
 <p class="small text-muted mt-2 mb-0">La propuesta no se guarda automáticamente. Confirmarla no genera cargos ni pagos.</p></section>
 {% if request.query_params.get('plan_error') %}<div class="alert alert-danger" role="alert">{{ request.query_params.get('plan_error') }}</div>{% endif %}
 {% if not tenants and not payers %}
@@ -25,8 +25,8 @@
 {% endif %}
 
 {% if payment_methods is defined %}
-<div class="mb-3"><a class="btn btn-primary" href="/bookings/{{ booking.id }}/finance/payments/new">Registrar pago</a></div>
-{% for batch_id,warning in sepa_warnings %}<div class="alert alert-warning" role="alert">{{ warning }} <a href="/collections/{{ batch_id }}">Ver remesa</a></div>{% endfor %}
+<div class="mb-3">{% if not request.state.admin_remote|default(false) %}<a class="btn btn-primary" href="/bookings/{{ booking.id }}/finance/payments/new">Registrar pago</a>{% endif %}</div>
+{% for batch_id,warning in sepa_warnings %}<div class="alert alert-warning" role="alert">{{ warning }} {% if not request.state.admin_remote|default(false) %}<a href="/collections/{{ batch_id }}">Ver remesa</a>{% endif %}</div>{% endfor %}
 {% endif %}
 {% if account is defined %}{% include 'pages/booking_finance_summary.html' %}{% endif %}
 <div class="row g-4">
@@ -52,14 +52,14 @@
         <a class="btn btn-sm btn-outline-secondary" href="/bookings/{{ booking.id }}/finance?use_legacy_price=true">Usar como renta propuesta</a>
       </div>
       {% endif %}
-      <form method="post" action="/bookings/{{ booking.id }}/finance/terms" class="row g-3">
+      {% if not request.state.admin_remote|default(false) %}<form method="post" action="/bookings/{{ booking.id }}/finance/terms" class="row g-3">
         <div class="col-md-5"><label class="form-label" for="monthlyRent">Renta mensual</label><div class="input-group"><input class="form-control" id="monthlyRent" name="monthly_rent" type="number" min="0.01" step="0.01" required value="{{ suggested_rent if suggested_rent is not none else (latest_terms.monthly_rent if latest_terms else '') }}"><span class="input-group-text">EUR</span></div></div>
         <div class="col-md-4"><label class="form-label" for="depositAgreed">Fianza</label><div class="input-group"><input class="form-control" id="depositAgreed" name="deposit_agreed" type="number" min="0" step="0.01" required value="{{ latest_terms.deposit_agreed if latest_terms else '0.00' }}"><span class="input-group-text">EUR</span></div></div>
         <div class="col-md-3"><label class="form-label" for="usualDueDay">Día de vencimiento</label><input class="form-control" id="usualDueDay" name="usual_due_day" type="number" min="1" max="31" required value="{{ latest_terms.usual_due_day if latest_terms else 1 }}"></div>
         <div class="col-12"><button class="btn btn-primary" type="submit">{{ 'Guardar borrador' if latest_terms else 'Crear borrador' }}</button></div>
-      </form>
+      </form>{% endif %}
       {% if latest_terms and latest_terms.status == 'draft' %}
-      <form method="post" action="/bookings/{{ booking.id }}/finance/terms/{{ latest_terms.id }}/confirm" class="mt-3" onsubmit="return confirm('¿Confirmar estas condiciones? Después no podrán editarse destructivamente.');"><button class="btn btn-success" type="submit">Confirmar condiciones</button></form>
+      {% if not request.state.admin_remote|default(false) %}<form method="post" action="/bookings/{{ booking.id }}/finance/terms/{{ latest_terms.id }}/confirm" class="mt-3" onsubmit="return confirm('¿Confirmar estas condiciones? Después no podrán editarse destructivamente.');"><button class="btn btn-success" type="submit">Confirmar condiciones</button></form>{% endif %}
       {% endif %}
       {% endif %}
     </section>
@@ -77,13 +77,13 @@
       {% if generation_state.drafts_stale %}<div class="alert alert-warning">Los borradores ya no coinciden con las fechas actuales de la reserva. Regénéralos explícitamente.</div>{% endif %}
       {% if generation_state.posted_mismatch %}<div class="alert alert-danger">Existen cargos contabilizados que no coinciden con las fechas actuales. No se han modificado; la diferencia requiere revisión manual.</div>{% endif %}
       <p>Revise todos los vencimientos. Generar el plan contabiliza los cargos, incluidos los futuros, y los hace utilizables en Cobros/Remesas. <strong>No registra ningún pago.</strong> Los cargos contabilizados no se recalculan; cualquier cambio posterior requiere revisión explícita.</p>
-      <form method="post" action="/bookings/{{ booking.id }}/finance/{{ 'regenerate' if generation_state.drafts_stale else 'plan' }}" class="d-flex flex-wrap align-items-center gap-3">
+      {% if not request.state.admin_remote|default(false) %}<form method="post" action="/bookings/{{ booking.id }}/finance/{{ 'regenerate' if generation_state.drafts_stale else 'plan' }}" class="d-flex flex-wrap align-items-center gap-3">
         <input type="hidden" name="terms_id" value="{{ confirmed_terms.id }}">
         <input type="hidden" name="review_token" value="{{ plan_token }}">
         {% if confirmed_terms.deposit_agreed > 0 and deposit_in_scope %}<div class="form-check"><input class="form-check-input" id="includeDeposit" type="checkbox" name="include_deposit" value="true"{% if deposit_generated %} checked{% endif %}><label class="form-check-label" for="includeDeposit">Incluir cargo de fianza</label></div>{% endif %}
         {% if not generation_state.drafts_stale %}<label class="d-block"><input type="checkbox" name="confirm_plan" value="yes" required> He revisado el calendario y confirmo su contabilización completa.</label>{% endif %}
         <button class="btn btn-primary" type="submit"{% if generation_state.posted_mismatch or terms_versions|length > 1 %} disabled{% endif %}>{{ 'Regenerar borradores para revisar' if generation_state.drafts_stale else 'Generar plan de cobros' }}</button>
-      </form>
+      </form>{% endif %}
       {% endif %}
     </details>
     {% endif %}
@@ -94,7 +94,7 @@
     <section class="card card-body mt-4"><h2 class="h5">Pagos y devoluciones</h2>
     <p class="small text-muted">Importes positivos: cobros recibidos. Negativos: devoluciones que reabren el saldo de los cargos.</p>
     <div class="table-responsive"><table class="table"><thead><tr><th>Fecha</th><th>Movimiento / método</th><th>Importe</th><th>Aplicación / referencia</th></tr></thead><tbody>
-    {% for payment in payments %}<tr{% if payment.direction=='refund' %} class="table-danger"{% endif %}><td>{{ payment.effective_date.strftime('%d/%m/%Y') }}</td><td>{{ movement_label(payment) }} #{{ payment.id }}<small class="d-block">{{ 'Sustituido' if corrections_by_original.get(payment.id) and corrections_by_original[payment.id].kind=='replace' else {'posted':'Confirmado','draft':'Borrador','void':'Anulado'}[payment.lifecycle] }}{% if payment.corrects_payment_id %} · {{ "Sustituye cobro" if payment.direction=="receipt" else "Compensa pago" }} #{{ payment.corrects_payment_id }}{% endif %}</small>{% if account.batches.get(payment.id) %}<a href="/collections/{{ account.batches[payment.id] }}">Remesa {{ account.batches[payment.id] }}</a>{% endif %}</td><td class="text-nowrap">{{ '-' if payment.direction=='refund' else '+' }}{{ '%.2f'|format(payment.amount) }} €</td><td><span class="small">{{ "Asignaciones históricas sin efecto:" if payment.lifecycle=="void" else "Aplicado a:" }}</span>{% for allocation in payment.allocations %}<a class="d-block" href="#charge-{{ allocation.charge_id }}">{{ allocation.charge.concept }}{% if allocation.charge.service_period_start %} · {{ allocation.charge.service_period_start.strftime('%m/%Y') }}{% endif %}: {{ '%.2f'|format(allocation.amount) }} €</a>{% else %}<span class="d-block">Sin asignación a cargos</span>{% endfor %}{% if payment.direction == 'receipt' %}<a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ payment.id }}/assign">Ver asignaciones e historial</a>{% endif %}{% if payment.lifecycle=='posted' and payment.direction=='receipt' %}<a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ payment.id }}/correction">Corregir cobro</a><a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ payment.id }}/correction?kind=void">Anular cobro</a>{% endif %}<small class="text-break">{{ payment.external_reference or '' }} {{ payment.notes or '' }}</small></td></tr>{% else %}<tr><td colspan="4">Sin pagos registrados.</td></tr>{% endfor %}
+    {% for payment in payments %}<tr{% if payment.direction=='refund' %} class="table-danger"{% endif %}><td>{{ payment.effective_date.strftime('%d/%m/%Y') }}</td><td>{{ movement_label(payment) }} #{{ payment.id }}<small class="d-block">{{ 'Sustituido' if corrections_by_original.get(payment.id) and corrections_by_original[payment.id].kind=='replace' else {'posted':'Confirmado','draft':'Borrador','void':'Anulado'}[payment.lifecycle] }}{% if payment.corrects_payment_id %} · {{ "Sustituye cobro" if payment.direction=="receipt" else "Compensa pago" }} #{{ payment.corrects_payment_id }}{% endif %}</small>{% if account.batches.get(payment.id) %}{% if not request.state.admin_remote|default(false) %}<a href="/collections/{{ account.batches[payment.id] }}">Remesa {{ account.batches[payment.id] }}</a>{% endif %}{% endif %}</td><td class="text-nowrap">{{ '-' if payment.direction=='refund' else '+' }}{{ '%.2f'|format(payment.amount) }} €</td><td><span class="small">{{ "Asignaciones históricas sin efecto:" if payment.lifecycle=="void" else "Aplicado a:" }}</span>{% for allocation in payment.allocations %}<a class="d-block" href="#charge-{{ allocation.charge_id }}">{{ allocation.charge.concept }}{% if allocation.charge.service_period_start %} · {{ allocation.charge.service_period_start.strftime('%m/%Y') }}{% endif %}: {{ '%.2f'|format(allocation.amount) }} €</a>{% else %}<span class="d-block">Sin asignación a cargos</span>{% endfor %}{% if payment.direction == 'receipt' %}{% if not request.state.admin_remote|default(false) %}<a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ payment.id }}/assign">Ver asignaciones e historial</a>{% endif %}{% endif %}{% if payment.lifecycle=='posted' and payment.direction=='receipt' %}{% if not request.state.admin_remote|default(false) %}<a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ payment.id }}/correction">Corregir cobro</a>{% endif %}{% if not request.state.admin_remote|default(false) %}<a class="d-block small" href="/bookings/{{ booking.id }}/finance/payments/{{ payment.id }}/correction?kind=void">Anular cobro</a>{% endif %}{% endif %}<small class="text-break">{{ payment.external_reference or '' }} {{ payment.notes or '' }}</small></td></tr>{% else %}<tr><td colspan="4">Sin pagos registrados.</td></tr>{% endfor %}
     </tbody></table></div><p class="mb-0">Cobrado neto: {{ '%.2f'|format(summary.received_total) }} € · Sin aplicar: {{ '%.2f'|format(summary.unapplied_balance) }} €</p></section>
     {% endif %}
   </div>

@@ -11,7 +11,7 @@
       {% for payment, allocation in account.movements[charge.id] %}<div class="border-top py-2">
       {{ payment.effective_date.strftime('%d/%m/%Y') }} · {{ movement_label(payment) }} · <strong>{{ '-' if payment.direction=='refund' else '+' }}{{ '%.2f'|format(allocation.amount) }} €</strong>
       <small class="d-block">Pago #{{ payment.id }} · {{ {'posted':'Confirmado','draft':'Borrador, no computa','void':'Anulado, no computa'}[payment.lifecycle] }}</small>
-      {% if account.batches.get(payment.id) %}<a href="/collections/{{ account.batches[payment.id] }}">Remesa {{ account.batches[payment.id] }}</a>{% endif %}
+      {% if account.batches.get(payment.id) %}{% if not request.state.admin_remote|default(false) %}<a href="/collections/{{ account.batches[payment.id] }}">Remesa {{ account.batches[payment.id] }}</a>{% endif %}{% endif %}
       <small class="d-block text-break">{{ payment.external_reference or '' }} {{ payment.notes or '' }}</small>
       </div>{% else %}<p class="small mt-2">Sin pagos aplicados.</p>{% endfor %}</details>
     </td>

@@ -10,9 +10,9 @@
         Habitaciones - {{ property.name }}
     </h1>
 
-    <button type="button" class="btn-primary" onclick="openCreateRoomModal({{ property.id }})">
+    {% if not request.state.admin_remote|default(false) %}<button type="button" class="btn-primary" onclick="openCreateRoomModal({{ property.id }})">
         + Nueva habitación
-    </button>
+    </button>{% endif %}
 
 </div>
 
@@ -96,37 +96,37 @@
             </td>
 
             <td>
-                <a class="btn-secondary text-decoration-none" href="/rooms/{{ room.id }}/publication" title="Configurar publicación">Publicación</a>
+                {% if not request.state.admin_remote|default(false) %}<a class="btn-secondary text-decoration-none" href="/rooms/{{ room.id }}/publication" title="Configurar publicación">Publicación</a>{% endif %}
 
-                <button type="button" class="btn-link" onclick="openEditRoomModal({{ room.id }})"
+                {% if not request.state.admin_remote|default(false) %}<button type="button" class="btn-link" onclick="openEditRoomModal({{ room.id }})"
                     title="Editar habitación">
 
                     ✏
 
-                </button>
+                </button>{% endif %}
 
                 {% if not room.active %}
-                <form method="post" action="/rooms/{{ room.id }}/restore" class="d-inline">
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/restore" class="d-inline">
                     <input type="hidden" name="destination" value="list">
                     <button type="submit" class="btn-link" title="Reactivar habitación">Reactivar</button>
-                </form>
+                </form>{% endif %}
                 {% elif room.operational_since is none %}
-                <form method="post" action="/rooms/{{ room.id }}/put-into-operation" class="d-inline"
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/put-into-operation" class="d-inline"
                     onsubmit="return confirm('La habitación empezará a contar en las métricas operativas del Dashboard.');">
                     <input type="hidden" name="destination" value="list">
                     <button type="submit" class="btn-link" title="Poner en servicio">Poner en servicio</button>
-                </form>
-                <form method="post" action="/rooms/{{ room.id }}/archive" class="d-inline"
+                </form>{% endif %}
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/archive" class="d-inline"
                     onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
                     <input type="hidden" name="destination" value="list">
                     <button type="submit" class="btn-link" title="Archivar habitación">Archivar habitación</button>
-                </form>
+                </form>{% endif %}
                 {% else %}
-                <form method="post" action="/rooms/{{ room.id }}/archive" class="d-inline"
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/archive" class="d-inline"
                     onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
                     <input type="hidden" name="destination" value="list">
                     <button type="submit" class="btn-link" title="Archivar habitación">Archivar habitación</button>
-                </form>
+                </form>{% endif %}
                 {% endif %}
 
             </td>
@@ -151,12 +151,12 @@ message="Esta propiedad todavía no tiene habitaciones."
 
 {% endif %}
 
-{% include "components/room_modal.html" %}
+{% if not request.state.admin_remote|default(false) %}{% include "components/room_modal.html" %}{% endif %}
 
 {% endblock %}
 
 {% block scripts %}
 
-<script src="{{ url_for('static', path='js/rooms.js') }}"></script>
+{% if not request.state.admin_remote|default(false) %}<script src="{{ url_for('static', path='js/rooms.js') }}"></script>{% endif %}
 
 {% endblock %}

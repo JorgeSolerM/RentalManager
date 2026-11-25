@@ -67,11 +67,6 @@
   HTMLFormElement.prototype.submit = function() { formToken(this); return submit.call(this); };
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('form').forEach(formToken);
-    if (remote) {
-      const notice = document.createElement('div'); notice.className = 'alert alert-info m-2';
-      notice.setAttribute('role', 'status');
-      notice.textContent = 'Acceso remoto de consulta. No se permiten modificaciones ni operaciones económicas.';
-      document.body.prepend(notice);
-    }
+
   });
 })();

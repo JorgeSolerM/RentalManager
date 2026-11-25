@@ -47,3 +47,36 @@ body.gantt-layout .app-shell { width:100%; min-width:0; min-height:0; flex:1 1 a
 .gantt-sync-error { color:var(--bs-danger); }
 .gantt-empty { padding:2rem; text-align:center; color:var(--bs-secondary-color); }.gantt-loading { opacity:.55; pointer-events:none; }
 @media (max-width:768px) { :root { --gantt-label-width:150px; } .gantt-main { padding:1rem !important; } .gantt-label { padding-inline:.45rem; } .gantt-booking { font-size:.7rem; } }
+
+.gantt-filter-panel { display:flex; flex-wrap:wrap; align-items:end; gap:.5rem; }
+#ganttFiltersToggle { display:none; }
+.gantt-zoom-label { display:flex; align-items:center; gap:.4rem; }
+.gantt-zoom-label select { width:auto; }
+.gantt-room-reservations { flex-shrink:0; border:1px solid var(--bs-border-color); border-radius:.3rem; background:var(--bs-body-bg); color:inherit; padding:.15rem .35rem; }
+.gantt-room-row .gantt-label { flex-wrap:wrap; }
+.gantt-expanded .gantt-page { position:fixed; inset:0; z-index:1035; padding:.5rem; background:var(--bs-body-bg); height:100dvh; }
+.gantt-expanded #ganttExpand { position:relative; z-index:2; }
+.gantt-root { touch-action:pan-x pan-y pinch-zoom; }
+@media (max-width:768px), (max-width:1024px) and (max-height:500px) and (pointer:coarse) {
+ :root { --gantt-label-width:116px; --gantt-lane-height:44px; }
+ .gantt-main { padding:.35rem!important; }
+ .gantt-page-header { gap:.35rem!important; margin-bottom:.4rem!important; }
+ .gantt-page-header > p { display:none; }
+ .gantt-controls { width:100%; gap:.35rem!important; }
+ .gantt-controls .btn { padding-inline:.55rem; }
+ .gantt-zoom-label { font-size:.8rem; }
+ .gantt-zoom-label select { padding-left:.4rem; }
+ #ganttFiltersToggle { display:inline-block; }
+ .gantt-filter-panel { display:none; flex-basis:100%; padding:.4rem; border:1px solid var(--bs-border-color); border-radius:.3rem; }
+ .gantt-filter-panel.is-open { display:flex; }
+ .gantt-filter-panel > label { flex:1 1 12rem; min-width:0; }
+ .gantt-filter-panel select { width:100%; }
+ .gantt-label { padding-inline:.3rem; }
+ .gantt-room-link { font-size:.8rem; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+ .gantt-room-identity { flex:1; }
+ .gantt-room-reservations { min-height:44px; min-width:44px; }
+ .gantt-room-row .gantt-label { align-content:center; flex-wrap:nowrap; gap:.15rem; }
+ .gantt-booking { height:40px; }
+ .gantt-booking-visual { font-size:.75rem; line-height:1.15; }
+ .gantt-booking-dates,.gantt-booking-short .gantt-booking-dates { font-size:.65rem; }
+}

@@ -11,7 +11,7 @@ test('Browser forms, fetch and XHR carry CSRF only to their own origin', async (
     const requests=[];
     await page.route('**/*', async route => {
       const r=route.request();
-      if (r.url()==='https://admin.example.test/') return route.fulfill({contentType:'text/html',body:`<html><head><meta name="rm-admin-csrf" content="synthetic-token"><meta name="rm-admin-remote" content="1"><script>${script}</script></head><body><form method="post" action="/write"><input name="value" value="kept"><select name="method"><option>cash</option></select><input name="action" value="synthetic"><button>Enviar</button></form></body></html>`});
+      if (r.url()==='https://admin.example.test/') return route.fulfill({contentType:'text/html',body:`<html><head><meta name="rm-admin-csrf" content="synthetic-token"><meta name="rm-admin-remote" content="1"><script>${script}</script></head><body><span role="status">Modo consulta</span><form method="post" action="/write"><input name="value" value="kept"><select name="method"><option>cash</option></select><input name="action" value="synthetic"><button>Enviar</button></form></body></html>`});
       requests.push({url:r.url(),method:r.method(),headers:await r.allHeaders(),data:r.postData()});
       await route.fulfill({contentType:'application/json',body:'{}',headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'}});
     });

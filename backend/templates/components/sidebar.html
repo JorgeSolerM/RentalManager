@@ -10,7 +10,8 @@
     )
     )
 ) %}
-<nav class="sidebar" aria-label="Navegación principal">
+<nav class="sidebar offcanvas-start" id="rmNavigation" tabindex="-1" aria-label="Navegación principal">
+<div class="offcanvas-header"><h2 class="h5 mb-0">Navegación</h2><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar menú"></button></div><div class="rm-navigation-body">
 
     <ul class="sidebar-menu sidebar-menu-primary">
 
@@ -34,7 +35,7 @@
             <a href="/owners"{% if active_section == 'owners' %} aria-current="page"{% endif %}>Propietarios</a>
         </li>
         <li class="{% if path.startswith('/collections') %}active{% endif %}">
-            <a href="/collections"{% if path.startswith('/collections') %} aria-current="page"{% endif %}>Cobros</a>
+            {% if not request.state.admin_remote|default(false) %}<a href="/collections"{% if path.startswith('/collections') %} aria-current="page"{% endif %}>Cobros</a>{% endif %}
         </li>
         <li class="{% if path.startswith('/expenses') %}active{% endif %}"><a href="/expenses">Gastos</a></li>
         <li class="{% if path.startswith('/settlements') %}active{% endif %}"><a href="/settlements">Liquidaciones</a></li>
@@ -43,11 +44,11 @@
 
     <ul class="sidebar-menu sidebar-menu-secondary">
         {% if request.app.state.netfincas_enabled|default(false) %}
-        <li><a href="/reconciliation/netfincas">Reconciliación NetFincas</a></li>
+        <li>{% if not request.state.admin_remote|default(false) %}<a href="/reconciliation/netfincas">Reconciliación NetFincas</a>{% endif %}</li>
         {% endif %}
         <li class="{% if active_section == 'settings' %}active{% endif %}">
-            <a href="/settings/"{% if active_section == 'settings' %} aria-current="page"{% endif %}>Configuración</a>
+            {% if not request.state.admin_remote|default(false) %}<a href="/settings/"{% if active_section == 'settings' %} aria-current="page"{% endif %}>Configuración</a>{% endif %}
         </li>
     </ul>
 
-</nav>
+</div></nav>

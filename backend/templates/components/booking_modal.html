@@ -1,3 +1,4 @@
+{% if not request.state.admin_remote|default(false) %}
 <div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
 
     <div class="modal-dialog">
@@ -165,3 +166,5 @@
     </div>
 
 </div>
+
+{% endif %}

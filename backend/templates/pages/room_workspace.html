@@ -226,11 +226,11 @@
 
         <div class="text-end mt-4">
 
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bookingModal">
+            {% if not request.state.admin_remote|default(false) %}<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bookingModal">
 
                 + Nueva reserva
 
-            </button>
+            </button>{% endif %}
 
         </div>
 
@@ -246,29 +246,29 @@
             </div>
             <div>
                 {% if not room.active %}
-                <form method="post" action="/rooms/{{ room.id }}/restore">
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/restore">
                     <input type="hidden" name="destination" value="workspace">
                     <button type="submit" class="btn btn-outline-primary">Reactivar habitación</button>
-                </form>
+                </form>{% endif %}
                 {% elif room.operational_since is none %}
                 <div class="d-flex flex-wrap gap-2">
-                    <form method="post" action="/rooms/{{ room.id }}/put-into-operation"
+                    {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/put-into-operation"
                         onsubmit="return confirm('La habitación empezará a contar en las métricas operativas del Dashboard.');">
                         <input type="hidden" name="destination" value="workspace">
                         <button type="submit" class="btn btn-outline-primary">Poner en servicio</button>
-                    </form>
-                    <form method="post" action="/rooms/{{ room.id }}/archive"
+                    </form>{% endif %}
+                    {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/archive"
                         onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
                         <input type="hidden" name="destination" value="workspace">
                         <button type="submit" class="btn btn-outline-secondary">Archivar habitación</button>
-                    </form>
+                    </form>{% endif %}
                 </div>
                 {% else %}
-                <form method="post" action="/rooms/{{ room.id }}/archive"
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/rooms/{{ room.id }}/archive"
                     onsubmit="return confirm('La habitación dejará de participar en la operativa habitual y será despublicada. Se conservarán su histórico, fotografías y configuración.');">
                     <input type="hidden" name="destination" value="workspace">
                     <button type="submit" class="btn btn-outline-secondary">Archivar habitación</button>
-                </form>
+                </form>{% endif %}
                 {% endif %}
             </div>
         </div>
@@ -280,7 +280,7 @@
                 <h2 class="h5 mb-1">Publicación</h2>
                 <p class="text-muted mb-0">Gestiona la información comercial y comprueba si la habitación está lista para publicarse.</p>
             </div>
-            <a class="btn btn-outline-primary" href="/rooms/{{ room.id }}/publication">Abrir publicación</a>
+            {% if not request.state.admin_remote|default(false) %}<a class="btn btn-outline-primary" href="/rooms/{{ room.id }}/publication">Abrir publicación</a>{% endif %}
         </div>
     </div>
 
@@ -304,10 +304,10 @@
             {% if master_calendar_views and master_calendar_views[0].url %}
             <div class="d-flex flex-wrap gap-2">
                 {% for view in master_calendar_views %}
-                <button type="button" class="btn btn-outline-primary"
+                {% if not request.state.admin_remote|default(false) %}<button type="button" class="btn btn-outline-primary"
                     data-master-calendar-url="{{ view.url }}">
                     📋 Copiar para {{ view.platform.name }}
-                </button>
+                </button>{% endif %}
                 {% endfor %}
             </div>
             {% elif master_calendar_views %}
@@ -319,12 +319,12 @@
             <p class="text-muted mb-0">No hay plataformas activas compatibles con el calendario maestro.</p>
             {% endif %}
 
-            <form method="post" action="/master-calendars/rooms/{{ room.id }}/regenerate"
+            {% if not request.state.admin_remote|default(false) %}<form method="post" action="/master-calendars/rooms/{{ room.id }}/regenerate"
                 class="text-end mt-3" data-master-calendar-regenerate>
                 <button type="submit" class="btn btn-outline-danger">
                     Revocar y generar nuevas URLs
                 </button>
-            </form>
+            </form>{% endif %}
 
         </div>
 
@@ -438,7 +438,7 @@
             </div>
             {% endif %}
 
-            <form method="post" action="/room-calendars/update/{{ calendar.id }}" class="mt-3"
+            {% if not request.state.admin_remote|default(false) %}<form method="post" action="/room-calendars/update/{{ calendar.id }}" class="mt-3"
                 data-room-calendar-action="save">
 
                 {% if platform.supports_import %}
@@ -461,38 +461,38 @@
                     Guardar configuración
                 </button>
 
-            </form>
+            </form>{% endif %}
 
             <div class="d-flex gap-2 mt-2">
 
                 {% if platform.supports_import %}
-                <form method="post" action="/room-calendars/automatic/{{ calendar.id }}">
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/room-calendars/automatic/{{ calendar.id }}">
                     <button class="btn btn-sm btn-outline-secondary" type="submit">
                         {{ 'Pausar automática' if calendar.automatic_sync_enabled else 'Reactivar automática' }}
                     </button>
-                </form>
+                </form>{% endif %}
                 {% endif %}
 
-                <form method="post" action="/room-calendars/toggle/{{ calendar.id }}">
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/room-calendars/toggle/{{ calendar.id }}">
                     <button class="btn btn-sm btn-outline-secondary" type="submit">
                         {{ 'Desactivar' if calendar.active else 'Reactivar' }}
                     </button>
-                </form>
+                </form>{% endif %}
 
-                <form method="post" action="/room-calendars/delete/{{ calendar.id }}">
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/room-calendars/delete/{{ calendar.id }}">
                     <button class="btn btn-sm btn-outline-danger" type="submit">
                         Eliminar
                     </button>
-                </form>
+                </form>{% endif %}
 
                 {% if calendar.active and room.active and platform.active and platform.supports_import and calendar.import_url %}
-                <form method="post" action="/room-calendars/{{ calendar.id }}/sync"
+                {% if not request.state.admin_remote|default(false) %}<form method="post" action="/room-calendars/{{ calendar.id }}/sync"
                     data-room-calendar-action="sync">
                     <button class="btn btn-sm btn-outline-primary" type="submit"
                         data-room-calendar-action-button>
                         Sincronizar ahora
                     </button>
-                </form>
+                </form>{% endif %}
                 {% endif %}
 
             </div>
@@ -505,7 +505,7 @@
 
             {% elif platform.active and room.active and (platform.supports_import or platform.supports_export) %}
 
-            <form method="post" action="/room-calendars/create" class="mt-3">
+            {% if not request.state.admin_remote|default(false) %}<form method="post" action="/room-calendars/create" class="mt-3">
 
                 <input type="hidden" name="room_id" value="{{ room.id }}">
                 <input type="hidden" name="platform_id" value="{{ platform.id }}">
@@ -523,7 +523,7 @@
                     Configurar
                 </button>
 
-            </form>
+            </form>{% endif %}
 
             {% else %}
 
@@ -558,8 +558,8 @@
 
 {% block scripts %}
 
-<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-functions-1"></script>
-<script src="{{ url_for('static', path='js/master_calendar.js') }}"></script>
-<script src="{{ url_for('static', path='js/room_calendar_actions.js') }}"></script>
+<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-person-reuse-mobile-1"></script>
+{% if not request.state.admin_remote|default(false) %}<script src="{{ url_for('static', path='js/master_calendar.js') }}"></script>{% endif %}
+{% if not request.state.admin_remote|default(false) %}<script src="{{ url_for('static', path='js/room_calendar_actions.js') }}"></script>{% endif %}
 
 {% endblock %}

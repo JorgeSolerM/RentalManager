@@ -7,9 +7,9 @@
 <div class="page-header">
     <div class="page-header-actions">
 
-        <button type="button" class="btn-primary" onclick="openCreatePropertyModal()">
+        {% if not request.state.admin_remote|default(false) %}<button type="button" class="btn-primary" onclick="openCreatePropertyModal()">
             + Nueva propiedad
-        </button>
+        </button>{% endif %}
 
     </div>
 
@@ -72,13 +72,13 @@
             </td>
 
             <td>
-                <a class="btn-secondary text-decoration-none" href="/properties/{{ item.property.id }}/photos" title="Gestionar fotografías">🖼️</a>
-                <a class="btn-secondary text-decoration-none" href="/properties/{{ item.property.id }}/publication" title="Configurar publicación">Publicación</a>
+                {% if not request.state.admin_remote|default(false) %}<a class="btn-secondary text-decoration-none" href="/properties/{{ item.property.id }}/photos" title="Gestionar fotografías">🖼️</a>{% endif %}
+                {% if not request.state.admin_remote|default(false) %}<a class="btn-secondary text-decoration-none" href="/properties/{{ item.property.id }}/publication" title="Configurar publicación">Publicación</a>{% endif %}
 
-                <button type="button" class="btn-secondary" onclick="editProperty({{ item.property.id }})"
+                {% if not request.state.admin_remote|default(false) %}<button type="button" class="btn-secondary" onclick="editProperty({{ item.property.id }})"
                     title="Editar propiedad">
                     ✏️
-                </button>
+                </button>{% endif %}
 
             </td>
 
@@ -102,12 +102,12 @@ message="No hay propiedades registradas."
 
 {% endif %}
 
-{% include "components/property_modal.html" %}
+{% if not request.state.admin_remote|default(false) %}{% include "components/property_modal.html" %}{% endif %}
 
 {% endblock %}
 
 {% block scripts %}
 
-<script src="{{ url_for('static', path='js/properties.js') }}?v=e7a9c1d3f428"></script>
+{% if not request.state.admin_remote|default(false) %}<script src="{{ url_for('static', path='js/properties.js') }}?v=e7a9c1d3f428"></script>{% endif %}
 
 {% endblock %}

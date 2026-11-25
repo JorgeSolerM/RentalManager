@@ -6,32 +6,35 @@
 {% block main_class %}gantt-main{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', path='css/gantt.css') }}?v=person-links-1">
-<section class="gantt-page" aria-label="Reservas por habitación">
+<link rel="stylesheet" href="{{ url_for('static', path='css/gantt.css') }}?v=person-links-mobile-1">
+<section class="gantt-page" aria-label="Reservas por habitaciÃ³n">
  <div class="gantt-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-  <p class="text-muted mb-0">Reservas por habitación.</p>
+  <p class="text-muted mb-0">Reservas por habitaciÃ³n.</p>
   <div class="gantt-controls d-flex flex-wrap align-items-end gap-2" aria-label="Controles del calendario">
-   <button type="button" class="btn btn-outline-secondary" id="ganttPrevious" aria-label="Periodo anterior">‹</button>
+   <button type="button" class="btn btn-outline-secondary" id="ganttPrevious" aria-label="Periodo anterior">â€¹</button>
    <button type="button" class="btn btn-outline-primary" id="ganttToday">Hoy</button>
-   <button type="button" class="btn btn-outline-secondary" id="ganttNext" aria-label="Periodo siguiente">›</button>
+   <button type="button" class="btn btn-outline-secondary" id="ganttNext" aria-label="Periodo siguiente">â€º</button>
    <div class="btn-group gantt-view-selector" role="group" aria-label="Escala temporal">
     {% for months in (4, 8, 12) %}
     <button type="button" class="btn btn-outline-secondary gantt-view-button{% if view_months == months %} active{% endif %}" data-months="{{ months }}" aria-pressed="{{ 'true' if view_months == months else 'false' }}">{{ months }}M</button>
     {% endfor %}
    </div>
-   <label class="form-label mb-0"><span class="small">Propiedad</span><select class="form-select" id="ganttPropertyFilter"><option value="">Todas</option>{% for property in gantt_data.properties %}<option value="{{ property.id }}"{% if selected_property_id == property.id %} selected{% endif %}>{{ property.name }}</option>{% endfor %}</select></label>
-   <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ganttInactive" {% if include_inactive %}checked{% endif %}><label class="form-check-label" for="ganttInactive">Archivadas</label></div>
+   <label class="gantt-zoom-label">Zoom <select id="ganttZoom" class="form-select" aria-label="Zoom visual"><option value="1">Normal</option><option value="2">2Ã—</option><option value="4">4Ã—</option></select></label>
+   <button type="button" class="btn btn-outline-secondary" id="ganttFiltersToggle" aria-expanded="false" aria-controls="ganttFilters">Filtros</button>
+   <button type="button" class="btn btn-outline-secondary" id="ganttExpand" aria-pressed="false">â›¶ Ampliar</button>
+   <div id="ganttFilters" class="gantt-filter-panel">   <label class="form-label mb-0"><span class="small">Propiedad</span><select class="form-select" id="ganttPropertyFilter"><option value="">Todas</option>{% for property in gantt_data.properties %}<option value="{{ property.id }}"{% if selected_property_id == property.id %} selected{% endif %}>{{ property.name }}</option>{% endfor %}</select></label>
+   <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="ganttInactive" {% if include_inactive %}checked{% endif %}><label class="form-check-label" for="ganttInactive">Archivadas</label></div></div>
   </div>
  </div>
  <div id="ganttStatus" class="visually-hidden" role="status" aria-live="polite"></div>
  <div id="ganttRoot" class="gantt-root" data-view-months="{{ view_months }}" aria-label="Gantt de reservas"></div>
- <noscript><div class="alert alert-warning mt-3">El calendario necesita JavaScript para dibujar la línea temporal.</div></noscript>
+ <noscript><div class="alert alert-warning mt-3">El calendario necesita JavaScript para dibujar la lÃ­nea temporal.</div></noscript>
 </section>
 {% include "components/booking_modal.html" %}
 <script id="ganttInitialData" type="application/json">{{ gantt_data | tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-functions-1"></script>
-<script src="{{ url_for('static', path='js/gantt.js') }}?v=person-links-1"></script>
+<script src="{{ url_for('static', path='js/bookings.js') }}?v=booking-person-reuse-mobile-1"></script>
+<script src="{{ url_for('static', path='js/gantt.js') }}?v=person-links-mobile-1"></script>
 {% endblock %}
