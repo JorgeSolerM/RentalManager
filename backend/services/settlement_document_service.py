@@ -104,11 +104,13 @@ class SettlementDocumentService:
             payouts = balance['effective']
             payout_rows = [dict(id=p.id, date=str(p.effective_date), amount=str(p.amount),
                                 account_suffix=(p.account_snapshot.get('iban') or '')[-4:]) for p in payouts]
+            from backend.services.owner_loss_compensation_state import document_compensations
+            compensation_rows = document_compensations(db,item)
             paid = balance['paid']
             payload = dict(id=item.id, owner_id=item.owner_id, identity=header, legacy_identity=legacy,
                            start=str(item.period_start), end=str(item.period_end), closed_at=str(item.closed_at),
                            rows=rows, totals=item.snapshot['totals'], payouts=payout_rows, paid=str(paid),
-                           recoveries=recovery_details, incidents=balance['incidents'], pending_recovery=str(balance['pending_recovery']), deficit=str(balance['deficit']), pending=str(balance['remaining']), gross_paid=str(balance['gross_paid']), returned=str(balance['returned']),
+                           recoveries=recovery_details, incidents=balance['incidents'], pending_recovery=str(balance['pending_recovery']), deficit=str(balance['deficit']), pending=str(balance['remaining']), compensated=str(balance['compensated']), compensations=compensation_rows, gross_paid=str(balance['gross_paid']), returned=str(balance['returned']),
                            returns=[dict(id=r.id, payout_id=r.payout_id, date=str(r.effective_date), amount=str(r.amount), account_suffix=r.receiving_account_suffix) for r in balance['returns']])
             digest = sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
             from backend.services.settlement_pdf import render_settlement_pdf, RENDERER_VERSION

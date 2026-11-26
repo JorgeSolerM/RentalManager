@@ -14,13 +14,16 @@ def test_additive_migration_and_immutable_history(tmp_path,monkeypatch):
     assert m.down_revision=='39a0b257cd12' and m.depends_on is None
     metadata=MetaData()
     for table in Base.metadata.sorted_tables:
-        if table.name!='owner_transfer_regularizations':table.to_metadata(metadata)
+        if table.name!='owner_transfer_regularizations' and not table.name.startswith('owner_loss_compensation_'):table.to_metadata(metadata)
     engine=create_engine('sqlite:///'+(tmp_path/'migration.db').as_posix());metadata.create_all(engine)
     with engine.begin() as c:
         for action in ('update','delete'):c.execute(text(f"CREATE TRIGGER owner_payouts_immutable_{action} BEFORE {action.upper()} ON owner_payouts BEGIN SELECT RAISE(ABORT,'immutable'); END"))
         original=c.execute(text("select name,sql from sqlite_master where type='trigger'")).fetchall()
         with Operations.context(MigrationContext.configure(c)):m.upgrade();m.downgrade();m.upgrade()
         for name,sql in original:assert c.execute(text('select sql from sqlite_master where name=:n'),dict(n=name)).scalar()==sql
+    # The historical migration is tested above; current services also read the
+    # newer compensation projection. Supply its empty tables for this fixture.
+    Base.metadata.create_all(engine)
     with Session(engine) as db:
         data=sample.__wrapped__(db,monkeypatch);s,p,a=paid.__wrapped__(db,data);i=register(db,s,p);row=recognize(db,i,amount='100')
         for sql in ['UPDATE owner_transfer_regularizations SET amount=1','DELETE FROM owner_transfer_regularizations']:

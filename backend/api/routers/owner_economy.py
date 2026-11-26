@@ -631,3 +631,39 @@ async def regularization_action(request:Request,incident_id:int,action:str,db=De
         return RedirectResponse(f'/transfer-incidents/{incident_id}/regularizations',303)
     except LookupError as exc:db.rollback();raise HTTPException(404,str(exc)) from None
     except ValueError as exc:db.rollback();return regularization_page(request,db,incident_id,values=v,error=str(exc),status=409)
+
+
+def compensation_page(request, db, incident_id, *, values=None, review=None, error=None, status=200):
+    from backend.services.owner_loss_compensation_service import OwnerLossCompensationService
+    try:view=OwnerLossCompensationService().form(db,incident_id)
+    except LookupError as exc:raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:raise HTTPException(409,str(exc)) from None
+    return templates.TemplateResponse(request=request,name='pages/loss_compensation.html',context=dict(view=view,values=values or {},review=review,error=error,request_key=str(uuid4())),status_code=status,headers={'Cache-Control':'private, no-store'})
+
+@router.get('/transfer-incidents/{incident_id}/compensations')
+def compensation_history(request:Request,incident_id:int,db=Depends(get_db)):
+    return compensation_page(request,db,incident_id)
+
+@router.get('/settlements/{settlement_id}/compensations')
+def settlement_compensation_history(request:Request,settlement_id:int,db=Depends(get_db)):
+    from backend.services.owner_loss_compensation_state import compensation_state
+    from backend.models.owner_transfer_regularization import OwnerTransferRegularizationOperation
+    s=db.get(OwnerSettlement,settlement_id)
+    if s is None:raise HTTPException(404)
+    state=compensation_state(db,s.owner_id,s.id)
+    ids=set(db.scalars(select(OwnerTransferRegularizationOperation.incident_id).where(OwnerTransferRegularizationOperation.responsible_owner_id==s.owner_id)))
+    return templates.TemplateResponse(request=request,name='pages/loss_compensation.html',context=dict(view=None,settlement=s,state=state,incident_ids=sorted(ids)),headers={'Cache-Control':'private, no-store'})
+
+@router.post('/transfer-incidents/{incident_id}/compensations/{action}')
+async def compensation_action(request:Request,incident_id:int,action:str,db=Depends(get_db)):
+    from backend.services.owner_loss_compensation_service import OwnerLossCompensationService
+    f=await request.form();v={k:str(f.get(k,'')) for k in ('mode','amount','reason','evidence','loss_id','agreement_reference','authorization_id','settlement_id')}
+    v['settlement_ids']=f.getlist('settlement_ids');v['authorized']=f.get('authorized')=='yes'
+    service=OwnerLossCompensationService()
+    try:
+        if action=='preview':return compensation_page(request,db,incident_id,values=v,review=service.preview(db,incident_id,**v))
+        if action!='confirm':raise ValueError('Acción no válida.')
+        service.confirm(db,incident_id,**v,request_key=str(f.get('request_key','')),expected=str(f.get('expected','')),confirmed=f.get('confirmed')=='yes',operator_id=getattr(request.state,'operator_id',None))
+        return RedirectResponse(f'/transfer-incidents/{incident_id}/compensations',303)
+    except LookupError as exc:db.rollback();raise HTTPException(404,str(exc)) from None
+    except ValueError as exc:db.rollback();return compensation_page(request,db,incident_id,values=v,error=str(exc),status=409)

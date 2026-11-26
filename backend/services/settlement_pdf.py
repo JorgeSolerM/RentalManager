@@ -150,6 +150,8 @@ def render_settlement_pdf(payload, generated):
     paid=Decimal(payload['paid'])
     if Decimal(payload.get('returned','0')):
         summary_rows += [('Pagos vigentes',Decimal(payload['gross_paid'])),('Devoluciones recibidas',Decimal(payload['returned']))]
+    compensated=Decimal(payload.get('compensated','0'))
+    if compensated:summary_rows.append(('Compensado mediante acuerdo',compensated))
     if paid:
         summary_rows += [('A transferir al cierre',Decimal(t['payout_due'])),('Pagado neto al propietario',paid),('PENDIENTE',Decimal(payload['pending']))]
     else:
@@ -176,6 +178,9 @@ def render_settlement_pdf(payload, generated):
     if payload.get('recoveries'):
         section('RECUPERACIONES EFECTIVAMENTE RECIBIDAS')
         table(['Fecha','Recuperación','Fondos restituidos al propietario'],[[human_date(r['date']),str(r['id']),euros(r['amount'])] for r in payload['recoveries']],[35,45,100])
+    if payload.get('compensations'):
+        section('COMPENSACIONES DOCUMENTADAS / SIN MOVIMIENTO BANCARIO')
+        table(['Acuerdo / pérdida','Liquidación','Importe'],[[r['agreement']+' / #'+str(r['loss_id']),str(r['settlement_id'])+(' (informativo, ya aplicado)' if r['informative'] else ''),euros(r['amount'])] for r in payload['compensations']],[90,55,35])
     def footer(canvas,doc):
         canvas.saveState(); canvas.setFont('Helvetica',7.5); canvas.setFillColor(colors.HexColor('#69726b'))
         canvas.drawString(15*mm,9*mm,f"Liquidación #{payload['id']} · Documento privado · No es factura")

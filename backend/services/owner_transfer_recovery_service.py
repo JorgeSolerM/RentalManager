@@ -69,6 +69,11 @@ class OwnerTransferRecoveryService:
             else:
                 e=incident_effects(db,int(owner),0);b=dict(owner_funds=ZERO,cash_used=e['extra']-e['restored'],available=ZERO,payout_blockers=e['blockers'])
             blocks=[x for x in b['payout_blockers'] if not attributing or not x.startswith(f'Recuperación #{attributing}:')]
+            # Forecast the hold caused by this receipt, before the recovery exists.
+            from backend.models.owner_loss_compensation import OwnerLossCompensationAuthorization as LossAuthorization, OwnerLossCompensationApplication as LossApplication
+            affected_agreements=list(db.scalars(select(LossAuthorization.id).join(LossApplication,LossApplication.authorization_id==LossAuthorization.id).where(LossAuthorization.incident_id==view['incident'].id,LossAuthorization.owner_id==int(owner))))
+            if affected_agreements:
+                blocks.append('Regularización posterior pendiente: recuperación de una pérdida ya compensada (subfase 4.4).')
             net=b['owner_funds']-b['cash_used']+Decimal(value)
             effects[owner]=dict(restored=value,available_before=str(b['available']),available_after=str(ZERO if blocks else max(ZERO,net)),deficit_after=str(max(ZERO,-net)),blockers=blocks)
         b=view['balance'];credited=amount if view['incident'].receipt_accredited and not attributing else ZERO

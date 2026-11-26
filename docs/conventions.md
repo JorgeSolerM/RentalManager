@@ -16,6 +16,9 @@ Siempre que exista una forma más sencilla de entender el código, se elegirá e
 
 La claridad tiene prioridad sobre la complejidad.
 
+Los criterios permanentes de reutilización, proporcionalidad y medición de cambios
+se mantienen en [Coding Standards](coding_standards.md#desarrollo), sin duplicarlos aquí.
+
 ---
 
 # Filosofía de desarrollo

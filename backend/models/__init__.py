@@ -92,3 +92,5 @@ from backend.models.owner_transfer_incident import OwnerTransferIncident, OwnerT
 from backend.models.owner_transfer_recovery import OwnerTransferRecovery, OwnerRecoveryAttribution, OwnerRecoveryReturnLink, OwnerBankCreditIdentity, OwnerPayoutReview
 
 from backend.models.owner_transfer_regularization import OwnerTransferRegularizationOperation
+
+from backend.models.owner_loss_compensation import OwnerLossCompensationAuthorization, OwnerLossCompensationApplication

@@ -45,8 +45,14 @@ class OwnerPayoutBalanceService:
         owner_paid=sum((p.amount-returned_by_root.get(roots[p.id],ZERO) for p in effective),ZERO)
         cash_used=owner_paid+effects['extra']-effects['restored']
         deficit=max(ZERO,cash_used-funds)
+        compensation=effects['compensation']
+        compensated=compensation['compensated']
+        remaining=due-paid-compensated
+        if remaining<ZERO:raise ValueError('Pagos y compensaciones superan la obligación; requiere revisión.')
         status=('Saldo a favor del gestor' if Decimal(settlement.snapshot['totals']['carry_forward'])<0 else 'Sin transferencia del gestor' if due==0 else 'Pagada' if paid==due else 'Parcialmente pagada' if paid>0 else 'Pendiente de pago')
-        return dict(recognized_losses=effects['losses'],recovered_funds=effects['restored'],bank_outflow=net_cash,extra_outflows=effects['extra'],cash_used=cash_used,deficit=deficit,pending_recovery=effects['pending'],incidents=effects['rows'],incident_state=effects['fingerprint_state'],payout_blockers=effects['blockers'],gross_paid=gross,returned=returned,returns=[row for row in returns if row.transfer_root_id in {roots[p.id] for p in current}],all_returns=returns,roots=roots,active_by_root=active_by_root,returned_by_root=returned_by_root,payouts=current,effective=[p for p in effective if p.settlement_id==settlement.id],all_payouts=payouts,operations=operations,states=states,paid=paid,due=due,remaining=due-paid,owner_funds=funds,owner_paid=owner_paid,available=ZERO if effects['blockers'] else max(ZERO,funds-cash_used),status=status,closed=closed)
+        if compensated:
+            status='Compensado' if remaining==0 and paid==0 else 'Pagado y compensado' if remaining==0 else 'Parcialmente pagado/compensado'
+        return dict(compensated=compensated,compensations=compensation['applications'],recognized_losses=effects['losses'],recovered_funds=effects['restored'],bank_outflow=net_cash,extra_outflows=effects['extra'],cash_used=cash_used,deficit=deficit,pending_recovery=effects['pending'],incidents=effects['rows'],incident_state=effects['fingerprint_state'],payout_blockers=effects['blockers'],gross_paid=gross,returned=returned,returns=[row for row in returns if row.transfer_root_id in {roots[p.id] for p in current}],all_returns=returns,roots=roots,active_by_root=active_by_root,returned_by_root=returned_by_root,payouts=current,effective=[p for p in effective if p.settlement_id==settlement.id],all_payouts=payouts,operations=operations,states=states,paid=paid,due=due,remaining=remaining,owner_funds=funds,owner_paid=owner_paid,available=ZERO if effects['blockers'] else max(ZERO,funds-cash_used),status=status,closed=closed)
 
     def pending_returns(self,db,owner_id):
         lines=list(db.scalars(select(OwnerSettlementLine).where(OwnerSettlementLine.owner_id==owner_id)))

@@ -1,5 +1,29 @@
 # Roadmap de RentalManager
 
+## Prioridad vigente — 26/11/2026
+
+Referencia: `59e59ceb5f423d560d1ce90b55d86e2ab1966674`. Acceso remoto de consulta
+y adaptación móvil cerrados. Subfase económica 4.3 desplegada y verificada el
+26/11/2026 mediante la revisión económica `5bc2d479ef34`.
+
+Orden aprobado:
+
+1. 4.3 completada: autorización y aplicación diferenciadas de compensaciones.
+2. Completar 4.4: regularización posterior, cuando se autorice su inicio.
+3. Auditoría integral de arquitectura, optimización y deuda técnica (planificada,
+   no iniciada): duplicidades, código muerto, complejidad, arquitectura,
+   dependencias, consultas SQL, plantillas, CSS, JavaScript, rendimiento, pruebas
+   y crecimiento histórico. Identificar funcionalidades y soluciones
+   sobredimensionadas respecto a las necesidades reales del proyecto.
+4. Refactorización y optimización según los hallazgos priorizados de la auditoría,
+   con comprobación de comportamiento y seguridad.
+5. Validación funcional integral manual del bloque económico y del conjunto.
+
+No adelantar la validación manual integral. 4.2 (comisiones bancarias) está
+descartada; 4.4 aún no se inicia. VERI*FACTU y la revisión fiscal `a01729dbe348`
+siguen fuera de alcance. Los apartados históricos siguientes no alteran este orden.
+
+
 ## Estado operativo — 19/11/2026
 
 El detalle histórico se conserva debajo. Para despliegues, distinguir código
@@ -241,7 +265,7 @@ Cada funcionalidad utilizará uno de los siguientes estados:
 
 ---
 
-# Prioridad actual
+# Prioridad histórica del núcleo (sustituida por el orden vigente)
 
 La prioridad inmediata del proyecto será completar el núcleo funcional antes de desarrollar módulos avanzados.
 

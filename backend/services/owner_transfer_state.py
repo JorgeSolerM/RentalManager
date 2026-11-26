@@ -45,9 +45,12 @@ def incident_effects(db, owner_id, settlement_id):
         if incident.settlement_id==settlement_id:
             if incident.source_kind=='payout' and not incident.receipt_accredited:loss+=incident.affected_amount
             rows.append(dict(id=incident.id,kind=incident.kind,source_kind=incident.source_kind,amount=str(incident.affected_amount),pending=str(Decimal('0') if incident.receipt_accredited else incident.affected_amount-recovered),recovered=str(recovered),review='Recepción acreditada' if incident.receipt_accredited else 'Requiere identificación' if incident.kind=='unknown_recipient' else 'Incidencia confirmada',funding='Atribuido' if allocations else 'Pendiente de atribución',allocations=allocations))
+    from backend.services.owner_loss_compensation_state import compensation_state
+    compensation=compensation_state(db,owner_id,settlement_id)
+    blockers.extend(compensation['blockers'])
     raw=lambda x:{c.name:getattr(x,c.name) for c in x.__table__.columns}
-    return dict(losses=losses,loss=loss,credited_loss=credited_loss,restored=restored,extra=extra,pending=pending,blockers=blockers,rows=rows,
-        fingerprint_state=[*[raw(x) for x in incidents],*[raw(x) for x in outflows.values()],*[raw(x) for x in operations],*[raw(x) for x in recovery_rows],*[raw(x) for x in recovery_audit],*[raw(x) for x in regularizations]])
+    return dict(compensation=compensation,losses=losses,loss=loss,credited_loss=credited_loss,restored=restored,extra=extra,pending=pending,blockers=blockers,rows=rows,
+        fingerprint_state=[*compensation['fingerprint_state'],*[raw(x) for x in incidents],*[raw(x) for x in outflows.values()],*[raw(x) for x in operations],*[raw(x) for x in recovery_rows],*[raw(x) for x in recovery_audit],*[raw(x) for x in regularizations]])
 
 
 def recovery_state(db):

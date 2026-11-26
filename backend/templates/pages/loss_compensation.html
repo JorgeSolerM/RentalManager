@@ -1,0 +1,39 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Compensaciones documentadas{% endblock %}
+{% block content %}
+<h1 class="h3">Compensaciones documentadas</h1>
+<p class="alert alert-info">Una compensación reduce una obligación por acuerdo expreso. No es una transferencia, no recupera dinero y no aumenta los fondos disponibles. Los cierres y documentos anteriores se conservan.</p>
+{% if not view %}
+<p><a href="/settlements/{{ settlement.id }}">← Liquidación #{{ settlement.id }}</a></p>
+{% for id in incident_ids %}<p><a href="/transfer-incidents/{{ id }}/compensations">Incidencia #{{ id }} · Aplicar compensación · Ver acuerdo y pérdida vinculados</a></p>{% else %}<p>No hay pérdidas con responsabilidad atribuida a este propietario.</p>{% endfor %}
+{% for a in state.applications %}<p>Aplicación #{{ a.id }} · {{ a.amount }} € · {{ a.created_at }} UTC · {{ a.reason }}</p>{% else %}<p>Sin compensaciones aplicadas a esta liquidación.</p>{% endfor %}
+{% else %}
+<p><a href="/transfer-incidents/{{ view.incident.id }}">← Incidencia #{{ view.incident.id }}</a> · <a href="/transfer-incidents/{{ view.incident.id }}/regularizations">Ver acuerdo de responsabilidad y pérdida vinculados</a></p>
+{% if error %}<p class="alert alert-danger" role="alert">{{ error }}</p>{% endif %}
+{% if view.loss.later_recovery_pending %}<p class="alert alert-warning">Regularización posterior pendiente. Se conserva el ingreso real y las compensaciones históricas. No se permiten nuevas compensaciones hasta resolver la subfase 4.4.</p>{% endif %}
+{% if review %}<section class="card card-body mb-3"><h2 class="h5">Revisar {{ 'autorización' if review['values'].mode=='authorize' else 'compensación' }}</h2>
+<dl>{% for key,label in [('authorized','Importe autorizado'),('applied','Importe ya aplicado'),('available_authorization','Disponible para compensar'),('remaining_before','Pendiente anterior'),('adjustment','Compensación propuesta'),('remaining_after','Pendiente posterior'),('available_before','Fondos disponibles antes'),('available_after','Fondos disponibles después'),('deficit','Déficit (no cambia)')] %}<dt>{{ label }}</dt><dd>{{ review.impact[key] }} €</dd>{% endfor %}</dl>
+<form method="post" action="/transfer-incidents/{{ view.incident.id }}/compensations/confirm">
+{% for k,v in review['values'].items() if k not in ('authorized','settlement_ids') %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+{% for id in review['values'].get('settlement_ids',[]) %}<input type="hidden" name="settlement_ids" value="{{ id }}">{% endfor %}
+<input type="hidden" name="request_key" value="{{ request_key }}"><input type="hidden" name="expected" value="{{ review.fingerprint }}">
+{% if review['values'].mode=='authorize' %}<label class="d-block"><input type="checkbox" name="authorized" value="yes" required> El acuerdo documentado autoriza expresamente compensar las obligaciones seleccionadas.</label>{% endif %}
+<label class="d-block"><input type="checkbox" name="confirmed" value="yes" required> Confirmo el motivo, la evidencia y el impacto revisado, sin movimiento bancario.</label><button class="btn btn-primary mt-2">Confirmar {{ 'autorización' if review['values'].mode=='authorize' else 'compensación' }}</button></form></section>{% endif %}
+<section class="card card-body mb-3"><h2 class="h5">Crear autorización documentada</h2><form method="post" action="/transfer-incidents/{{ view.incident.id }}/compensations/preview">
+<input type="hidden" name="mode" value="authorize"><label class="d-block">Pérdida con responsabilidad del propietario<select class="form-select" name="loss_id" required><option value="">Seleccionar</option>{% for x in view.loss.responsibilities if x.responsible=='owner' %}<option value="{{ x.loss_id }}">Pérdida #{{ x.loss_id }} · Propietario #{{ x.owner_id }} · {{ x.amount }} € · {{ x.agreement }}</option>{% endfor %}</select></label>
+<label class="d-block">Referencia única del acuerdo completo<input class="form-control" name="agreement_reference" maxlength="160" required></label>
+<p class="small">Un acuerdo global no se puede registrar varias veces. En esta subfase cada acuerdo corresponde a una pérdida y un propietario.</p>
+<fieldset><legend class="h6">Liquidaciones expresamente comprendidas en el acuerdo</legend>{% for s in view.settlements %}<label class="d-block"><input type="checkbox" name="settlement_ids" value="{{ s.id }}"> Liquidación #{{ s.id }} · Propietario #{{ s.owner_id }} · {{ s.period_start }} / {{ s.period_end }}</label>{% endfor %}</fieldset>
+<label class="d-block">Importe autorizado €<input class="form-control" name="amount" type="number" min="0.01" step="0.01" required></label>
+{% for key,label in [('reason','Motivo'),('evidence','Evidencia documental de la autorización para compensar')] %}<label class="d-block">{{ label }}<textarea class="form-control" name="{{ key }}" maxlength="2000" required></textarea></label>{% endfor %}
+<label class="d-block"><input type="checkbox" name="authorized" value="yes" required> El acuerdo autoriza expresamente esta compensación.</label><button class="btn btn-outline-primary mt-2">Revisar autorización</button></form></section>
+<h2 class="h5">Consultar autorizaciones y compensaciones</h2>
+{% for a in view.authorizations %}<article class="card card-body mb-3"><h3 class="h6">Acuerdo #{{ a.id }} · <span class="text-break">{{ a.agreement_reference }}</span></h3>
+<p>Pérdida #{{ a.loss_id }} · Propietario #{{ a.owner_id }} · Autorizado {{ a.amount }} € · Aplicado {{ view.used[a.id] }} € · Disponible {{ a.amount-view.used[a.id] }} €</p><p class="text-break">{{ a.reason }} · {{ a.evidence }} · {{ a.created_at }} UTC · Operador: {{ a.operator_id or 'No disponible' }}</p>
+<form method="post" action="/transfer-incidents/{{ view.incident.id }}/compensations/preview"><input type="hidden" name="mode" value="apply"><input type="hidden" name="authorization_id" value="{{ a.id }}">
+<label class="d-block">Liquidación<select class="form-select" name="settlement_id" required>{% for id in a.settlement_ids %}<option value="{{ id }}">Liquidación #{{ id }}</option>{% endfor %}</select></label>
+<label class="d-block">Compensación propuesta €<input class="form-control" name="amount" type="number" min="0.01" step="0.01" required></label>
+{% for key,label in [('reason','Motivo de aplicación'),('evidence','Evidencia / apartado del acuerdo')] %}<label class="d-block">{{ label }}<input class="form-control" name="{{ key }}" maxlength="2000" required></label>{% endfor %}
+<button class="btn btn-outline-primary mt-2">Aplicar compensación: revisar</button></form>
+{% for x in view.applications if x.authorization_id==a.id %}<p class="mt-2 text-break">Aplicación #{{ x.id }} · <a href="/settlements/{{ x.settlement_id }}">Liquidación #{{ x.settlement_id }}</a> · {{ x.amount }} € · {{ x.created_at }} UTC · {{ x.reason }} · {{ x.evidence }} · Operador: {{ x.operator_id or 'No disponible' }}</p>{% endfor %}</article>{% else %}<p>No hay autorizaciones registradas.</p>{% endfor %}
+{% endif %}{% endblock %}

@@ -1,10 +1,10 @@
 # RentalManager - Coding Standards
 
-**Versión:** 1.0
+**Versión:** 1.1
 
 **Estado:** Activo
 
-**Última revisión:** 2026-08-04
+**Última revisión:** 2026-11-26
 
 ---
 
@@ -34,21 +34,15 @@ Nunca se debe invertir esta dependencia.
 
 # Archivos
 
-Siempre que sea posible se trabajará sustituyendo archivos completos.
-
-Esta metodología evita desincronizaciones entre versiones.
+Aplicar cambios acotados y revisables, conservando el trabajo pendiente ajeno.
+La entrega de un archivo completo no justifica sobrescribir cambios posteriores.
 
 ---
 
 # Componentes
 
-Todo componente reutilizable tendrá:
-
-- HTML
-- CSS
-- JavaScript
-
-independientes.
+Separar HTML, CSS y JavaScript cuando cada parte sea necesaria. Reutilizar los
+componentes compartidos; no crear archivos vacíos ni capas solo por uniformidad.
 
 ---
 
@@ -60,7 +54,8 @@ theme.css
 
 para variables globales.
 
-Cada componente dispondrá de su propio CSS.
+Reutilizar los estilos compartidos. Crear CSS propio solo cuando el componente
+lo necesite; no duplicar reglas para cumplir una separación artificial.
 
 ---
 
@@ -102,21 +97,32 @@ Se evitarán abreviaturas innecesarias.
 
 # Commits
 
-Cada sprint terminado debe finalizar con:
-
-git add .
-git commit
-git push
-
-No se dejarán cambios importantes sin proteger mediante Git.
+Preparar commits por funcionalidad, revisando el índice y excluyendo cambios
+ajenos, datos y secretos. Commit, push y despliegue requieren autorización de la
+tarea; un candidato aislado no autoriza su publicación. No usar `git add .`
+cuando existan desarrollos pendientes.
 
 ---
 
 # Desarrollo
 
-Antes de añadir complejidad se buscará siempre la solución más sencilla.
+Principios permanentes aplicables a todos los desarrollos:
 
-La reutilización tendrá prioridad sobre la duplicación.
+- Buscar primero funciones, servicios y componentes existentes y reutilizarlos.
+- No duplicar lógica de negocio; mantener una fuente de cálculo y validación.
+- Priorizar soluciones sencillas, legibles, mantenibles y proporcionadas a la
+  necesidad real. Evitar abstracciones, capas y funcionalidades sobredimensionadas.
+- Eliminar código obsoleto solo cuando sea seguro y su ausencia esté comprobada.
+- No introducir dependencias sin justificar necesidad, alternativas y coste.
+- Evitar crecimiento injustificado de archivos o módulos; justificar cualquier
+  incremento relevante de complejidad y los nuevos componentes.
+- Informar por separado de líneas añadidas, eliminadas y saldo neto de código
+  productivo (incluidas migraciones), pruebas y documentación. Indicar referencia,
+  alcance y trabajo previo recuperado; no contabilizar artefactos o datos generados.
+- No reducir líneas artificialmente a costa de legibilidad, seguridad o cobertura.
+
+La revisión de reutilización dentro de una subfase no sustituye ni adelanta la
+auditoría integral prevista en el [roadmap](roadmap.md).
 
 ---
 
@@ -125,3 +131,5 @@ La reutilización tendrá prioridad sobre la duplicación.
 2026-08-04
 
 Creación del documento.
+
+2026-11-26: principios permanentes de proporcionalidad, reutilización y medición; publicación y cambios acotados.

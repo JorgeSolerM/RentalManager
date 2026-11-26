@@ -78,7 +78,7 @@ class OwnerPayoutCorrectionService:
         before=snapshot(p);after=dict(before,amount=str(new),state='void' if values['kind']=='void' else 'replacement')
         if values['kind']=='replace':after.update(effective_date=values['effective_date'],reference=redact(values['reference']))
         paid=limits['paid']+new;available=max(money('0'),limits['owner_funds']-limits['cash_used']-new)
-        impact=dict(paid_before=str(b['paid']),paid_after=str(paid),remaining_before=str(b['remaining']),remaining_after=str(b['due']-paid),available_before=str(b['available']),available_after=str(available),amount_before=str(p.amount),amount_after=str(new))
+        impact=dict(paid_before=str(b['paid']),paid_after=str(paid),remaining_before=str(b['remaining']),remaining_after=str(b['due']-paid-b['compensated']),available_before=str(b['available']),available_after=str(available),amount_before=str(p.amount),amount_after=str(new))
         state=dict(incidents=b['incident_state'],returns=[raw(r) for r in b['all_returns']],payouts=[raw(p) for p in b['all_payouts']],operations=[raw(o) for o in b['operations']],closed=[raw(s) for s in b['closed']],values=values,payout_id=payout_id,settlement_id=settlement_id)
         return dict(**view,values=values,before=before,after=after,impact=impact,fingerprint=fingerprint(state))
 
